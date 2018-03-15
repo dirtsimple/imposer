@@ -1,0 +1,31 @@
+{
+    "name": "dirtsimple/imposer",
+    "type": "library",
+    "license": "MIT",
+    "description": "Modular Configuration Management for Wordpress",
+    "homepage": "https://github.com/dirtsimple/imposer/",
+    "authors": [
+        {
+            "name": "PJ Eby",
+            "homepage": "https://github.com/pjeby"
+        }
+    ],
+    "keywords": [
+        "bedrock",
+        "wordpress",
+        "composer",
+        "literate-devops",
+        "configuration-management",
+        "wp"
+    ],
+    "support": {
+        "issues": "https://github.com/dirtsimple/imposer/issues"
+    },
+    "require": {
+        "php": ">=5.6",
+        "wp-cli/eval-command": "^1.0.6|dev-master"
+    },
+    "bin": [
+        "bin/imposer"
+    ]
+}
