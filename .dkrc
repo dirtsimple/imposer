@@ -13,3 +13,14 @@ dk use: shell-console     # make the "console" command enter a subshell
 dk use: composer          # utilities for accessing composer-based dev tools
 
 # Define overrides, new commands, functions, etc. here:
+
+dk.bootstrap() {
+    for REPLY in mdsh jqmd loco; do require $REPLY github bashup/$REPLY master; done
+    require realpaths github bashup/realpaths master realpaths
+}
+
+dk.build() {
+    dk test && mdsh --out bin/imposer --compile imposer.md && chmod +x bin/imposer
+}
+
+cram.files() { ls imposer.md; }
