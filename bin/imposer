@@ -427,15 +427,11 @@ imposed_states=
 require() {
     get_imposer_dirs
     while (($#)); do
-        [[ $imposed_states == *"<$1>"* ]] || {
-            imposed_states+="<$1>"
-            load-state "$1"
-        }
+        [[ $imposed_states == *"<$1>"* ]] || { imposed_states+="<$1>"; __find_and_load "$1"; }
         shift
     done
 }
-
-__find_state() {
+__find_and_load() {
     realpath.basename "$1"; local base=$REPLY
     local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
     for REPLY in ${imposer_dirs[@]+_"${imposer_dirs[@]}"}; do
@@ -445,7 +441,6 @@ __find_state() {
     done
     loco_error "Could not find state $1 in ${imposer_dirs[*]}"
 }
-
 __load_state() {
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string

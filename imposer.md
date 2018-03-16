@@ -202,10 +202,7 @@ imposed_states=
 require() {
     get_imposer_dirs
     while (($#)); do
-        [[ $imposed_states == *"<$1>"* ]] || {
-            imposed_states+="<$1>"
-            load-state "$1"
-        }
+        [[ $imposed_states == *"<$1>"* ]] || { imposed_states+="<$1>"; __find_and_load "$1"; }
         shift
     done
 }
@@ -214,7 +211,7 @@ require() {
 States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
 
 ```shell
-__find_state() {
+__find_and_load() {
     realpath.basename "$1"; local base=$REPLY
     local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
     for REPLY in ${imposer_dirs[@]+_"${imposer_dirs[@]}"}; do
@@ -254,6 +251,7 @@ imposer.require() {
 ```
 
 ````sh
+# Running `imposer require` calls `wp eval-file` with the accumulated JSON and PHP:
     $ imposer require
     --- JSON: ---
     {"options":{}}
@@ -261,5 +259,6 @@ imposer.require() {
     <?php
     # imposer runtime goes here
     
-    $ imposer require  # no-op, since filters are reset
+# Running require resets the filters, so doing it again is a no-op:
+    $ imposer require
 ````
