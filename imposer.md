@@ -15,10 +15,10 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 
 In addition to source code, this file also contains cram-based unit tests:
 
-~~~shell
+````sh
 # Load functions and turn off error exit
     $ source <(jqmd -E "$TESTDIR/$TESTFILE"); set +e
-~~~
+````
 
 ## Core Configuration
 
@@ -39,7 +39,7 @@ loco_user_config() { run-markdown "$1"; }
 loco_loadproject() { cd "$LOCO_ROOT"; }
 ```
 
-~~~shell
+````sh
 # Make . our project root
     $ echo '{}' >wp-cli.yml
 
@@ -51,7 +51,7 @@ loco_loadproject() { cd "$LOCO_ROOT"; }
 
 # Project directory should be current directory
     $ [[ "$LOCO_ROOT" == "$PWD" ]] || echo fail
-~~~
+````
 
 ### State Directories
 
@@ -87,12 +87,16 @@ get_imposer_dirs() {
 } 2>/dev/null
 ```
 
-~~~shell
+````sh
 # Mock wp and composer
     $ wp() {
     >     case "$*" in
     >         "plugin path") echo "plugins";;
     >         "package path") echo "packages";;
+    >         "eval-file - "*)
+    >             echo "--- JSON: ---"; printf '%s\n' "${@:3}"
+    >             echo "--- PHP: ---"; cat
+    >             ;;
     >         *) echo "unexpected wp $*" >&2; exit 64 ;;
     >     esac
     > }
@@ -103,7 +107,7 @@ get_imposer_dirs() {
     >         *) echo "unexpected composer $*" >&2; exit 64 ;;
     >     esac
     > }
-~~~
+````
 
 #### `path` and `default-path`
 
@@ -118,7 +122,7 @@ imposer.path() {
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 ```
 
-~~~shell
+````sh
 # Default order is imposer, wp plugins, composer local, wp packages, composer global:
     $ mkdir imposer plugins packages vendor COMPOSER_GLOBAL_VENDOR
     $ (REPLY="$(imposer path)"; echo "${REPLY//"$PWD"/.}")
@@ -156,7 +160,7 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 # Reset for other tests
     $ unset IMPOSER_PATH
     $ imposer_dirs=()
-~~~
+````
 
 ## State Handling
 
@@ -183,6 +187,12 @@ foreach ($options as $opt => $new) {
 }
 ```
 
+````sh
+# For testing purposes, save the PHP runtime code, and then replace it with a placeholder:
+    $ printf -v PHP_RUNTIME '%s\n' "${mdsh_raw_php[@]}"
+    $ mdsh_raw_php=($'# imposer runtime goes here\n')
+````
+
 ### Imposing Named States
 
 States are imposed by sourcing the compiled form of their `.state.md` file, at most once.  States can require other states by calling `require` with one or more state names.
@@ -199,7 +209,11 @@ require() {
         shift
     done
 }
+```
 
+States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
+
+```shell
 __find_state() {
     realpath.basename "$1"; local base=$REPLY
     local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
@@ -210,7 +224,11 @@ __find_state() {
     done
     loco_error "Could not find state $1 in ${imposer_dirs[*]}"
 }
+```
 
+And then loaded by compiling the markdown source, optionally caching in the  `$IMPOSER_CACHE` directory (unless `IMPOSER_CACHE` is set to an empty string)
+
+```shell
 __load_state() {
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
@@ -234,3 +252,14 @@ imposer.require() {
     fi
 }
 ```
+
+````sh
+    $ imposer require
+    --- JSON: ---
+    {"options":{}}
+    --- PHP: ---
+    <?php
+    # imposer runtime goes here
+    
+    $ imposer require  # no-op, since filters are reset
+````

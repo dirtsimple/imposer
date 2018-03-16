@@ -411,7 +411,7 @@ get_imposer_dirs() {
     for REPLY; do
         if [[ "$REPLY" && -d "$REPLY" ]]; then
             [[ "$REPLY" == /* ]] || realpath.absolute "$REPLY"
-            imposer_dirs+=("${REPLY%/}/")
+            imposer_dirs+=("${REPLY%/}")
         fi
     done
 } 2>/dev/null
