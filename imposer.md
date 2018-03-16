@@ -38,10 +38,11 @@ loco_loadproject() { cd "$LOCO_ROOT"; }
 
 State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of directory names.  If no `IMPOSER_PATH` is set, one is generated that consists of:
 
+* `./imposer`
 * The Wordpress plugin directory (e.g. `plugins/`)
 * The `COMPOSER_VENDOR_DIR` (or `vendor` if not specified)
 * The wp-cli package path (typically `~/.wp-cli/packages`)
-* The global composer `vendor` directory, i.e. `${COMPOSER_HOME}/vendor`.
+* The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`.
 
 ```shell
 imposer_dirs=()
@@ -52,21 +53,19 @@ get_imposer_dirs() {
     elif [[ $IMPOSER_PATH ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        if [[ $XDG_CONFIG_HOME ]]; then
-            local pre=${XDG_CONFIG_HOME}/
-        else local pre=${HOME}/.
-        fi
-        set -- imposer "$(wp plugin path)" "${COMPOSER_VENDOR_DIR-vendor}" \
-               "$(wp package path)" "${COMPOSER_HOME-${pre}composer}/vendor";
+        realpath.absolute "$(composer global config home)" \
+                          "$(composer global config vendor-dir)"
+        set -- imposer "$(wp plugin path)" "$(composer config vendor-dir)" \
+               "$(wp package path)" "$REPLY";
     fi
     imposer_dirs=()
     for REPLY; do
-        if [[ "$REPLY" && -d "$REPLY"]]; then
+        if [[ "$REPLY" && -d "$REPLY" ]]; then
             realpath.absolute "$REPLY"
             imposer_dirs+=("${REPLY%/}/")
         fi
     done
-}
+} 2>/dev/null
 ```
 
 

@@ -390,21 +390,19 @@ get_imposer_dirs() {
     elif [[ $IMPOSER_PATH ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        if [[ $XDG_CONFIG_HOME ]]; then
-            local pre=${XDG_CONFIG_HOME}/
-        else local pre=${HOME}/.
-        fi
-        set -- imposer "$(wp plugin path)" "${COMPOSER_VENDOR_DIR-vendor}" \
-               "$(wp package path)" "${COMPOSER_HOME-${pre}composer}/vendor";
+        realpath.absolute "$(composer global config home)" \
+                          "$(composer global config vendor-dir)"
+        set -- imposer "$(wp plugin path)" "$(composer config vendor-dir)" \
+               "$(wp package path)" "$REPLY";
     fi
     imposer_dirs=()
     for REPLY; do
-        if [[ "$REPLY" && -d "$REPLY"]]; then
+        if [[ "$REPLY" && -d "$REPLY" ]]; then
             realpath.absolute "$REPLY"
             imposer_dirs+=("${REPLY%/}/")
         fi
     done
-}
+} 2>/dev/null
 mdsh_raw_jq_defs+=($'def jqmd_data($data): . as $orig |\n    reduce paths(type=="array") as $path (\n        (. // {}) * $data; setpath( $path; ($orig | getpath($path)) + ($data | getpath($path)) )\n    );\n')
 mdsh_raw_yaml+=($'options: {}\n')
 mdsh_raw_php+=($'$state = json_decode($args[0], true);\n$options = empty($state[\'options\']) ? [] : $state[\'options\'];\n\nforeach ($options as $opt => $new) {\n    $old = get_option($opt);\n    if (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n    if ($new !== $old) {\n        if ($old === false) add_option($opt, $new); else update_option($opt, $new);\n    }\n}\n')
