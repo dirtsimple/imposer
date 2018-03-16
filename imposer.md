@@ -53,15 +53,13 @@ get_imposer_dirs() {
     elif [[ $IMPOSER_PATH ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        realpath.absolute "$(composer global config home)" \
-                          "$(composer global config vendor-dir)"
-        set -- imposer "$(wp plugin path)" "$(composer config vendor-dir)" \
-               "$(wp package path)" "$REPLY";
+        set -- imposer "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
+               "$(wp package path)" "$(composer global config --absolute vendor-dir)";
     fi
     imposer_dirs=()
     for REPLY; do
         if [[ "$REPLY" && -d "$REPLY" ]]; then
-            realpath.absolute "$REPLY"
+            [[ "$REPLY" == /* ]] || realpath.absolute "$REPLY"
             imposer_dirs+=("${REPLY%/}/")
         fi
     done

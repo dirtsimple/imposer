@@ -68,7 +68,7 @@ Currently, this project is in *extremely* early development, as in it doesn't ha
 
 While imposer performance is not generally critical, you may be running it a lot during development, and a second or two of run time can add up quickly during rapid development.  If you are running it with a lot of states, you may wish to note that:
 
-* Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp`  twice and `composer` three times.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`.
+* Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` twice each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`.
 * YAML blocks are processed considerably slower than JSON blocks, since external programs are used.  (This is *especially* slow if Python or PHP are used, due to slow startup times.)  You can speed this up by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or by using JSON blocks instead.  (A future version of imposer will provide the option to cache the compiled version of each `.state.md` file, so that YAML to JSON conversion overhead only happens on the first use of a new or modified state file.)
 * wp-cli commands are generally slow to start: if you have a choice between running wp-cli from a shell block, or writing PHP code directly, the latter is considerably faster.
 
