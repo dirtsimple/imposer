@@ -1,6 +1,6 @@
 # `imposer`: Impose States on a Wordpress Instance
 
-Imposer is a modular configuration manager for Wordpress, allowing state information from outside the database (i.e. files, environment variables, etc.) to be *imposed* upon a Wordpress instance's database.  State information is defined in markdown files (like this one) containing mixed shell script, jq code, YAML, and PHP.
+Imposer is a modular configuration manager for Wordpress, allowing state information from outside the database (i.e. files, environment variables, etc.) to be "imposed" upon a Wordpress instance's database.  State information is defined in markdown files (like this one) containing mixed shell script, jq code, YAML, and PHP.
 
 Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](https://github.com/bashup/loco) for command-line parsing and configuration loading, and [jqmd](https://github.com/bashup/jqmd) for literate programming support.
 
@@ -124,16 +124,30 @@ require() {
     done
 }
 
-load-state() {
+__find_state() {
     realpath.basename "$1"; local base=$REPLY
     local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
     for REPLY in ${imposer_dirs[@]+_"${imposer_dirs[@]}"}; do
         if reply_if_exists "$REPLY" "${imposer_patterns[@]/%/.state.md}"; then
-            run-markdown "$REPLY"  # XXX cache compiled version here?
-            return
+            __load_state "$1" "$REPLY"; return
         fi
     done
     loco_error "Could not find state $1 in ${imposer_dirs[*]}"
+}
+
+__load_state() {
+    if [[ ! "${IMPOSER_CACHE-_}" ]]; then
+       run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
+    else
+        # Escape the filename, build it in the cache directory, and source it
+        REPLY="${1//"%"/"%25"}"; REPLY="${REPLY//"/"/"%2F"}"; REPLY="${REPLY/#./"%2E"}"
+
+        local cache_dir="${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" cache_file=$REPLY
+        [[ -d "$cache_dir"]] || mkdir -p "$cache_dir"
+
+        mdsh-make "$2" "$cache_dir/$cache_file" unset -f mdsh:file-header mdsh:file-footer
+        source "$cache_dir/$cache_file"
+    fi
 }
 ```
 ### Processing JSON and PHP
