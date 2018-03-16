@@ -448,16 +448,10 @@ __find_state() {
 
 __load_state() {
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
-       run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
+        run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
-        # Escape the filename, build it in the cache directory, and source it
-        REPLY="${1//"%"/"%25"}"; REPLY="${REPLY//"/"/"%2F"}"; REPLY="${REPLY/#./"%2E"}"
-
-        local cache_dir="${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" cache_file=$REPLY
-        [[ -d "$cache_dir"]] || mkdir -p "$cache_dir"
-
-        mdsh-make "$2" "$cache_dir/$cache_file" unset -f mdsh:file-header mdsh:file-footer
-        source "$cache_dir/$cache_file"
+        mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
+        source "$REPLY"
     fi
 }
 imposer.require() {
