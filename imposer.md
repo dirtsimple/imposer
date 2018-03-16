@@ -86,15 +86,6 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 ### JSON and YAML
 
-YAML and JSON blocks in state files are processed using a doco-style recursive add:
-
-```jq defs
-def jqmd_data($data): . as $orig |
-    reduce paths(type=="array") as $path (
-        (. // {}) * $data; setpath( $path; ($orig | getpath($path)) + ($data | getpath($path)) )
-    );
-```
-
 The default state map begins with an empty options map:
 
 ```yaml
