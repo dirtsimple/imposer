@@ -13,7 +13,12 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 @import bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
 ```
 
+In addition to source code, this file also contains cram-based unit tests:
 
+~~~shell
+# Load functions and turn off error exit
+    $ source <(jqmd -E "$TESTDIR/$TESTFILE"); set +e
+~~~
 
 ## Core Configuration
 
@@ -33,6 +38,20 @@ loco_site_config() { run-markdown "$1"; }
 loco_user_config() { run-markdown "$1"; }
 loco_loadproject() { cd "$LOCO_ROOT"; }
 ```
+
+~~~shell
+# Make . our project root
+    $ echo '{}' >wp-cli.yml
+
+# Ignore/null out site-wide configuration for testing
+    $ loco_user_config() { :; }
+    $ loco_site_config() { :; }
+    $ imposer.no-op() { :;}
+    $ loco_main no-op
+
+# Project directory should be current directory
+    $ [[ "$LOCO_ROOT" == "$PWD" ]] || echo fail
+~~~
 
 ### State Directories
 
@@ -62,13 +81,31 @@ get_imposer_dirs() {
     for REPLY; do
         if [[ "$REPLY" && -d "$REPLY" ]]; then
             [[ "$REPLY" == /* ]] || realpath.absolute "$REPLY"
-            imposer_dirs+=("${REPLY%/}/")
+            imposer_dirs+=("${REPLY%/}")
         fi
     done
 } 2>/dev/null
 ```
 
-#### path and default-path
+~~~shell
+# Mock wp and composer
+    $ wp() {
+    >     case "$*" in
+    >         "plugin path") echo "plugins";;
+    >         "package path") echo "packages";;
+    >         *) echo "unexpected wp $*" >&2; exit 64 ;;
+    >     esac
+    > }
+    $ composer() {
+    >     case "$*" in
+    >         "global config --absolute vendor-dir") echo "COMPOSER_GLOBAL_VENDOR";;
+    >         "config --absolute vendor-dir") echo "vendor";;
+    >         *) echo "unexpected composer $*" >&2; exit 64 ;;
+    >     esac
+    > }
+~~~
+
+#### `path` and `default-path`
 
 You can run `imposer path` and `imposer default-path` to get the current set of state directories or the default set of directories, respectively:
 
@@ -81,6 +118,45 @@ imposer.path() {
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 ```
 
+~~~shell
+# Default order is imposer, wp plugins, composer local, wp packages, composer global:
+    $ mkdir imposer plugins packages vendor COMPOSER_GLOBAL_VENDOR
+    $ (REPLY="$(imposer path)"; echo "${REPLY//"$PWD"/.}")
+    ./imposer:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
+
+# But can be overrriden by IMPOSER_PATH
+    $ IMPOSER_PATH=vendor:imposer
+    $ (REPLY="$(imposer path)"; echo "${REPLY//"$PWD"/.}")
+    ./vendor:./imposer
+
+# Unless you're looking at the default path (which ignores IMPOSER_PATH)
+    $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
+    ./imposer:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
+
+# Only directories that exist are included, however:
+    $ rmdir COMPOSER_GLOBAL_VENDOR
+    $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
+    ./imposer:./plugins:./vendor:./packages
+
+# Once calculated, the internal path remains the same:
+    $ IMPOSER_PATH=
+    $ imposer path
+    */imposer:*/plugins:*/vendor:*/packages (glob)
+
+# even if IMPOSER_PATH changes, or a directory is removed:
+    $ IMPOSER_PATH=vendor:imposer
+    $ rmdir packages
+    $ imposer path
+    */imposer:*/plugins:*/vendor:*/packages (glob)
+
+# But the default is still the default, and calculated "fresh":
+    $ imposer default-path
+    */imposer:*/plugins:*/vendor (glob)
+
+# Reset for other tests
+    $ unset IMPOSER_PATH
+    $ imposer_dirs=()
+~~~
 
 ## State Handling
 
