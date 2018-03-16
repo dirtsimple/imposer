@@ -48,9 +48,11 @@ State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of dire
 imposer_dirs=()
 
 get_imposer_dirs() {
-    if (($#)); then
-       true
-    elif [[ $IMPOSER_PATH ]]; then
+    if [[ ${imposer_dirs[@]+_} ]]; then
+        return
+    elif (($#)); then
+        true
+    elif [[ ${IMPOSER_PATH-} ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
         set -- imposer "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
@@ -66,6 +68,18 @@ get_imposer_dirs() {
 } 2>/dev/null
 ```
 
+#### path and default-path
+
+You can run `imposer path` and `imposer default-path` to get the current set of state directories or the default set of directories, respectively:
+
+```shell
+imposer.path() {
+    get_imposer_dirs;
+    if [[ ${imposer_dirs[@]+_} ]]; then IFS=: eval 'echo "${imposer_dirs[*]}"'; fi
+}
+
+imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
+```
 
 
 ## State Handling
@@ -109,7 +123,7 @@ States are imposed by sourcing the compiled form of their `.state.md` file, at m
 ```shell
 imposed_states=
 require() {
-    [[ ${imposer_dirs[@]+_} ]] || get_imposer_dirs;
+    get_imposer_dirs
     while (($#)); do
         [[ $imposed_states == *"<$1>"* ]] || {
             imposed_states+="<$1>"
