@@ -382,8 +382,6 @@ loco_preconfig() {
 loco_site_config() { run-markdown "$1"; }
 loco_user_config() { run-markdown "$1"; }
 loco_loadproject() { cd "$LOCO_ROOT"; }
-
-loco_exec() { imposer load "$@"; }
 imposer_dirs=()
 
 get_imposer_dirs() {
@@ -433,7 +431,7 @@ load-state() {
     done
     loco_error "Could not find state $1 in ${imposer_dirs[*]}"
 }
-imposer.load() {
+imposer.require() {
     require "$@"
     if HAVE_FILTERS; then
         REPLY=$(RUN_JQ -c -n)

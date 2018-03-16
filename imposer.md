@@ -19,7 +19,7 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 
 ### File and Function Names
 
-Configuration is loaded using loco.   Subcommand functions are named `imp.X`, where `X` is the command or option name.  Unrecognized commands are assumed to be states to load.
+Configuration is loaded using loco.   Subcommand functions are named `imp.X`, where `X` is the command or option name.
 
 ```shell
 loco_preconfig() {
@@ -32,8 +32,6 @@ loco_preconfig() {
 loco_site_config() { run-markdown "$1"; }
 loco_user_config() { run-markdown "$1"; }
 loco_loadproject() { cd "$LOCO_ROOT"; }
-
-loco_exec() { imposer load "$@"; }
 ```
 
 ### State Directories
@@ -141,7 +139,7 @@ load-state() {
 After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
 
 ```shell
-imposer.load() {
+imposer.require() {
     require "$@"
     if HAVE_FILTERS; then
         REPLY=$(RUN_JQ -c -n)
