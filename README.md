@@ -99,6 +99,7 @@ Your plugin would then follow this with some PHP code to read this data  and do 
 
 ```php
 $my_plugin_info = $state['my_ecommerce_plugin'];
+
 MyPluginAPI::setup_products($my_plugin_info['products']);
 MyPluginAPI::setup_categories($my_plugin_info['categories']);
 ```
