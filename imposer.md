@@ -202,7 +202,13 @@ imposed_states=
 require() {
     get_imposer_dirs
     while (($#)); do
-        [[ $imposed_states == *"<$1>"* ]] || { imposed_states+="<$1>"; __find_and_load "$1"; }
+        if ! [[ $imposed_states == *"<$1>"* ]]; then
+            imposed_states+="<$1>"
+            if __find_state "$1"; then
+                __load_state "$1" "$REPLY"
+            else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
+            fi
+        fi
         shift
     done
 }
@@ -211,15 +217,12 @@ require() {
 States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
 
 ```shell
-__find_and_load() {
+__find_state() {
     realpath.basename "$1"; local base=$REPLY
     local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
     for REPLY in ${imposer_dirs[@]+_"${imposer_dirs[@]}"}; do
-        if reply_if_exists "$REPLY" "${imposer_patterns[@]/%/.state.md}"; then
-            __load_state "$1" "$REPLY"; return
-        fi
+        if reply_if_exists "$REPLY" "${imposer_patterns[@]/%/.state.md}"; then return; fi
     done
-    loco_error "Could not find state $1 in ${imposer_dirs[*]}"
 }
 ```
 
@@ -235,6 +238,30 @@ __load_state() {
     fi
 }
 ```
+````sh
+# Test cache generation
+    $ cat >imposer/load-test.state.md <<'EOF'
+    > ```shell
+    > echo "loading load-test"
+    > EOF
+
+    $ __load_state load-test imposer/load-test.state.md
+    loading load-test
+
+    $ cat imposer/.cache/load-test
+    echo "loading load-test"
+
+# No caching if IMPOSER_CACHE is empty:
+    $ rm imposer/.cache/load-test
+    $ IMPOSER_CACHE= __load_state load-test imposer/load-test.state.md
+    loading load-test
+    $ cat imposer/.cache/load-test
+    cat: imposer/.cache/load-test: No such file or directory
+    [1]
+````
+
+
+
 ### Processing JSON and PHP
 
 After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
