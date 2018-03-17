@@ -439,11 +439,13 @@ require() {
     done
 }
 __find_state() {
-    realpath.basename "$1"; local base=$REPLY
-    local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
-    for REPLY in ${imposer_dirs[@]+_"${imposer_dirs[@]}"}; do
-        if reply_if_exists "$REPLY" "${imposer_patterns[@]/%/.state.md}"; then return; fi
+    realpath.basename "$1"; local name=$REPLY
+    realpath.dirname "$1"; local ns=$REPLY
+    local patterns=("$1" "$1/default" "$1/imposer/default" "$ns/imposer/$name" )
+    for REPLY in ${imposer_dirs[@]+"${imposer_dirs[@]}"}; do
+        if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then return; fi
     done
+    false
 }
 __load_state() {
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then

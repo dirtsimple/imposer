@@ -31,22 +31,24 @@ To use Imposer, you must have either a `composer.json` or `wp-cli.yml` file loca
 
 Basic usage is `imposer require` *statenames...*, where each state name designates a state file to be loaded.  States are loaded in the order specified, unless an earlier state `require`s a later state, forcing it to be loaded earlier than its position in the list.
 
-For convenience, state names do not include the `.state.md` suffix, and can also just be the name of a composer package (e.g. `foo/bar`) or plugin directory (e.g. `someplugin`).  Given a string such as `foo/bar`, imposer will look for the following files in the following order, in each directory on `IMPOSER_PATH`:
+For convenience, state names do not include the `.state.md` suffix, and can also just be the name of a composer package (e.g. `foo/bar`) or plugin directory (e.g. `someplugin`).  Given a string such as `foo/bar/baz`, imposer will look for the following files in the following order, in each directory on `IMPOSER_PATH`, with the first found file being used:
 
-* `foo/bar.state.md`
-* `foo/bar/bar.state.md`
-* `foo/bar/default.state.md`
-* `foo/bar/imposer/bar.state.md`
-* `foo/bar/imposer/default.state.md`
+* `foo/bar/baz.state.md` (the exact name, as a `.state.md` file)
+* `foo/bar/baz/default.state.md` (the exact name as a directory, containing a `default.state.md` file)
+* `foo/bar/baz/imposer/default.state.md` (the exact name as a directory, containing an `imposer/default.state.md` file)
+* `foo/bar/imposer/baz.state.md` (the namespace of the name as a directory, containing the last name part in an `imposer` subdirectory)
 
-The first file found is used.  The default `IMPOSER_PATH` contains:
+(The last rule means that you can create a composer package called e.g. `mycompany/imposer` containing a lirbrary of state files, that you can then require as `mycompany/foo` to load `foo.state.md` from `vendor/mycompany/imposer`.  Or you can make a Wordpress plugin called `myplugin`, and then require  `myplugin/bar` to load `bar.state.md` from the plugin's `imposer/` directory.)
+
+The default `IMPOSER_PATH` contains:
 
 * `./imposer`
-* The Wordpress plugin directory as provided by  wp-cli (e.g. `plugins/`)
-* The `COMPOSER_VENDOR_DIR` (or `vendor` if not specified)
+* The Wordpress plugin directory as provided by  wp-cli (e.g. `wp-content/plugins/`)
+* The `COMPOSER_VENDOR_DIR` (e.g. `vendor/`)
 * The wp-cli package path, as provided by wp-cli (typically `~/.wp-cli/packages`)
 * The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`
 
+This allows states to be distributed and installed in a variety of ways, while still being overrideable at the project level (via the `imposer/`) directory.
 
 ## State Files
 
@@ -69,7 +71,7 @@ Currently, this project is in *extremely* early development, as in it doesn't ha
 While imposer performance is not generally critical, you may be running it a lot during development, and a second or two of run time can add up quickly during rapid development.  If you are running it with a lot of states, you may wish to note that:
 
 * Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` twice each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`.  (You can run `imposer path` to find out the the directories imposer is currently using, or `imposer default-path` to get the directories imposer would use if `IMPOSER_PATH` were not set.)
-* YAML blocks are processed considerably slower than JSON blocks, since external programs are used.  (This is *especially* slow if Python or PHP are used, due to slow startup times.)  You can speed this up a bit by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or by using JSON blocks instead.
+* YAML blocks are processed considerably slower than JSON blocks, since external programs are used to translate them into JSON for jq.  (This is *especially* slow if Python or PHP are used, due to slow startup times.)  You can speed this up a bit by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or by using JSON blocks instead.  (Note: if caching is enabled, this will only speed up the processing of new or just-changed state files, or building with an empty or invalid cache.)
 * By default, the compiled version of state files are cached in `imposer/.cache` in your project root.  You can change this by setting `IMPOSER_CACHE` to the desired directory, or an empty string to disable caching.
 * wp-cli commands are generally slow to start: if you have a choice between running wp-cli from a shell block, or writing PHP code directly, the latter is considerably faster.
 

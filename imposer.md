@@ -214,17 +214,81 @@ require() {
 }
 ```
 
+#### State File Lookup
+
 States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
 
 ```shell
 __find_state() {
-    realpath.basename "$1"; local base=$REPLY
-    local patterns=("$1" "$1/$base" "$1/default" "$1/imposer/$base" "$1/imposer/default" )
-    for REPLY in ${imposer_dirs[@]+_"${imposer_dirs[@]}"}; do
-        if reply_if_exists "$REPLY" "${imposer_patterns[@]/%/.state.md}"; then return; fi
+    realpath.basename "$1"; local name=$REPLY
+    realpath.dirname "$1"; local ns=$REPLY
+    local patterns=("$1" "$1/default" "$1/imposer/default" "$ns/imposer/$name" )
+    for REPLY in ${imposer_dirs[@]+"${imposer_dirs[@]}"}; do
+        if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then return; fi
     done
+    false
 }
 ```
+
+````sh
+# Mock file search function to output dir and files searched
+    $ old_rie="$(declare -f reply_if_exists)"
+    $ reply_if_exists() {
+    >     [[ $1 == "$PWD/"* ]] || echo "invalid directory: $1"
+    >     echo -n "${1/#$PWD/.} "; shift
+    >     for REPLY; do [[ $REPLY == *.state.md ]] || echo "invalid filename: $REPLY"; done
+    >     echo "${@%.state.md}"; false
+    > }
+
+    $ imposer path
+    */imposer:*/plugins:*/vendor (glob)
+
+# Paths for an unprefixed name:
+    $ __find_state baz
+    ./imposer baz baz/default baz/imposer/default ./imposer/baz
+    ./plugins baz baz/default baz/imposer/default ./imposer/baz
+    ./vendor baz baz/default baz/imposer/default ./imposer/baz
+    [1]
+
+    $ __find_state bar/baz
+    ./imposer bar/baz bar/baz/default bar/baz/imposer/default bar/imposer/baz
+    ./plugins bar/baz bar/baz/default bar/baz/imposer/default bar/imposer/baz
+    ./vendor bar/baz bar/baz/default bar/baz/imposer/default bar/imposer/baz
+    [1]
+
+    $ __find_state foo/bar/baz
+    ./imposer foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer/default foo/bar/imposer/baz
+    ./plugins foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer/default foo/bar/imposer/baz
+    ./vendor foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer/default foo/bar/imposer/baz
+    [1]
+
+# Un-mock reply_if_exists
+    $ eval "$old_rie"
+
+# Non-existent state, return false:
+    $ __find_state x
+    [1]
+
+# In last directory, name as file under imposer
+    $ mkdir -p vendor/imposer
+    $ touch vendor/imposer/x.state.md
+    $ __find_state x && echo "$REPLY"
+    /*/vendor/./imposer/x.state.md (glob)
+
+# Override w/directory:
+    $ mkdir -p vendor/x/imposer/
+    $ touch vendor/x/imposer/default.state.md
+    $ __find_state x && echo "$REPLY"
+    /*/vendor/x/imposer/default.state.md (glob)
+
+# Removing it exposes the previous file again
+    $ rm vendor/x/imposer/default.state.md
+    $ __find_state x && echo "$REPLY"
+    /*/vendor/./imposer/x.state.md (glob)
+
+````
+
+#### State Loading
 
 And then loaded by compiling the markdown source, optionally caching in the  `$IMPOSER_CACHE` directory (unless `IMPOSER_CACHE` is set to an empty string)
 
@@ -259,8 +323,6 @@ __load_state() {
     cat: imposer/.cache/load-test: No such file or directory
     [1]
 ````
-
-
 
 ### Processing JSON and PHP
 
