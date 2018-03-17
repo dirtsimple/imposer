@@ -405,7 +405,7 @@ get_imposer_dirs() {
     elif [[ ${IMPOSER_PATH-} ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        set -- imposer "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
+        set -- imposer "$(wp theme path)" "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
                "$(wp package path)" "$(composer global config --absolute vendor-dir)";
     fi
     imposer_dirs=()

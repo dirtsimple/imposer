@@ -43,7 +43,8 @@ For convenience, state names do not include the `.state.md` suffix, and can also
 The default `IMPOSER_PATH` contains:
 
 * `./imposer`
-* The Wordpress plugin directory as provided by  wp-cli (e.g. `wp-content/plugins/`)
+* The Wordpress themes directory as provided by wp-cli (e.g. `wp-content/themes/`)
+* The Wordpress plugin directory as provided by wp-cli (e.g. `wp-content/plugins/`)
 * The `COMPOSER_VENDOR_DIR` (e.g. `vendor/`)
 * The wp-cli package path, as provided by wp-cli (typically `~/.wp-cli/packages`)
 * The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`

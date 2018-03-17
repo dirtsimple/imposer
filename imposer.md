@@ -58,6 +58,7 @@ loco_loadproject() { cd "$LOCO_ROOT"; }
 State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of directory names.  If no `IMPOSER_PATH` is set, one is generated that consists of:
 
 * `./imposer`
+* The Wordpress themes directory (e.g. `themes/`)
 * The Wordpress plugin directory (e.g. `plugins/`)
 * The `COMPOSER_VENDOR_DIR` (or `vendor` if not specified)
 * The wp-cli package path (typically `~/.wp-cli/packages`)
@@ -74,7 +75,7 @@ get_imposer_dirs() {
     elif [[ ${IMPOSER_PATH-} ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        set -- imposer "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
+        set -- imposer "$(wp theme path)" "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
                "$(wp package path)" "$(composer global config --absolute vendor-dir)";
     fi
     imposer_dirs=()
@@ -89,15 +90,17 @@ get_imposer_dirs() {
 
 ````sh
 # Mock wp and composer
+    $ exec 9>&2;
     $ wp() {
     >     case "$*" in
+    >         "theme path") echo "themes";;
     >         "plugin path") echo "plugins";;
     >         "package path") echo "packages";;
     >         "eval-file - "*)
     >             echo "--- JSON: ---"; printf '%s\n' "${@:3}"
     >             echo "--- PHP: ---"; cat
     >             ;;
-    >         *) echo "unexpected wp $*" >&2; exit 64 ;;
+    >         *) echo "unexpected wp $*" >&9; exit 64 ;;
     >     esac
     > }
     $ composer() {
@@ -123,10 +126,10 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 ```
 
 ````sh
-# Default order is imposer, wp plugins, composer local, wp packages, composer global:
-    $ mkdir imposer plugins packages vendor COMPOSER_GLOBAL_VENDOR
+# Default order is imposer, wp themes + plugins, composer local, wp packages, composer global:
+    $ mkdir imposer themes plugins packages vendor COMPOSER_GLOBAL_VENDOR
     $ (REPLY="$(imposer path)"; echo "${REPLY//"$PWD"/.}")
-    ./imposer:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
+    ./imposer:./themes:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
 
 # But can be overrriden by IMPOSER_PATH
     $ IMPOSER_PATH=vendor:imposer
@@ -135,10 +138,10 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 # Unless you're looking at the default path (which ignores IMPOSER_PATH)
     $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
-    ./imposer:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
+    ./imposer:./themes:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
 
 # Only directories that exist are included, however:
-    $ rmdir COMPOSER_GLOBAL_VENDOR
+    $ rmdir COMPOSER_GLOBAL_VENDOR themes
     $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
     ./imposer:./plugins:./vendor:./packages
 
