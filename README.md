@@ -45,7 +45,7 @@ The default `IMPOSER_PATH` contains:
 * `./imposer`
 * The Wordpress themes directory as provided by wp-cli (e.g. `wp-content/themes/`)
 * The Wordpress plugin directory as provided by wp-cli (e.g. `wp-content/plugins/`)
-* The `COMPOSER_VENDOR_DIR` (e.g. `vendor/`)
+* The `COMPOSER_VENDOR_DIR` (e.g. `vendor/`), if a `composer.json` is present
 * The wp-cli package path, as provided by wp-cli (typically `~/.wp-cli/packages`)
 * The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`
 

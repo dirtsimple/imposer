@@ -41,7 +41,7 @@ loco_loadproject() { cd "$LOCO_ROOT"; }
 
 ````sh
 # Make . our project root
-    $ echo '{}' >wp-cli.yml
+    $ echo '{}' >composer.json
 
 # Ignore/null out site-wide configuration for testing
     $ loco_user_config() { :; }
@@ -58,9 +58,9 @@ loco_loadproject() { cd "$LOCO_ROOT"; }
 State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of directory names.  If no `IMPOSER_PATH` is set, one is generated that consists of:
 
 * `./imposer`
-* The Wordpress themes directory (e.g. `themes/`)
-* The Wordpress plugin directory (e.g. `plugins/`)
-* The `COMPOSER_VENDOR_DIR` (or `vendor` if not specified)
+* The Wordpress themes directory (e.g. `./wp-content/themes/`)
+* The Wordpress plugin directory (e.g. `./wp-content/plugins/`)
+* The `composer config vendor-dir`, if `composer.json` is present (e.g. `./vendor/`)
 * The wp-cli package path (typically `~/.wp-cli/packages`)
 * The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`.
 
@@ -75,8 +75,9 @@ get_imposer_dirs() {
     elif [[ ${IMPOSER_PATH-} ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        set -- imposer "$(wp theme path)" "$(wp plugin path)" "$(composer config --absolute vendor-dir)" \
-               "$(wp package path)" "$(composer global config --absolute vendor-dir)";
+        set -- imposer "$(wp theme path)" "$(wp plugin path)" \
+            "$( [[ -f composer.json ]] &&  composer config --absolute vendor-dir)" \
+            "$(wp package path)" "$(composer global config --absolute vendor-dir)"
     fi
     imposer_dirs=()
     for REPLY; do
@@ -144,6 +145,12 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
     $ rmdir COMPOSER_GLOBAL_VENDOR themes
     $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
     ./imposer:./plugins:./vendor:./packages
+
+# And vendor/ is only included if there's a `composer.json`:
+    $ rm composer.json
+    $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
+    ./imposer:./plugins:./packages
+    $ echo '{}' >composer.json
 
 # Once calculated, the internal path remains the same:
     $ IMPOSER_PATH=
