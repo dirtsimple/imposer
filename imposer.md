@@ -214,6 +214,36 @@ require() {
 }
 ```
 
+````sh
+# Mock __find_state and __load_state
+    $ old_states="$(declare -f __find_state __load_state)"
+    $ __load_state() { echo "load state:" "$@"; }
+    $ __find_state() { REPLY="found/$1"; echo "find state:" "$@"; }
+
+# require loads the named state only once
+    $ require fizz/buzz
+    find state: fizz/buzz
+    load state: fizz/buzz found/fizz/buzz
+    $ require fizz/buzz
+
+# infinite recursion is prevented
+    $ __load_state() { echo "loading: $1"; require whiz/bang; }
+    $ require ping/pong
+    find state: ping/pong
+    loading: ping/pong
+    find state: whiz/bang
+    loading: whiz/bang
+
+# failure to find a state produces an error
+    $ __find_state() { false; }
+    $ (require cant/find)
+    Could not find state cant/find in /*/imposer /*/plugins /*/vendor (glob)
+    [64]
+
+# Restore __find_state and __load_state
+    $ eval "$old_states"
+````
+
 #### State File Lookup
 
 States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
