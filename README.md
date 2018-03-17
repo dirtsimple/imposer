@@ -108,11 +108,11 @@ And then users who want to impose product definitions in their state files would
 
 If you're distributing your state as part of a wordpress theme plugin, you can include the state file as `default.state.md` in the root of your plugin, or inside an `imposer/` subdirectory.  Users can then `require "your-theme-or-plugin-name"` to load the default state file.  If on the other hand you're distributing it as a `composer` package, it would work the same way  except people would `require "your-org/your-name"` to load its default state file.
 
-You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer require my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your them.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
+You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer require my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
 
 ## Installation, Requirements, and Use
 
-Imposer is packaged with composer, and is intended to be installed that way, i.e. via `composer require dirtsimple/imposer` or `composer global require dirtsimple/imposer`.  In either case, make sure that the appropriate `vendor/bin` directory is on your `PATH`, so that you can just run `imposer` without having to specify the exect location.
+Imposer is packaged with composer, and is intended to be installed that way, i.e. via `composer require dirtsimple/imposer:dev-master` or `composer global require dirtsimple/imposer:dev-master`.  In either case, make sure that the appropriate `vendor/bin` directory is on your `PATH`, so that you can just run `imposer` without having to specify the exact location.
 
 In addition to PHP, Composer, and Wordpress, imposer requires:
 
