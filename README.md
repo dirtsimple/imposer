@@ -37,13 +37,13 @@ If this document were a state file, it might contain some YAML like this, to set
 options:
   wp_mail_smtp:
     mail:
-      from_email: "\(env.WP_FROM_EMAIL)"
-      from_name: "\(env.WP_FROM_NAME)"
+      from_email: \(env.WP_FROM_EMAIL)
+      from_name: \(env.WP_FROM_NAME)
       mailer: mailgun
       return_path: true
     mailgun:
-      api_key: "\(env.MAILGUN_API_KEY)"
-      domain: "\(env.MAILGUN_API_DOMAIN)"
+      api_key: \(env.MAILGUN_API_KEY)
+      domain: \(env.MAILGUN_API_DOMAIN)
 ```
 
 This is already sufficient to be a state file.  State files are parsed using [jqmd](https://github.com/bashup/jqmd), so strings in YAML blocks can contain [jq](http://stedolan.github.io/jq/) interpolation expressions like ``\(env.MAILGUN_API_KEY)`` to get values from environment variables.  (JSON blocks can do that too, and also use any jq expression that doesn't reference `.`.)
