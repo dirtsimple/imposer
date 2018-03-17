@@ -15,7 +15,7 @@ dk use: composer          # utilities for accessing composer-based dev tools
 # Define overrides, new commands, functions, etc. here:
 
 dk.bootstrap() {
-    for REPLY in mdsh jqmd loco; do require $REPLY github bashup/$REPLY master; done
+    for REPLY in mdsh jqmd loco; do require $REPLY github bashup/$REPLY master bin/$REPLY; done
     require realpaths github bashup/realpaths master realpaths
 }
 
