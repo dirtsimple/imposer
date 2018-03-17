@@ -11,12 +11,12 @@
         }
     ],
     "keywords": [
-        "bedrock",
         "wordpress",
         "composer",
         "literate-devops",
         "configuration-management",
-        "wp"
+        "wp",
+        "markdown"
     ],
     "support": {
         "issues": "https://github.com/dirtsimple/imposer/issues"
@@ -24,6 +24,9 @@
     "require": {
         "php": ">=5.6",
         "wp-cli/eval-command": "^1.0.6|dev-master"
+    },
+    "suggest": {
+        "ext-yaml": "For YAML processing if you don't have yaml2json or PyYAML"
     },
     "bin": [
         "bin/imposer"
