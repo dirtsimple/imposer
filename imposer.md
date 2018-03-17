@@ -176,24 +176,44 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 ### JSON and YAML
 
-The default state map begins with an empty options map:
+The default state map begins with an empty options and plugins map:
 
 ```yaml
 options: {}
+plugins: {}
 ```
 
-which is then processed from PHP to modify wordpress options:
+which is then processed from PHP to modify wordpress options and plugins:
 
 ```php
 $state = json_decode($args[0], true);
-$options = empty($state['options']) ? [] : $state['options'];
 
-foreach ($options as $opt => $new) {
-    $old = get_option($opt);
-    if (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);
-    if ($new !== $old) {
-        if ($old === false) add_option($opt, $new); else update_option($opt, $new);
-    }
+foreach ( $state['options'] as $opt => $new) {
+	$old = get_option($opt);
+	if (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);
+	if ($new !== $old) {
+		if ($old === false) add_option($opt, $new); else update_option($opt, $new);
+	}
+}
+
+if ( !empty( $plugins = $state['plugins'] ) ) {
+	$fetcher = new \WP_CLI\Fetchers\Plugin;
+	$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), 'file', 'name' );
+	$activate = $deactivate = [];
+	foreach ($plugin as $plugin => $desired) {
+		$desired = ($desired !== false);
+		if ( empty($plugin_files[$plugin]) ) {
+			continue; # XXX warn plugin of that name isn't installed
+		}
+		if ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;
+		if ( $desired ) {
+			$activate[] = $plugin_files[$plugin];
+		} else {
+			$deactivate[] = $plugin_files[$plugin];
+		}
+	}
+	deactivate_plugins($deactivate);  # deactivate first, in case of conflicts
+	activate_plugins($activate);
 }
 ```
 
@@ -383,7 +403,7 @@ imposer.require() {
 # Running `imposer require` calls `wp eval-file` with the accumulated JSON and PHP:
     $ imposer require
     --- JSON: ---
-    {"options":{}}
+    {"options":{},"plugins":{}}
     --- PHP: ---
     <?php
     # imposer runtime goes here
