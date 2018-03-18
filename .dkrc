@@ -21,7 +21,7 @@ dk.bootstrap() {
 }
 
 dk.build() {
-    dk test && jqmd -R -y php --out bin/imposer --compile imposer.md && chmod +x bin/imposer
+    dk test && jqmd -R --out bin/imposer --compile imposer.md && chmod +x bin/imposer
 }
 
 cram.files() { ls imposer.md; }
