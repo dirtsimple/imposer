@@ -470,12 +470,16 @@ __load_state() {
         source "$REPLY"
     fi
 }
+cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
+
 imposer.require() {
     require "$@"
     if HAVE_FILTERS; then
         REPLY=$(RUN_JQ -c -n)
         CLEAR_FILTERS  # prevent auto-run to stdout
-        printf '%s\n' '<?php' "${mdsh_raw_php[@]}" | wp eval-file - "$REPLY"
+        cat-php | wp eval-file - "$REPLY"
     fi
 }
+imposer.json() { require "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; CLEAR_FILTERS; cat-php; }
 if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi

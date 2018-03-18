@@ -389,12 +389,14 @@ __load_state() {
 After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
 
 ```shell
+cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
+
 imposer.require() {
     require "$@"
     if HAVE_FILTERS; then
         REPLY=$(RUN_JQ -c -n)
         CLEAR_FILTERS  # prevent auto-run to stdout
-        printf '%s\n' '<?php' "${mdsh_raw_php[@]}" | wp eval-file - "$REPLY"
+        cat-php | wp eval-file - "$REPLY"
     fi
 }
 ```
@@ -410,4 +412,63 @@ imposer.require() {
     
 # Running require resets the filters, so doing it again is a no-op:
     $ imposer require
+````
+
+#### Dumping JSON or PHP
+
+The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
+
+```shell
+imposer.json() { require "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; CLEAR_FILTERS; cat-php; }
+```
+
+````sh
+# Set up to run examples from README:
+    $ cp $TESTDIR/README.md imposer/dummy.state.md
+    $ mkdir imposer/some; touch imposer/some/state.state.md
+    $ mkdir imposer/foo; touch imposer/foo/other.state.md
+    $ mkdir imposer/this; touch imposer/this/that.state.md
+    $ export WP_FROM_EMAIL=foo@bar.com WP_FROM_NAME="Me"
+    $ export MAILGUN_API_KEY=madeup\"key MAILGUN_API_DOMAIN=madeup.domain
+
+# Run the version of imposer under test:
+    $ imposer-cmd() { jqmd -R "$TESTDIR/$TESTFILE" "$@"; }
+
+# JSON dump:
+    $ IMPOSER_PATH=imposer imposer-cmd json dummy
+    {
+      "options": {
+        "wp_mail_smtp": {
+          "mail": {
+            "from_email": "foo@bar.com",
+            "from_name": "Me",
+            "mailer": "mailgun",
+            "return_path": true
+          },
+          "mailgun": {
+            "api_key": "madeup\"key",
+            "domain": "madeup.domain"
+          }
+        }
+      },
+      "plugins": {
+        "disable_me": false,
+        "wp_mail_smtp": null,
+        "some-plugin": true
+      },
+      "my_ecommerce_plugin": {
+        "categories": {},
+        "products": {}
+      }
+    }
+
+# PHP dump (includes only state-supplied code, no core code:
+    $ IMPOSER_PATH=imposer imposer-cmd php dummy
+    <?php
+    $my_plugin_info = $state['my_ecommerce_plugin'];
+    
+    MyPluginAPI::setup_products($my_plugin_info['products']);
+    MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    
 ````
