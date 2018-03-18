@@ -437,6 +437,13 @@ imposer.path() {
 }
 
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
+if [[ $0 == "${BASH_SOURCE-}" ]]; then
+    realpath.dirname "$0"
+    realpath.absolute "$REPLY" yaml2json.php
+    if [[ -x "$REPLY" ]]; then
+        printf -v REPLY 'yaml2json:php() { %q; }' "$REPLY"; eval "$REPLY"
+    fi
+fi
 FILTER  jqmd::data\(\{\"options\":\{\}\,\"plugins\":\{\}\}\)
 mdsh_raw_php+=($'$state = json_decode($args[0], true);\n\nforeach ( $state[\'options\'] as $opt => $new) {\n\t$old = get_option($opt);\n\tif (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n\tif ($new !== $old) {\n\t\tif ($old === false) add_option($opt, $new); else update_option($opt, $new);\n\t}\n}\n\nif ( !empty( $plugins = $state[\'plugins\'] ) ) {\n\t$fetcher = new \\WP_CLI\\Fetchers\\Plugin;\n\t$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), \'file\', \'name\' );\n\t$activate = $deactivate = [];\n\tforeach ($plugins as $plugin => $desired) {\n\t\t$desired = ($desired !== false);\n\t\tif ( empty($plugin_files[$plugin]) ) {\n\t\t\tcontinue; # XXX warn plugin of that name isn\'t installed\n\t\t}\n\t\tif ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;\n\t\tif ( $desired ) {\n\t\t\t$activate[] = $plugin_files[$plugin];\n\t\t} else {\n\t\t\t$deactivate[] = $plugin_files[$plugin];\n\t\t}\n\t}\n\tdeactivate_plugins($deactivate);  # deactivate first, in case of conflicts\n\tactivate_plugins($activate);\n}\n')
 imposed_states=

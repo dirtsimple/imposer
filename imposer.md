@@ -176,6 +176,18 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 ### JSON and YAML
 
+Because this script is installed via composer, there is a good chance that our current executable is alongside a `yaml2json.php` script.  If so, we set up jqmd's yaml2json PHP handler to use it:
+
+```shell
+if [[ $0 == "${BASH_SOURCE-}" ]]; then
+    realpath.dirname "$0"
+    realpath.absolute "$REPLY" yaml2json.php
+    if [[ -x "$REPLY" ]]; then
+        printf -v REPLY 'yaml2json:php() { %q; }' "$REPLY"; eval "$REPLY"
+    fi
+fi
+```
+
 The default state map begins with an empty options and plugins map:
 
 ```yaml
