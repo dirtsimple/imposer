@@ -25,6 +25,9 @@
         "php": ">=5.6",
         "wp-cli/eval-command": "^1.0.6|dev-master"
     },
+    "require-dev": {
+        "ext-yaml": "*"
+     },
     "suggest": {
         "ext-yaml": "For YAML processing if you don't have yaml2json or PyYAML"
     },

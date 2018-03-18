@@ -11,6 +11,7 @@ dk use: cram              # run tests using the "cram" functional test tool
 dk use: entr-watch        # watch files and re-run tests or other commands
 dk use: shell-console     # make the "console" command enter a subshell
 dk use: composer          # utilities for accessing composer-based dev tools
+dk use: bash32            # enable doing tests/console/etc. in bash3.2 w/docker
 
 # Define overrides, new commands, functions, etc. here:
 
@@ -20,7 +21,7 @@ dk.bootstrap() {
 }
 
 dk.build() {
-    dk test && mdsh --out bin/imposer --compile imposer.md && chmod +x bin/imposer
+    dk test && jqmd -R -y php --out bin/imposer --compile imposer.md && chmod +x bin/imposer
 }
 
 cram.files() { ls imposer.md; }

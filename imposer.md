@@ -17,7 +17,7 @@ In addition to source code, this file also contains cram-based unit tests:
 
 ````sh
 # Load functions and turn off error exit
-    $ source <(jqmd -E "$TESTDIR/$TESTFILE"); set +e
+    $ source jqmd; run-markdown "$TESTDIR/$TESTFILE"; set +e
 ````
 
 ## Core Configuration
@@ -200,7 +200,7 @@ if ( !empty( $plugins = $state['plugins'] ) ) {
 	$fetcher = new \WP_CLI\Fetchers\Plugin;
 	$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), 'file', 'name' );
 	$activate = $deactivate = [];
-	foreach ($plugin as $plugin => $desired) {
+	foreach ($plugins as $plugin => $desired) {
 		$desired = ($desired !== false);
 		if ( empty($plugin_files[$plugin]) ) {
 			continue; # XXX warn plugin of that name isn't installed
@@ -380,7 +380,7 @@ __load_state() {
     $ IMPOSER_CACHE= __load_state load-test imposer/load-test.state.md
     loading load-test
     $ cat imposer/.cache/load-test
-    cat: imposer/.cache/load-test: No such file or directory
+    cat: *imposer/.cache/load-test*: No such file or directory (glob)
     [1]
 ````
 

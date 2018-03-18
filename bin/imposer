@@ -50,7 +50,16 @@ printf -v REPLY '%s\n' "${mdsh_raw_bash_runtime[@]}"; eval "$REPLY"
 printf -v REPLY 'mdsh:file-header() { echo -n %q; }' "$REPLY"; eval "$REPLY"
 
 # Ensure scripts process any leftover filters at end
-mdsh:file-footer() { echo 'if [[ $0 == $BASH_SOURCE ]] && HAVE_FILTERS; then RUN_JQ; fi'; }
+mdsh:file-footer() { echo 'if [[ $0 == ${BASH_SOURCE-} ]] && HAVE_FILTERS; then RUN_JQ; fi'; }
+mdsh.--no-runtime() ( unset -f mdsh:file-header mdsh:file-footer; mdsh-main "$@"; )
+mdsh.--yaml() (
+    fn-exists "yaml2json:${1-}" || mdsh-error "No such yaml2json processor: ${1-}" || exit $?
+    eval 'yaml2json() { yaml2json:'"$1"'; }'
+    mdsh-main "${@:2}"
+)
+
+mdsh.-R() { mdsh.--no-runtime "$@"; }
+mdsh.-y() { mdsh.--yaml "$@"; }
 set -euo pipefail  # Strict mode
 mdsh-parse() {
 	local cmd=$1 lang block ln indent fence close_fence indent_remove
@@ -199,7 +208,7 @@ MDSH_MODULE=
 }
 @main() {
 	! [[ $MDSH_MODULE ]] || return 0
-	MDSH_FOOTER=$'if [[ $0 == "$BASH_SOURCE" ]]; then '"$1"$' "$@"; fi\n'
+	MDSH_FOOTER=$'if [[ $0 == "${BASH_SOURCE-}" ]]; then '"$1"$' "$@"; fi\n'
 }
 @comment() (  # subshell for cd
 	! [[ "${MDSH_SOURCE-}" == */* ]] || cd "${MDSH_SOURCE%/*}"
@@ -240,7 +249,12 @@ flatname() {
 }
 # run-markdown file args...
 # Compile `file` and source the result, passing along any positional arguments
-run-markdown() { source <(mdsh-source "${1--}") "${@:2}"; }
+run-markdown() {
+	if [[ $BASH_VERSINFO == 3 ]]; then # bash 3 can't source from proc
+		source /dev/fd/0 "${@:2}" <<<"$(mdsh-source "${1--}")"
+	else source <(mdsh-source "${1--}") "${@:2}"
+	fi
+}
 #!/usr/bin/env bash
 
 realpath.location() { realpath.follow "$1"; realpath.absolute "$REPLY" ".."; }
@@ -423,8 +437,8 @@ imposer.path() {
 }
 
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
-mdsh_raw_yaml+=($'options: {}\nplugins: {}\n')
-mdsh_raw_php+=($'$state = json_decode($args[0], true);\n\nforeach ( $state[\'options\'] as $opt => $new) {\n\t$old = get_option($opt);\n\tif (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n\tif ($new !== $old) {\n\t\tif ($old === false) add_option($opt, $new); else update_option($opt, $new);\n\t}\n}\n\nif ( !empty( $plugins = $state[\'plugins\'] ) ) {\n\t$fetcher = new \\WP_CLI\\Fetchers\\Plugin;\n\t$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), \'file\', \'name\' );\n\t$activate = $deactivate = [];\n\tforeach ($plugin as $plugin => $desired) {\n\t\t$desired = ($desired !== false);\n\t\tif ( empty($plugin_files[$plugin]) ) {\n\t\t\tcontinue; # XXX warn plugin of that name isn\'t installed\n\t\t}\n\t\tif ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;\n\t\tif ( $desired ) {\n\t\t\t$activate[] = $plugin_files[$plugin];\n\t\t} else {\n\t\t\t$deactivate[] = $plugin_files[$plugin];\n\t\t}\n\t}\n\tdeactivate_plugins($deactivate);  # deactivate first, in case of conflicts\n\tactivate_plugins($activate);\n}\n')
+FILTER  jqmd::data\(\{\"options\":\[\]\,\"plugins\":\[\]\}\)
+mdsh_raw_php+=($'$state = json_decode($args[0], true);\n\nforeach ( $state[\'options\'] as $opt => $new) {\n\t$old = get_option($opt);\n\tif (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n\tif ($new !== $old) {\n\t\tif ($old === false) add_option($opt, $new); else update_option($opt, $new);\n\t}\n}\n\nif ( !empty( $plugins = $state[\'plugins\'] ) ) {\n\t$fetcher = new \\WP_CLI\\Fetchers\\Plugin;\n\t$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), \'file\', \'name\' );\n\t$activate = $deactivate = [];\n\tforeach ($plugins as $plugin => $desired) {\n\t\t$desired = ($desired !== false);\n\t\tif ( empty($plugin_files[$plugin]) ) {\n\t\t\tcontinue; # XXX warn plugin of that name isn\'t installed\n\t\t}\n\t\tif ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;\n\t\tif ( $desired ) {\n\t\t\t$activate[] = $plugin_files[$plugin];\n\t\t} else {\n\t\t\t$deactivate[] = $plugin_files[$plugin];\n\t\t}\n\t}\n\tdeactivate_plugins($deactivate);  # deactivate first, in case of conflicts\n\tactivate_plugins($activate);\n}\n')
 imposed_states=
 require() {
     get_imposer_dirs
@@ -464,4 +478,4 @@ imposer.require() {
         printf '%s\n' '<?php' "${mdsh_raw_php[@]}" | wp eval-file - "$REPLY"
     fi
 }
-if [[ $0 == "$BASH_SOURCE" ]]; then loco_main "$@"; fi
+if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi
