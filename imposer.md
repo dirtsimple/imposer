@@ -425,9 +425,9 @@ imposer.apply() {
 
 ````sh
 # Running `imposer apply` calls `wp eval-file` with the accumulated JSON and PHP:
-    $ event on "imposer_loaded"^0 echo "EVENT: imposer_loaded"
-    $ event on "json_loaded"^0 echo "EVENT: json_loaded"
-    $ event on "imposer_done"^0 echo "EVENT: imposer_done"
+    $ event on "imposer_loaded" echo "EVENT: imposer_loaded"
+    $ event on "json_loaded" echo "EVENT: json_loaded"
+    $ event on "imposer_done" echo "EVENT: imposer_done"
     $ imposer apply
     EVENT: imposer_loaded
     EVENT: json_loaded

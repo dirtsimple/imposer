@@ -125,13 +125,13 @@ Imposer offers a system of event hooks for `shell` code, similar to Wordpress's 
 my_plugin.message() { echo "$1"; }
 my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER_JSON"; }
 
-event on "state_loaded"^0   my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
-event on "imposer_loaded"^0 my_plugin.message "All states have finished loading."
-event on "json_loaded"^0    my_plugin.handle_json
-event on "imposer_done"^0   my_plugin.message "All PHP code has been run."
+event on "state_loaded"   my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
+event on "imposer_loaded" my_plugin.message "All states have finished loading."
+event on "json_loaded"    my_plugin.handle_json
+event on "imposer_done"   my_plugin.message "All PHP code has been run."
 ```
 
-The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes using `^` at the end of the event name.
+The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `/` and a number at the end of the event name.
 
 Also, you can put arguments after the name of your function, and any arguments supplied by the event will be added after those. Duplicate registrations have no effect, but you can register the same function multiple times for the same event if it has different arguments or a different argument count.
 
