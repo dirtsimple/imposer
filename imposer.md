@@ -11,6 +11,7 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 @import pjeby/license @comment    LICENSE
 @import bashup/jqmd   mdsh-source "$BASHER_PACKAGES_PATH/bashup/jqmd/jqmd.md"
 @import bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
+@import bashup/events tail -n +2  "$BASHER_PACKAGES_PATH/bashup/events/bashup.events"
 ```
 
 In addition to source code, this file also contains cram-based unit tests:
@@ -366,12 +367,14 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 
 ```shell
 __load_state() {
+    local IMPOSER_STATE=$1 bashup_evt_state_loaded=   # just for this file
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
         mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
         source "$REPLY"
     fi
+    event.fire "state_loaded"
 }
 ```
 ````sh
@@ -404,25 +407,33 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
 cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
 
 imposer.require() {
-    require "$@"
+    require "$@"; event.fire "imposer_loaded"
     if HAVE_FILTERS; then
-        REPLY=$(RUN_JQ -c -n)
+        declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
+        event.fire "json_loaded"
+        cat-php | wp eval-file - "$IMPOSER_JSON"; event.fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
-        cat-php | wp eval-file - "$REPLY"
     fi
 }
 ```
 
 ````sh
 # Running `imposer require` calls `wp eval-file` with the accumulated JSON and PHP:
+    $ event.on "imposer_loaded"^0 echo "EVENT: imposer_loaded"
+    $ event.on "json_loaded"^0 echo "EVENT: json_loaded"
+    $ event.on "imposer_done"^0 echo "EVENT: imposer_done"
     $ imposer require
+    EVENT: imposer_loaded
+    EVENT: json_loaded
     --- JSON: ---
     {"options":{},"plugins":{}}
     --- PHP: ---
     <?php
     # imposer runtime goes here
     
-# Running require resets the filters, so doing it again is a no-op:
+    EVENT: imposer_done
+
+# Running require resets the filters and events, so doing it again is a no-op:
     $ imposer require
 ````
 
@@ -431,8 +442,8 @@ imposer.require() {
 The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
 
 ```shell
-imposer.json() { require "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
-imposer.php()  { mdsh_raw_php=(); require "$@"; CLEAR_FILTERS; cat-php; }
+imposer.json() { require "$@"; event.fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
 ```
 
 ````sh
@@ -449,6 +460,8 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; CLEAR_FILTERS; cat-php; }
 
 # JSON dump:
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
+    The current state file (dummy) is finished loading.
+    All states have finished loading.
     {
       "options": {
         "wp_mail_smtp": {
@@ -477,10 +490,22 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; CLEAR_FILTERS; cat-php; }
 
 # PHP dump (includes only state-supplied code, no core code:
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
+    The current state file (dummy) is finished loading.
+    All states have finished loading.
     <?php
     $my_plugin_info = $state['my_ecommerce_plugin'];
     
     MyPluginAPI::setup_products($my_plugin_info['products']);
     MyPluginAPI::setup_categories($my_plugin_info['categories']);
     
+# And just for the heck of it, show all the events:
+    $ wp() { echo wp "${@:1:2}"; }; export -f wp
+    $ IMPOSER_PATH=imposer imposer-cmd require dummy
+    The current state file (dummy) is finished loading.
+    All states have finished loading.
+    The JSON going to eval-file is:
+    {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
+    wp eval-file -
+    All PHP code has been run.
+
 ````

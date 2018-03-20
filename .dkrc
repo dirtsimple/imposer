@@ -17,7 +17,8 @@ dk use: bash32            # enable doing tests/console/etc. in bash3.2 w/docker
 
 dk.bootstrap() {
     for REPLY in mdsh jqmd loco; do require $REPLY github bashup/$REPLY master bin/$REPLY; done
-    require realpaths github bashup/realpaths master realpaths
+    require realpaths     github bashup/realpaths master realpaths
+    require bashup.events github bashup/events    master bashup.events
 }
 
 dk.build() {

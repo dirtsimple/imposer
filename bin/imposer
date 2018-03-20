@@ -25,8 +25,8 @@ mdsh_raw_bash_runtime+=($'JQOPTS=(jq)\nJQ_OPTS() { JQOPTS+=("$@"); }\nARG()     
 mdsh_raw_bash_runtime+=($'RUN_JQ() {\n    local opt nargs cmd=(jq); set -- "${JQOPTS[@]:1}" "$@"\n\n    while (($#)); do\n        case "$1" in\n        -{f,-fromfile})                     nargs=2 ; FILTER "$(<"$2")" ;;\n        -{L,-indent})                       nargs=2 ;;\n        --{arg,arjgson,slurpfile,argfile})  nargs=3 ;;\n        --)  break   ;; # rest of args are data files\n        -*)  nargs=1 ;;\n        *)   FILTER "$1"; break ;; # jq program: data files follow\n        esac\n        cmd+=("${@:1:$nargs}")    # add $nargs args to cmd\n        shift $nargs\n    done\n\n    HAVE_FILTERS || FILTER .    # jq needs at least one filter expression\n\n    "${cmd[@]}" -f <(\n        printf "%s\\n" "${jqmd_imports-}" "${jqmd_defines-}" "${jqmd_filters-}"\n    ) "${@:2}"\n\n    CLEAR_FILTERS   # cleanup for any re-runs\n}\n')
 mdsh_raw_bash_runtime+=($'jqmd_data=jqmd::data\n@data() { jqmd_data="${1-}"; }\n\nYAML()  { y2j "$1"; JSON "$REPLY"; }\nJSON()  { FILTER "$jqmd_data($1)"; }\n')
 mdsh_raw_bash_runtime+=($'DEFINE \'\ndef jqmd::blend($other; combine): . as $this | . *  $other | . as $combined | with_entries(\n  if (.key | in($this)) and (.key | in($other)) then\n    .this = $this[.key] | .other = $other[.key] | combine\n  else . end\n);\n\ndef jqmd::combine: (.this|type) as $this | (.other|type) as $other | .value =\n  if $this == "array" then\n    if $other == "array" then .this + .other else .this + [.other] end\n  elif $this == "object" then\n    if $other == "object" then\n      .other as $o | (.this | jqmd::blend($o; jqmd::combine))\n    else .other end\n  else .other end;  # everything else just overrides\n\ndef jqmd::data($data): {this: ., other:$data} | jqmd::combine | .value ;\n\'\n')
-mdsh_raw_bash_runtime+=($'y2j() {\n    local p j="$(echo "$1" | yaml2json)"; REPLY=\n    while [[ $j == *\'\\\\(\'* ]]; do\n        p=${j%%\'\\\\(\'*}; j=${j#"$p"\'\\\\(\'}\n        if [[ $p =~ (^|[^\\\\])(\'\\\\\\\\\')*$ ]]; then\n            p="${p}"\'\\(\' # odd, unbalance the backslash\n        else\n            p="${p}("   # even, remove one actual backslash\n        fi\n        REPLY+=$p\n    done\n    REPLY+=$j\n}\n')
-mdsh_raw_bash_runtime+=($'yaml2json:cmd() { command yaml2json /dev/stdin; }\n\nyaml2json:py() {\n    python -c \'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)\'\n}\n\nyaml2json:php() {\n    php -r \'echo json_encode( yaml_parse(file_get_contents("php://stdin")) );\'\n}\n\nyaml2json() {\n    local kind  # auto-select between available yaml2json implementations\n    for kind in cmd py php; do\n        REPLY=($(yaml2json:$kind < <(echo "a: b") 2>/dev/null || true))\n        printf -v REPLY %s ${REPLY+"${REPLY[@]}"}\n        if [[ "$REPLY" == \'{"a":"b"}\' ]]; then\n            eval "yaml2json() { yaml2json:$kind; }"; yaml2json; return\n        fi\n    done\n    mdsh-error "To process YAML, must have one of: yaml2json, PyYAML, or php w/yaml extension"\n    exit 69 # EX_UNAVAILABLE\n}\n\n# --- END jqmd runtime ---\n')
+mdsh_raw_bash_runtime+=($'y2j() {\n    local p j="$(echo "$1" | yaml2json)" || return $?; REPLY=\n    while [[ $j == *\'\\\\(\'* ]]; do\n        p=${j%%\'\\\\(\'*}; j=${j#"$p"\'\\\\(\'}\n        if [[ $p =~ (^|[^\\\\])(\'\\\\\\\\\')*$ ]]; then\n            p="${p}"\'\\(\' # odd, unbalance the backslash\n        else\n            p="${p}("   # even, remove one actual backslash\n        fi\n        REPLY+=$p\n    done\n    REPLY+=$j\n}\n')
+mdsh_raw_bash_runtime+=($'yaml2json:cmd() { command yaml2json /dev/stdin; }\n\nyaml2json:py() {\n    python -c \'import sys, yaml, json; json.dump(yaml.safe_load(sys.stdin), sys.stdout)\'\n}\n\nyaml2json:php() { command yaml2json.php; }\n\nyaml2json() {\n    local kind  # auto-select between available yaml2json implementations\n    for kind in cmd py php; do\n        REPLY=($(yaml2json:$kind < <(echo "a: {}") 2>/dev/null || true))\n        printf -v REPLY %s ${REPLY+"${REPLY[@]}"}\n        if [[ "$REPLY" == \'{"a":{}}\' ]]; then\n            eval "yaml2json() { yaml2json:$kind; }"; yaml2json; return\n        fi\n    done\n    mdsh-error "To process YAML, must have one of: yaml2json, PyYAML, or php w/yaml extension"\n    exit 69 # EX_UNAVAILABLE\n}\n\n# --- END jqmd runtime ---\n')
 # Language Support
 mdsh-compile-jq()         { printf 'FILTER  %q\n' "$1"; }
 mdsh-compile-jq_defs()    { printf 'DEFINE  %q\n' "$1"; }
@@ -399,6 +399,21 @@ done
 for lv in ${!LOCO_@}; do unset $lv; done
 
 LOCO_SCRIPT=$0
+event.argn() { "${@:2:$1+1}";}
+event.valid(){ [[ ${1-} =~ ^[_[:alnum:]]+$ ]];}
+event.quote(){ REPLY=""; printf -v REPLY "${@+ %q}" "${@-}"; REPLY=${REPLY# };}
+event.__cb() {
+	(($1!=1))||{ echo "${2-}: missing callback">&2;exit 64;}
+	[[ ${2-} =~ ^[_[:alnum:]]+(\^[0-9]+)?$ ]]||{ echo "Invalid event name '${2-}'">&2;exit 64;}
+	event.quote "${@:3}"; [[ $2 != *^* ]]||!(($1))||REPLY="event.argn $(($#-3+${2##*^})) $REPLY"
+	REPLY+=$'\n'; e="bashup_evt_${2%^*}"; [[ $'\n'"${!e-}" == *$'\n'"$REPLY"* ]]
+}
+event.has(){ local e; event.__cb $# "$@";}
+event.on() { local e; event.__cb $# "$@"||eval $e='"${!e-}$REPLY"';}
+event.off(){ local e v; event.__cb $# "$@"||return; v="${!e}"; v=${v#"$REPLY"}; eval $e='"${v//$'\n'"$REPLY"/$'\n'}"';}
+event.emit(){ local e; event.__cb 0 "$@"||:; eval "${!e+${!e//$'\n'/ $REPLY}}";}
+event.fire(){ while local e r; event.__cb 0 "$@"||:; [[ ${!e-} ]]; do r=${!e//$'\n'/ $REPLY}; unset $e; eval "$r"; done;}
+
 loco_preconfig() {
     LOCO_FILE=("composer.json" "wp-cli.yml")
     LOCO_NAME=imposer
@@ -470,23 +485,26 @@ __find_state() {
     false
 }
 __load_state() {
+    local IMPOSER_STATE=$1 bashup_evt_state_loaded=   # just for this file
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
         mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
         source "$REPLY"
     fi
+    event.fire "state_loaded"
 }
 cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
 
 imposer.require() {
-    require "$@"
+    require "$@"; event.fire "imposer_loaded"
     if HAVE_FILTERS; then
-        REPLY=$(RUN_JQ -c -n)
+        declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
+        event.fire "json_loaded"
+        cat-php | wp eval-file - "$IMPOSER_JSON"; event.fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
-        cat-php | wp eval-file - "$REPLY"
     fi
 }
-imposer.json() { require "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
-imposer.php()  { mdsh_raw_php=(); require "$@"; CLEAR_FILTERS; cat-php; }
+imposer.json() { require "$@"; event.fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
 if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi
