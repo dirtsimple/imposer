@@ -157,9 +157,9 @@ In addition to PHP, Composer, and Wordpress, imposer requires:
 
 Imposer is not yet regularly tested on anything other than Linux, but it *should* work on Cygwin, OS/X, and other Unix-like operating systems with a suitable version of bash and jq.
 
-To use Imposer, you must have either a `composer.json` or `wp-cli.yml` file located in the root of your current project.  Imposer will search upward from the current directory for one or the other before running, and all relative paths (e.g. those in `IMPOSER_PATH`) will be treated as relative to that directory.  (And all code in state files is executed with that directory as the current directory.)
+To use Imposer, you must have an `imposer-project.md`,  `composer.json` OR `wp-cli.yml` file located in the root of your current project.  Imposer will search the current directory and its parent directories until it finds one of the three files, and all relative paths (e.g. those in `IMPOSER_PATH`) will be treated as relative to that directory.  (And all code in state files is executed with that directory as the current directory.)  If you have an `imposer-project.md`, it will be loaded as though it were the state file for a state called `imposer-project`.
 
-Basic usage is `imposer require` *state...*, where each state name designates a state file to be loaded.  States are loaded in the order specified, unless an earlier state `require`s a later state, forcing it to be loaded earlier than its position in the list.
+Basic usage is `imposer require` *state...*, where each state name designates a state file to be loaded.  States are loaded in the order specified, unless an earlier state `require`s a later state, forcing it to be loaded earlier than its position in the list.  You don't have to list any states if everything you want to apply is in your `imposer-project.md`, or is `require`d by it.
 
 For convenience, state names do not include the `.state.md` suffix, and can also just be the name of a composer package (e.g. `foo/bar`) or theme/plugin directory (e.g. `sometheme` or `someplugin`).  Given a string such as `foo/bar/baz`, imposer will look for the following files in the following order, in each directory on `IMPOSER_PATH`, with the first found file being used:
 

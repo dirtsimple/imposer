@@ -415,7 +415,7 @@ event.emit(){ local e; event.__cb 0 "$@"||:; eval "${!e+${!e//$'\n'/ $REPLY}}";}
 event.fire(){ while local e r; event.__cb 0 "$@"||:; [[ ${!e-} ]]; do r=${!e//$'\n'/ $REPLY}; unset $e; eval "$r"; done;}
 
 loco_preconfig() {
-    LOCO_FILE=("composer.json" "wp-cli.yml")
+    LOCO_FILE=("imposer-project.md" "composer.json" "wp-cli.yml")
     LOCO_NAME=imposer
     LOCO_USER_CONFIG=$HOME/.config/imposer.md
     LOCO_SITE_CONFIG=/etc/imposer.md
@@ -423,7 +423,11 @@ loco_preconfig() {
 
 loco_site_config() { run-markdown "$1"; }
 loco_user_config() { run-markdown "$1"; }
-loco_loadproject() { cd "$LOCO_ROOT"; }
+loco_loadproject() {
+	cd "$LOCO_ROOT"
+	imposed_states+="<imposer-project>"
+	[[ $LOCO_PROJECT != *.md ]] || __load_state imposer-project "$LOCO_PROJECT"
+}
 imposer_dirs=()
 
 get_imposer_dirs() {

@@ -29,7 +29,7 @@ Configuration is loaded using loco.   Subcommand functions are named `imp.X`, wh
 
 ```shell
 loco_preconfig() {
-    LOCO_FILE=("composer.json" "wp-cli.yml")
+    LOCO_FILE=("imposer-project.md" "composer.json" "wp-cli.yml")
     LOCO_NAME=imposer
     LOCO_USER_CONFIG=$HOME/.config/imposer.md
     LOCO_SITE_CONFIG=/etc/imposer.md
@@ -37,18 +37,29 @@ loco_preconfig() {
 
 loco_site_config() { run-markdown "$1"; }
 loco_user_config() { run-markdown "$1"; }
-loco_loadproject() { cd "$LOCO_ROOT"; }
+loco_loadproject() {
+	cd "$LOCO_ROOT"
+	imposed_states+="<imposer-project>"
+	[[ $LOCO_PROJECT != *.md ]] || __load_state imposer-project "$LOCO_PROJECT"
+}
 ```
 
 ````sh
 # Make . our project root
-    $ echo '{}' >composer.json
+    $ cat >imposer-project.md <<'EOF'
+    > ```shell
+    > echo "hello from imposer-project.md!"
+    > printf -v PHP_RUNTIME '%s\n' "${mdsh_raw_php[@]}"  # save the runtime
+    > mdsh_raw_php=($'# imposer runtime goes here\n')    # blank it out
+    > ```
+    > EOF
 
 # Ignore/null out site-wide configuration for testing
     $ loco_user_config() { :; }
     $ loco_site_config() { :; }
     $ imposer.no-op() { :;}
     $ loco_main no-op
+    hello from imposer-project.md!
 
 # Project directory should be current directory
     $ [[ "$LOCO_ROOT" == "$PWD" ]] || echo fail
@@ -129,7 +140,8 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 ````sh
 # Default order is imposer, wp themes + plugins, composer local, wp packages, composer global:
-    $ mkdir imposer themes plugins packages vendor COMPOSER_GLOBAL_VENDOR
+    $ echo '{}' >composer.json
+    $ mkdir -p imposer themes plugins packages vendor COMPOSER_GLOBAL_VENDOR
     $ (REPLY="$(imposer path)"; echo "${REPLY//"$PWD"/.}")
     ./imposer:./themes:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
 
@@ -229,12 +241,6 @@ if ( !empty( $plugins = $state['plugins'] ) ) {
 	activate_plugins($activate);
 }
 ```
-
-````sh
-# For testing purposes, save the PHP runtime code, and then replace it with a placeholder:
-    $ printf -v PHP_RUNTIME '%s\n' "${mdsh_raw_php[@]}"
-    $ mdsh_raw_php=($'# imposer runtime goes here\n')
-````
 
 ### Imposing Named States
 
@@ -446,6 +452,8 @@ imposer.json() { require "$@"; event.fire "imposer_loaded"; ! HAVE_FILTERS || RU
 imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
 ```
 
+
+
 ````sh
 # Set up to run examples from README:
     $ cp $TESTDIR/README.md imposer/dummy.state.md
@@ -460,6 +468,7 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLE
 
 # JSON dump:
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
+    hello from imposer-project.md!
     The current state file (dummy) is finished loading.
     All states have finished loading.
     {
@@ -490,6 +499,7 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLE
 
 # PHP dump (includes only state-supplied code, no core code:
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
+    hello from imposer-project.md!
     The current state file (dummy) is finished loading.
     All states have finished loading.
     <?php
@@ -499,8 +509,9 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLE
     MyPluginAPI::setup_categories($my_plugin_info['categories']);
     
 # And just for the heck of it, show all the events:
-    $ wp() { echo wp "${@:1:2}"; }; export -f wp
+    $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
     $ IMPOSER_PATH=imposer imposer-cmd require dummy
+    hello from imposer-project.md!
     The current state file (dummy) is finished loading.
     All states have finished loading.
     The JSON going to eval-file is:
