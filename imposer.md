@@ -412,7 +412,7 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
 ```shell
 cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
 
-imposer.require() {
+imposer.apply() {
     require "$@"; event.fire "imposer_loaded"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
@@ -424,11 +424,11 @@ imposer.require() {
 ```
 
 ````sh
-# Running `imposer require` calls `wp eval-file` with the accumulated JSON and PHP:
+# Running `imposer apply` calls `wp eval-file` with the accumulated JSON and PHP:
     $ event.on "imposer_loaded"^0 echo "EVENT: imposer_loaded"
     $ event.on "json_loaded"^0 echo "EVENT: json_loaded"
     $ event.on "imposer_done"^0 echo "EVENT: imposer_done"
-    $ imposer require
+    $ imposer apply
     EVENT: imposer_loaded
     EVENT: json_loaded
     --- JSON: ---
@@ -439,8 +439,8 @@ imposer.require() {
     
     EVENT: imposer_done
 
-# Running require resets the filters and events, so doing it again is a no-op:
-    $ imposer require
+# Running apply resets the filters and events, so doing it again is a no-op:
+    $ imposer apply
 ````
 
 #### Dumping JSON or PHP
@@ -510,7 +510,7 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLE
     
 # And just for the heck of it, show all the events:
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
-    $ IMPOSER_PATH=imposer imposer-cmd require dummy
+    $ IMPOSER_PATH=imposer imposer-cmd apply dummy
     hello from imposer-project.md!
     The current state file (dummy) is finished loading.
     All states have finished loading.

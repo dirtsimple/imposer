@@ -500,7 +500,7 @@ __load_state() {
 }
 cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
 
-imposer.require() {
+imposer.apply() {
     require "$@"; event.fire "imposer_loaded"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"

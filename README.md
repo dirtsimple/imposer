@@ -23,11 +23,12 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
 
 - [How States Work](#how-states-work)
   * [Extending The System](#extending-the-system)
+  * [Shell Hooks](#shell-hooks)
 - [Installation, Requirements, and Use](#installation-requirements-and-use)
   * [Imposer Subcommands](#imposer-subcommands)
-    + [imposer require *state...*](#imposer-require-state)
-    + [imposer json *state...*](#imposer-json-state)
-    + [imposer php *state...*](#imposer-php-state)
+    + [imposer apply *[state...]*](#imposer-apply-state)
+    + [imposer json *[state...]*](#imposer-json-state)
+    + [imposer php *[state...]*](#imposer-php-state)
     + [imposer path](#imposer-path)
     + [imposer default-path](#imposer-default-path)
 - [Project Status](#project-status)
@@ -114,7 +115,7 @@ And then users who want to impose product definitions in their state files would
 
 If you're distributing your state as part of a wordpress theme plugin, you can include the state file as `default.state.md` in the root of your plugin, or inside an `imposer/` subdirectory.  Users can then `require "your-theme-or-plugin-name"` to load the default state file.  If on the other hand you're distributing it as a `composer` package, it would work the same way  except people would `require "your-org/your-name"` to load its default state file.
 
-You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer require my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
+You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer apply my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
 
 ### Shell Hooks
 
@@ -159,7 +160,7 @@ Imposer is not yet regularly tested on anything other than Linux, but it *should
 
 To use Imposer, you must have an `imposer-project.md`,  `composer.json` OR `wp-cli.yml` file located in the root of your current project.  Imposer will search the current directory and its parent directories until it finds one of the three files, and all relative paths (e.g. those in `IMPOSER_PATH`) will be treated as relative to that directory.  (And all code in state files is executed with that directory as the current directory.)  If you have an `imposer-project.md`, it will be loaded as though it were the state file for a state called `imposer-project`.
 
-Basic usage is `imposer require` *state...*, where each state name designates a state file to be loaded.  States are loaded in the order specified, unless an earlier state `require`s a later state, forcing it to be loaded earlier than its position in the list.  You don't have to list any states if everything you want to apply is in your `imposer-project.md`, or is `require`d by it.
+Basic usage is `imposer apply` *state...*, where each state name designates a state file to be loaded.  States are loaded in the order specified, unless an earlier state `require`s a later state, forcing it to be loaded earlier than its position in the list.  You don't have to list any states if everything you want to apply is in your `imposer-project.md`, or is `require`d by it.
 
 For convenience, state names do not include the `.state.md` suffix, and can also just be the name of a composer package (e.g. `foo/bar`) or theme/plugin directory (e.g. `sometheme` or `someplugin`).  Given a string such as `foo/bar/baz`, imposer will look for the following files in the following order, in each directory on `IMPOSER_PATH`, with the first found file being used:
 
@@ -181,11 +182,11 @@ The default `IMPOSER_PATH` contains:
 
 This allows states to be distributed and installed in a variety of ways, while still being overrideable at the project level (via the main `imposer/`) directory.  (For example, if you add an `imposer/foo/bar.state.md` file to your project, it will replace the `bar` state of any theme/plugin named `foo`, or the default state of a composer package named `foo/bar`.)
 
-While we're discussing precedence order, you may find it useful to have an explicit listing of the phases in which `imposer require` executes:
+While we're discussing precedence order, you may find it useful to have an explicit listing of the phases in which `imposer apply` executes:
 
-* First phase: load and execute state files by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer
-* Second phase: run `jq` using the accumulated jq code generated by the YAML, JSON, jq, etc. code blocks executed during the first phase, creating a new JSON configuration map
-* Third phase: run `wp eval-file` on the accumulated PHP code generated by the code blocks executed during the first phase, passing the JSON output by the second phase as a command-line argument
+* First phase: load and execute state files by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `imposer_loaded` event fires at the end of this phase.)
+* Second phase: run `jq` using the accumulated jq code generated by the YAML, JSON, jq, etc. code blocks executed during the first phase, creating a new JSON configuration map.  (The `json_loaded` event fires at the end of this phase.)
+* Third phase: run `wp eval-file` on the accumulated PHP code generated by the code blocks executed during the first phase, passing the JSON output by the second phase as a command-line argument.  (The `imposer_done` event fires at the end of this phase.)
 
 So, even though it looks like shell, PHP, and YAML/JSON/jq code execution are interleaved, in reality all the shell code is executed first: it's just that any code block *other* than shell code blocks are translated to shell code that accumulates either jq or PHP code for execution in the second or third phase.  This means that you can't (for example) have two YAML block references the same environment variable and change it "in between" -- whatever value the environment variable has at the end of phase one is what will be used in both blocks during phase two.
 
@@ -195,17 +196,17 @@ Note: imposer always operates on the nearest directory at or above the current d
 
 (Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, even if `wp eval-file` successfully sends the resulting JSON and PHP for remote execution.)
 
-#### imposer require *state...*
+#### imposer apply *[state...]*
 
 Load and execute the specified states, building a JSON configuration and accumulating PHP code, before handing them both off to `wp eval-file`.
 
-#### imposer json *state...*
+#### imposer json *[state...]*
 
-Just like `imposer require`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  (Note: Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
+Just like `imposer apply`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
 
-#### imposer php *state...*
+#### imposer php *[state...]*
 
-Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.
+Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.
 
 #### imposer path
 
