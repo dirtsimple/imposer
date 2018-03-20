@@ -125,10 +125,10 @@ Imposer offers a system of event hooks for `shell` code, similar to Wordpress's 
 my_plugin.message() { echo "$1"; }
 my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER_JSON"; }
 
-event.on "state_loaded"^0   my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
-event.on "imposer_loaded"^0 my_plugin.message "All states have finished loading."
-event.on "json_loaded"^0    my_plugin.handle_json
-event.on "imposer_done"^0   my_plugin.message "All PHP code has been run."
+event on "state_loaded"^0   my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
+event on "imposer_loaded"^0 my_plugin.message "All states have finished loading."
+event on "json_loaded"^0    my_plugin.handle_json
+event on "imposer_done"^0   my_plugin.message "All PHP code has been run."
 ```
 
 The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes using `^` at the end of the event name.
@@ -142,7 +142,7 @@ Imposer currently offers the following built-in events (none of which provide an
 * `json_loaded` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
 * `imposer_done` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
 
-Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event.emit` or `event.fire`.  (See the [event API docs](https://github.com/bashup/events/#events-api) for more info.)
+Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit` or `event fire`.  (See the [event API docs](https://github.com/bashup/events/#events-api) for more info.)
 
 
 
@@ -218,7 +218,7 @@ Like `imposer path`, except that the current value of `IMPOSER_PATH` is ignored.
 
 ## Project Status
 
-Currently, this project is in very early development, as it doesn't have 100% test coverage yet, nor does it explicitly support any type of state other than Wordpress options and plugins.  (But other state types can be defined externally, as described in [Extending The System](#extending-the-system) above.)
+Currently, this project is in very early development, as it doesn't have 100% documentation or test coverage yet, nor does it provide a built-in schema for any configuration other than Wordpress options and plugin activation.  (But the configuration schema can be extended using state files, as described in [Extending The System](#extending-the-system) above.)
 
 ### Performance Notes
 

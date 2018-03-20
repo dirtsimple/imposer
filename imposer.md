@@ -380,7 +380,7 @@ __load_state() {
         mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
         source "$REPLY"
     fi
-    event.fire "state_loaded"
+    event fire "state_loaded"
 }
 ```
 ````sh
@@ -413,11 +413,11 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
 cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
 
 imposer.apply() {
-    require "$@"; event.fire "imposer_loaded"
+    require "$@"; event fire "imposer_loaded"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
-        event.fire "json_loaded"
-        cat-php | wp eval-file - "$IMPOSER_JSON"; event.fire "imposer_done"
+        event fire "json_loaded"
+        cat-php | wp eval-file - "$IMPOSER_JSON"; event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
 }
@@ -425,9 +425,9 @@ imposer.apply() {
 
 ````sh
 # Running `imposer apply` calls `wp eval-file` with the accumulated JSON and PHP:
-    $ event.on "imposer_loaded"^0 echo "EVENT: imposer_loaded"
-    $ event.on "json_loaded"^0 echo "EVENT: json_loaded"
-    $ event.on "imposer_done"^0 echo "EVENT: imposer_done"
+    $ event on "imposer_loaded"^0 echo "EVENT: imposer_loaded"
+    $ event on "json_loaded"^0 echo "EVENT: json_loaded"
+    $ event on "imposer_done"^0 echo "EVENT: imposer_done"
     $ imposer apply
     EVENT: imposer_loaded
     EVENT: json_loaded
@@ -448,8 +448,8 @@ imposer.apply() {
 The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
 
 ```shell
-imposer.json() { require "$@"; event.fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
-imposer.php()  { mdsh_raw_php=(); require "$@"; event.fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
+imposer.json() { require "$@"; event fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
 ```
 
 
