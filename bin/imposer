@@ -404,20 +404,22 @@ event() {
 	*) local e=${2-} n m=; e=${e%/*}; __ev.valid "$e"||m="Invalid event name '$e'"
 		case $1$m in on|off|has)
 			(($#>2))||m="${2-}: missing callback"; n=${2#$e}; n=${n#/}
-			case $n in _)n='$#';;*)n=$((n));; esac
-			__ev.quote "${@:3}";REPLY+=' "${@:2:$(('"$n"$'))}"\n'
+			case $n in _)n='$#';;*) n=$((n));; esac
+			case $1${m:+_} in has_)m=;REPLY=;;*) __ev.quote "${@:3}";REPLY+=' "${@:2:$(('"$n"$'))}"\n';; esac
 		esac
-		e=bashup_event_$e; ! [[ $m ]]||{ echo $m>&2;exit 64;}
-	esac ; __ev.$1 "${@:2}"
+		e=bashup_event_$e; ! [[ $m ]]||{ echo $m>&2;return 64;}
+	esac
+	__ev."$@"
 }
 __ev.valid(){ [[ ${1-} =~ ^[_[:alnum:]]+$ ]];}
 __ev.quote(){ REPLY=""; printf -v REPLY "${@+ %q}" "${@-}"; REPLY=${REPLY# };}
-__ev.has() { [[ $'\n'"${!e-}" == *$'\n'"$REPLY"* ]];}
+__ev.has(){ [[ ${!e-} && $'\n'"${!e}" == *$'\n'"$REPLY"* ]];}
 __ev.on() { __ev.has||eval $e='"${!e-}$REPLY"';}
 __ev.off() { __ev.has||return 0; n="${!e}"; n=${n#"$REPLY"}; eval $e=$'"${n//\n"$REPLY"/\n}"';}
 __ev.emit(){ eval "${!e-}";}
 __ev.fire(){ set -- "$e" "${@:2}"; while [[ ${!1-} ]];do eval "$1=;${!1}"; done ;}
-
+__ev.all(){ e=${!e-};eval "${e//$'\n'/||return; }";}
+__ev.any(){ e=${!e-};eval "${e//$'\n'/&&return|| } ! :";}
 loco_preconfig() {
     LOCO_FILE=("imposer-project.md" "composer.json" "wp-cli.yml")
     LOCO_NAME=imposer
@@ -493,7 +495,7 @@ __find_state() {
     false
 }
 __load_state() {
-    local IMPOSER_STATE=$1 bashup_evt_state_loaded=   # just for this file
+    local IMPOSER_STATE=$1 bashup_event_state_loaded=   # just for this file
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
