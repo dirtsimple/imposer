@@ -19,6 +19,7 @@ dk.bootstrap() {
     for REPLY in mdsh jqmd loco; do require $REPLY github bashup/$REPLY master bin/$REPLY; done
     require realpaths     github bashup/realpaths master realpaths
     require bashup.events github bashup/events    master bashup.events
+    [[ -f composer.lock ]] || composer install
 }
 
 dk.build() {
