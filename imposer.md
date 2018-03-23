@@ -373,14 +373,15 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 
 ```shell
 __load_state() {
-    local IMPOSER_STATE=$1 bashup_event_state_loaded=   # just for this file
+    local IMPOSER_STATE=$1 bashup_event_after_state=   # just for this file
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
         mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
         source "$REPLY"
     fi
-    event fire "state_loaded"
+    event fire "after_state"
+    event emit "state_loaded" "$1" "$2"
 }
 ```
 ````sh
@@ -470,6 +471,7 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLE
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
     hello from imposer-project.md!
     The current state file (dummy) is finished loading.
+    Just loaded a state called: dummy
     All states have finished loading.
     {
       "options": {
@@ -501,6 +503,7 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLE
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
     hello from imposer-project.md!
     The current state file (dummy) is finished loading.
+    Just loaded a state called: dummy
     All states have finished loading.
     <?php
     $my_plugin_info = $state['my_ecommerce_plugin'];
@@ -513,6 +516,7 @@ imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLE
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy
     hello from imposer-project.md!
     The current state file (dummy) is finished loading.
+    Just loaded a state called: dummy
     All states have finished loading.
     The JSON going to eval-file is:
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}

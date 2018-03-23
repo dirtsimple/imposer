@@ -122,22 +122,24 @@ You can of course have state files besides a default: you can use them to provid
 Imposer offers a system of event hooks for `shell` code, similar to Wordpress's `add_action` and `do_action` system for PHP.  State files can use the [bashup events](https://github.com/bashup/events/) API to register bash functions that will then be called when specific events are fired.  For example:
 
 ```shell
-my_plugin.message() { echo "$1"; }
+my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER_JSON"; }
 
-event on "state_loaded"   my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
+event on "after_state"    my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
+event on "state_loaded"/1 my_plugin.message "Just loaded a state called:"
 event on "imposer_loaded" my_plugin.message "All states have finished loading."
 event on "json_loaded"    my_plugin.handle_json
 event on "imposer_done"   my_plugin.message "All PHP code has been run."
 ```
 
-The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `/` and a number at the end of the event name.
+The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `/` and a number at the end of the event name.  (So above, the `state_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a state called:"`, which in this case will be the name of the state loaded.)
 
 Also, you can put arguments after the name of your function, and any arguments supplied by the event will be added after those. Duplicate registrations have no effect, but you can register the same function multiple times for the same event if it has different arguments or a different argument count.
 
-Imposer currently offers the following built-in events (none of which provide any arguments, currently):
+Imposer currently offers the following built-in events:
 
-* `state_loaded` -- fires when the *currently loading* state file (and all its dependencies) have finished loading.  Note that the "currently loading" file is not necessarily the same as the file where a callback is being registered, which means that state files can define APIs that register callbacks to run when the *calling* state file is finished.
+* `after_state` -- fires when the *currently loading* state file (and all its dependencies) have finished loading.  (Note that the "currently loading" file is not necessarily the same as the file where a callback is being registered, which means that state files can define APIs that register callbacks to run when the *calling* state file is finished.)
+* `state_loaded` *statename sourcefile*-- emitted when *any* state has finished loading.  Callbacks can register to receive up to two arguments: the state's name and the path to the source file it was loaded from.
 * `imposer_loaded` -- fires when all state files are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
 * `json_loaded` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
 * `imposer_done` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
