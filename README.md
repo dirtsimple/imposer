@@ -53,7 +53,7 @@ options:
       domain: \(env.MAILGUN_API_DOMAIN)
 ```
 
-This is already sufficient to be a state file.  State files are parsed using [jqmd](https://github.com/bashup/jqmd), so strings in YAML blocks can contain [jq](http://stedolan.github.io/jq/) interpolation expressions like ``\(env.MAILGUN_API_KEY)`` to get values from environment variables.  (JSON blocks can do that too, and also use any jq expression that doesn't reference `.`.)
+This is already sufficient to be a state file.  State files are parsed using [jqmd](https://github.com/bashup/jqmd), so strings in YAML blocks can contain [jq](http://stedolan.github.io/jq/) interpolation expressions like ``\(env.MAILGUN_API_KEY)`` to get values from environment variables.  (JSON blocks can do that too, and use plain jq expressions as well as string interpolation.)
 
 A state file can include multiple YAML or JSON blocks, and their contents are merged, with later values overriding earlier ones (or appending in the case of lists and arrays).  In addition to setting options, we can also indicate that a particular plugin should be activated or deactivated:
 
@@ -113,7 +113,7 @@ MyPluginAPI::setup_categories($my_plugin_info['categories']);
 
 And then users who want to impose product definitions in their state files would `require` your state file before adding in their own YAML or JSON with product data.  Any PHP they defined after `require`-ing your state file would then run after your own PHP code, allowing others to further extend and build on what you did.
 
-If you're distributing your state as part of a wordpress theme plugin, you can include the state file as `default.state.md` in the root of your plugin, or inside an `imposer/` subdirectory.  Users can then `require "your-theme-or-plugin-name"` to load the default state file.  If on the other hand you're distributing it as a `composer` package, it would work the same way  except people would `require "your-org/your-name"` to load its default state file.
+If you're distributing your state as part of a wordpress theme or plugin, you can include the state file as `default.state.md` in the root of your plugin, or inside an `imposer/` subdirectory.  Users can then `require "your-theme-or-plugin-name"` to load the default state file.  If on the other hand you're distributing it as a `composer` package, it would work the same way  except people would `require "your-org/your-name"` to load its default state file.
 
 You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer apply my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
 
@@ -154,11 +154,11 @@ Imposer is packaged with composer, and is intended to be installed that way, i.e
 
 In addition to PHP, Composer, and Wordpress, imposer requires:
 
-* [jq](http://stedolan.github.io/jq/) 1.5 or better (and if you're on Windows, it must be the *Cygwin* version, not the Windows version)
-* the bash shell, version 3.2 or better (meaning Cygwin or git bash on Windows)
+* [jq](http://stedolan.github.io/jq/) 1.5 or better
+* the bash shell, version 3.2 or better
 * Optionally, a copy of [this fast yaml2json written in go](https://github.com/bronze1man/yaml2json), to speed up YAML processing over the [yaml2json.php](https://packagist.org/packages/dirtsimple/yaml2json) that gets installed alongside imposer.
 
-Imposer is not yet regularly tested on anything other than Linux, but it *should* work on Cygwin, OS/X, and other Unix-like operating systems with a suitable version of bash and jq.
+Imposer is not yet regularly tested on anything other than Linux, but it *should* work on OS/X and other Unix-like operating systems with a suitable version of bash and jq.  (It *can* be run on Windows using the Cygwin versions of PHP and jq, but will run painfully slowly compared to the Linux Subsystem for Windows or using a Linux VM or Docker container.)
 
 To use Imposer, you must have an `imposer-project.md`,  `composer.json` OR `wp-cli.yml` file located in the root of your current project.  Imposer will search the current directory and its parent directories until it finds one of the three files, and all relative paths (e.g. those in `IMPOSER_PATH`) will be treated as relative to that directory.  (And all code in state files is executed with that directory as the current directory.)  If you have an `imposer-project.md`, it will be loaded as though it were the state file for a state called `imposer-project`.
 
@@ -190,13 +190,13 @@ While we're discussing precedence order, you may find it useful to have an expli
 * Second phase: run `jq` using the accumulated jq code generated by the YAML, JSON, jq, etc. code blocks executed during the first phase, creating a new JSON configuration map.  (The `json_loaded` event fires at the end of this phase.)
 * Third phase: run `wp eval-file` on the accumulated PHP code generated by the code blocks executed during the first phase, passing the JSON output by the second phase as a command-line argument.  (The `imposer_done` event fires at the end of this phase.)
 
-So, even though it looks like shell, PHP, and YAML/JSON/jq code execution are interleaved, in reality all the shell code is executed first: it's just that any code block *other* than shell code blocks are translated to shell code that accumulates either jq or PHP code for execution in the second or third phase.  This means that you can't (for example) have two YAML block references the same environment variable and change it "in between" -- whatever value the environment variable has at the end of phase one is what will be used in both blocks during phase two.
+So, even though it looks like shell, PHP, and YAML/JSON/jq code execution are interleaved, in reality all the shell code is executed first: it's just that any code block *other* than shell code blocks are translated to shell code that accumulates either jq or PHP code for execution in the second or third phase.  This means that you can't (for example) have two YAML blocks reference the same environment variable and change it "in between them" using shell code, because whatever value the environment variable has at the end of phase one is what will be used when *both* blocks are executed during phase two.
 
 ### Imposer Subcommands
 
-Note: imposer always operates on the nearest directory at or above the current directory that contains either a `wp-cli.yml` or a `composer.json`.  This directory is assumed to be your project root, and all paths are calculated from there.
+Note: imposer always operates on the nearest directory at or above the current directory that contains either an `imposer-project.md `, a `wp-cli.yml`, and/or a `composer.json`.  This directory is assumed to be your project root, and all relative paths are based there.
 
-(Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, even if `wp eval-file` successfully sends the resulting JSON and PHP for remote execution.)
+(Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, even if `wp eval-file` successfully sends the resulting JSON and PHP for remote execution!)
 
 #### imposer apply *[state...]*
 
@@ -224,10 +224,12 @@ Currently, this project is in very early development, as it doesn't have 100% do
 
 ### Performance Notes
 
-While imposer is not generally performance-critical, you may be running it a lot during development, and a second or two of run time can add up quickly during rapid development.  If you are running it with a lot of states, you may wish to note that:
+While imposer is not generally performance-critical, you may be running it a lot during development, and a second or two of run time can add up quickly during rapid development.  If you are experiencing slow run times, you may wish to note that:
 
+* Due to limitations of the Windows platform, bash scripts like imposer run painfully slowly under Cygwin.  If possible, use a VM, Docker container, or the Linux Subsystem for Windows to get decent performance.
+* On average, Imposer spends most of its execution time running large php programs (`composer` and `wp`) from the command line, so [enabling the CLI opcache](https://pierre-schmitz.com/using-opcache-to-speed-up-your-cli-scripts/) will help a lot.
 * Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` up to three times each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`.  (You can run `imposer path` to find out the directories imposer is currently using, or `imposer default-path` to get the directories imposer would use if `IMPOSER_PATH` were not set.)
 * By default, the compiled version of state files are cached in `imposer/.cache` in your project root.  You can change this by setting `IMPOSER_CACHE` to the desired directory, or an empty string to disable caching.  (It's best to keep this enabled, and delete it rarely, since uncached compilation is slow.)
 * In situations where caching is disabled, or your cache is frequently cleared, YAML blocks are processed slower than JSON blocks. You can speed this up a bit by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or elimnate the overhead altogether by using JSON blocks instead.
-* wp-cli commands are generally slow to start: if you have a choice between running wp-cli from a shell block, or writing PHP code directly, the latter is considerably faster.
+* wp-cli commands are generally slow to start: if you have a choice between running wp-cli from a `shell` block, or writing PHP code directly, the latter is considerably faster.
 
