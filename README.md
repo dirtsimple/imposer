@@ -168,14 +168,14 @@ For convenience, state names do not include the `.state.md` suffix, and can also
 
 * `foo/bar/baz.state.md` (the exact name, as a `.state.md` file)
 * `foo/bar/baz/default.state.md` (the exact name as a directory, containing a `default.state.md` file)
-* `foo/bar/baz/imposer/default.state.md` (the exact name as a directory, containing an `imposer/default.state.md` file)
-* `foo/bar/imposer/baz.state.md` (the namespace of the name as a directory, containing the last name part in an `imposer` subdirectory)
+* `foo/bar/baz/imposer-states/default.state.md` (the exact name as a directory, containing an `imposer-states/default.state.md` file)
+* `foo/bar/imposer-states/baz.state.md` (the namespace of the name as a directory, containing the last name part in an `imposer-states` subdirectory)
 
-(The last rule means that you can create a composer package called e.g. `mycompany/imposer` containing a library of state files, that you can then require as `mycompany/foo` to load `foo.state.md` from `vendor/mycompany/imposer`.  Or you can make a Wordpress plugin called `myplugin`, and then require  `myplugin/bar` to load `bar.state.md` from the plugin's `imposer/` directory or its root.)
+(The last rule means that you can create a composer package called e.g. `mycompany/imposer-states` containing a library of state files, that you can then require as `mycompany/foo` to load `foo.state.md` from `vendor/mycompany/imposer-states`.  Or you can make a Wordpress plugin called `myplugin`, and then require  `myplugin/bar` to load `bar.state.md` from the plugin's `imposer-states/` directory or its root.)
 
 The default `IMPOSER_PATH` contains:
 
-* `./imposer`
+* `./imposer` (i.e., the `imposer` subdirectory of the project root)
 * The Wordpress themes directory as provided by wp-cli (e.g. `wp-content/themes/`)
 * The Wordpress plugin directory as provided by wp-cli (e.g. `wp-content/plugins/`)
 * The `COMPOSER_VENDOR_DIR` (e.g. `vendor/`), if a `composer.json` is present

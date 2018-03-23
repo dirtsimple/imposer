@@ -301,7 +301,7 @@ States are looked up in each directory on the imposer path, checking for files i
 __find_state() {
     realpath.basename "$1"; local name=$REPLY
     realpath.dirname "$1"; local ns=$REPLY
-    local patterns=("$1" "$1/default" "$1/imposer/default" "$ns/imposer/$name" )
+    local patterns=("$1" "$1/default" "$1/imposer-states/default" "$ns/imposer-states/$name" )
     for REPLY in ${imposer_dirs[@]+"${imposer_dirs[@]}"}; do
         if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then return; fi
     done
@@ -324,21 +324,21 @@ __find_state() {
 
 # Paths for an unprefixed name:
     $ __find_state baz
-    ./imposer baz baz/default baz/imposer/default ./imposer/baz
-    ./plugins baz baz/default baz/imposer/default ./imposer/baz
-    ./vendor baz baz/default baz/imposer/default ./imposer/baz
+    ./imposer baz baz/default baz/imposer-states/default ./imposer-states/baz
+    ./plugins baz baz/default baz/imposer-states/default ./imposer-states/baz
+    ./vendor baz baz/default baz/imposer-states/default ./imposer-states/baz
     [1]
 
     $ __find_state bar/baz
-    ./imposer bar/baz bar/baz/default bar/baz/imposer/default bar/imposer/baz
-    ./plugins bar/baz bar/baz/default bar/baz/imposer/default bar/imposer/baz
-    ./vendor bar/baz bar/baz/default bar/baz/imposer/default bar/imposer/baz
+    ./imposer bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
+    ./plugins bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
+    ./vendor bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     [1]
 
     $ __find_state foo/bar/baz
-    ./imposer foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer/default foo/bar/imposer/baz
-    ./plugins foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer/default foo/bar/imposer/baz
-    ./vendor foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer/default foo/bar/imposer/baz
+    ./imposer foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
+    ./plugins foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
+    ./vendor foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
     [1]
 
 # Un-mock reply_if_exists
@@ -349,21 +349,21 @@ __find_state() {
     [1]
 
 # In last directory, name as file under imposer
-    $ mkdir -p vendor/imposer
-    $ touch vendor/imposer/x.state.md
+    $ mkdir -p vendor/imposer-states
+    $ touch vendor/imposer-states/x.state.md
     $ __find_state x && echo "$REPLY"
-    /*/vendor/./imposer/x.state.md (glob)
+    /*/vendor/./imposer-states/x.state.md (glob)
 
 # Override w/directory:
-    $ mkdir -p vendor/x/imposer/
-    $ touch vendor/x/imposer/default.state.md
+    $ mkdir -p vendor/x/imposer-states/
+    $ touch vendor/x/imposer-states/default.state.md
     $ __find_state x && echo "$REPLY"
-    /*/vendor/x/imposer/default.state.md (glob)
+    /*/vendor/x/imposer-states/default.state.md (glob)
 
 # Removing it exposes the previous file again
-    $ rm vendor/x/imposer/default.state.md
+    $ rm vendor/x/imposer-states/default.state.md
     $ __find_state x && echo "$REPLY"
-    /*/vendor/./imposer/x.state.md (glob)
+    /*/vendor/./imposer-states/x.state.md (glob)
 
 ````
 

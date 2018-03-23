@@ -486,7 +486,7 @@ require() {
 __find_state() {
     realpath.basename "$1"; local name=$REPLY
     realpath.dirname "$1"; local ns=$REPLY
-    local patterns=("$1" "$1/default" "$1/imposer/default" "$ns/imposer/$name" )
+    local patterns=("$1" "$1/default" "$1/imposer-states/default" "$ns/imposer-states/$name" )
     for REPLY in ${imposer_dirs[@]+"${imposer_dirs[@]}"}; do
         if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then return; fi
     done
