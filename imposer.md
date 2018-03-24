@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+: '
+<!-- ex: set syntax=markdown : '; eval "$(jqmd -E "$BASH_SOURCE")"; # -->
+
 # `imposer`: Impose States on a Wordpress Instance
 
 Imposer is a modular configuration manager for Wordpress, allowing state information from outside the database (i.e. files, environment variables, etc.) to be "imposed" upon a Wordpress instance's database.  State information is defined in markdown files (like this one) containing mixed shell script, jq code, YAML, and PHP.
@@ -91,10 +95,40 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 ### PHP Parsing and Output
 
-```shell ! echo "$1"; eval "$1"
-cat-php() { printf '%s\n' '<?php' "${!1-}"; }
+PHP blocks are syntax-checked at compile time (so that the check is cached).  PHP blocks can be assembled in any array variable; element 0 contains namespaced code, and element 1 contains non-namespaced code that hasn't yet been wrapped in a namespace.  Namespace wrapping is lazy: as many non-namespaced blocks as possible are wrapped in a single large `namespace { }` block, instead of wrapping each block as it comes.
 
-compile-php() { printf '%s+=%q\n' "$1" "$2"; }
+```shell ! echo "$1"; eval "$1"
+cat-php() { local v1=$1 v2=$1[1]; compact-php $v1 $v2; printf '<?php\n%s' "${!v1-}${!v2-}"; }
+
+compile-php() {
+    if REPLY="$(echo "<?php $2" | php -l 2>&1)"; local s=$?; ((s)); then
+        php-error "$REPLY" $s "${3-}"; return
+    elif php-uses-namespace "$2"; then
+        if [[ $REPLY != { ]]; then
+            php-error "Namespaces in PHP blocks must be {}-enclosed" 255 "${3-}"; return
+        fi
+        printf 'compact-php %s %s[1] force\n' "$1" "$1"
+    else
+        set -- "$1[1]" "$2"
+    fi
+    printf '%s+=%q\n' "$1" "$2"
+}
+
+php-error() {
+    echo "In PHP block ${3:+at line ${3-} }of ${MDSH_SOURCE--}:"$'\n'"$1" >&2; return $2
+}
+
+compact-php() {
+    if [[ "${!1-}${3-}" && "${!2-}" ]]; then
+        printf -v $1 '%snamespace {\n%s}\n' "${!1-}" "${!2}"; unset $2
+    fi
+}
+
+php-uses-namespace() {
+    local r o=nocasematch; ! shopt -q $o || o=; ${o:+shopt -s $o}
+    [[ $1 =~ ^((//|#).*$'\n'|'/*'.*'*/'|[[:space:]])*namespace[[:space:]]+[^\;{]*([;{]) ]]; r=$?
+    ${o:+shopt -u $o}; REPLY=${BASH_REMATCH[3]-}; return $r
+}
 
 mdsh-compile-php() { compile-php imposer_php "$1"; }
 ```

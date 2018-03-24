@@ -84,7 +84,7 @@ For most things, though, it's both clearer and simpler to just use YAML and JSON
 
 (For more on what you can do with `jq` blocks and shell scripting, see the [jqmd docs](https://github.com/bashup/jqmd).)
 
-Last, but not least, you can define PHP blocks.  Unlike the other types of blocks, PHP blocks are "saved up" and executed later, after imposer has finished executing all of the state files to create the complete JSON configuration map.
+Last, but not least, you can define PHP blocks.  Unlike the other types of blocks, PHP blocks are "saved up" and executed later, after imposer has finished executing all of the state files to create the complete JSON configuration map.  PHP blocks are individually syntax-checked, and can contain namespaced code as long as the entire block is either wrapped in  `namespace ... {  }` blocks, or does not use namespaces at all.
 
 All the PHP blocks defined by all the states are joined together in one giant PHP file that gets passed into `wp eval-file`, with the configuration map as a command-line argument.  The configuration map is stored  in the `$state` variable, which your code should not modify.  All of the builtin configuration keys (just `options` and `plugins` at this moment) will have already been processed before your PHP code runs.
 

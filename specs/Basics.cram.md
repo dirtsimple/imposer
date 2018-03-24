@@ -2,7 +2,7 @@
 
 ````sh
 # Load functions and turn off error exit
-    $ source jqmd; run-markdown "$TESTDIR/../imposer.md"; set +e
+    $ source "$TESTDIR/../imposer.md"; set +e
 ````
 
 ## Core Configuration
@@ -15,7 +15,7 @@
     > ```shell
     > echo "hello from imposer-project.md!"
     > printf -v PHP_RUNTIME '%s\n' "${imposer_php[@]}"  # save the runtime
-    > imposer_php=($'# imposer runtime goes here\n')    # blank it out
+    > imposer_php=('' $'# imposer runtime goes here\n') # blank it out
     > ```
     > EOF
 
@@ -259,7 +259,6 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
     --- PHP: ---
     <?php
     # imposer runtime goes here
-    
     EVENT: imposer_done
 
 # Running apply resets the filters and events, so doing it again is a no-op:
@@ -328,7 +327,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     
     MyPluginAPI::setup_products($my_plugin_info['products']);
     MyPluginAPI::setup_categories($my_plugin_info['categories']);
-    
+
 # And just for the heck of it, show all the events:
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy
