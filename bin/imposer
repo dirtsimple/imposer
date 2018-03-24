@@ -467,6 +467,12 @@ imposer.path() {
 }
 
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
+cat-php() { printf '%s\n' '<?php' "${!1-}"; }
+
+compile-php() { printf '%s+=%q\n' "$1" "$2"; }
+
+mdsh-compile-php() { compile-php imposer_php "$1"; }
+
 if [[ $0 == "${BASH_SOURCE-}" ]]; then
     realpath.dirname "$0"
     realpath.absolute "$REPLY" yaml2json.php
@@ -475,7 +481,7 @@ if [[ $0 == "${BASH_SOURCE-}" ]]; then
     fi
 fi
 FILTER  jqmd::data\(\{\"options\":\{\}\,\"plugins\":\{\}\}\)
-mdsh_raw_php+=($'$state = json_decode($args[0], true);\n\nforeach ( $state[\'options\'] as $opt => $new) {\n\t$old = get_option($opt);\n\tif (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n\tif ($new !== $old) {\n\t\tif ($old === false) add_option($opt, $new); else update_option($opt, $new);\n\t}\n}\n\nif ( !empty( $plugins = $state[\'plugins\'] ) ) {\n\t$fetcher = new \\WP_CLI\\Fetchers\\Plugin;\n\t$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), \'file\', \'name\' );\n\t$activate = $deactivate = [];\n\tforeach ($plugins as $plugin => $desired) {\n\t\t$desired = ($desired !== false);\n\t\tif ( empty($plugin_files[$plugin]) ) {\n\t\t\tcontinue; # XXX warn plugin of that name isn\'t installed\n\t\t}\n\t\tif ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;\n\t\tif ( $desired ) {\n\t\t\t$activate[] = $plugin_files[$plugin];\n\t\t} else {\n\t\t\t$deactivate[] = $plugin_files[$plugin];\n\t\t}\n\t}\n\tdeactivate_plugins($deactivate);  # deactivate first, in case of conflicts\n\tactivate_plugins($activate);\n}\n')
+imposer_php+=$'$state = json_decode($args[0], true);\n\nforeach ( $state[\'options\'] as $opt => $new) {\n\t$old = get_option($opt);\n\tif (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n\tif ($new !== $old) {\n\t\tif ($old === false) add_option($opt, $new); else update_option($opt, $new);\n\t}\n}\n\nif ( !empty( $plugins = $state[\'plugins\'] ) ) {\n\t$fetcher = new \\WP_CLI\\Fetchers\\Plugin;\n\t$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), \'file\', \'name\' );\n\t$activate = $deactivate = [];\n\tforeach ($plugins as $plugin => $desired) {\n\t\t$desired = ($desired !== false);\n\t\tif ( empty($plugin_files[$plugin]) ) {\n\t\t\tcontinue; # XXX warn plugin of that name isn\'t installed\n\t\t}\n\t\tif ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;\n\t\tif ( $desired ) {\n\t\t\t$activate[] = $plugin_files[$plugin];\n\t\t} else {\n\t\t\t$deactivate[] = $plugin_files[$plugin];\n\t\t}\n\t}\n\tdeactivate_plugins($deactivate);  # deactivate first, in case of conflicts\n\tactivate_plugins($activate);\n}\n'
 imposed_states=
 require() {
     get_imposer_dirs
@@ -510,17 +516,17 @@ __load_state() {
     event fire "after_state"
     event emit "state_loaded" "$1" "$2"
 }
-cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
-
 imposer.apply() {
-    require "$@"; event fire "imposer_loaded"
+    require "$@"
+    event fire "imposer_loaded"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
-        cat-php | wp eval-file - "$IMPOSER_JSON"; event fire "imposer_done"
+        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
+        event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
 }
 imposer.json() { require "$@"; event fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
-imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php imposer_php; }
 if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi

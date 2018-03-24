@@ -89,6 +89,16 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 ## State Handling
 
+### PHP Parsing and Output
+
+```shell ! echo "$1"; eval "$1"
+cat-php() { printf '%s\n' '<?php' "${!1-}"; }
+
+compile-php() { printf '%s+=%q\n' "$1" "$2"; }
+
+mdsh-compile-php() { compile-php imposer_php "$1"; }
+```
+
 ### JSON and YAML
 
 Because this script is installed via composer, there is a good chance that our current executable is alongside a `yaml2json.php` script.  If so, we set up jqmd's yaml2json PHP handler to use it:
@@ -203,14 +213,14 @@ __load_state() {
 After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
 
 ```shell
-cat-php() { printf '%s\n' '<?php' "${mdsh_raw_php[@]}"; }
-
 imposer.apply() {
-    require "$@"; event fire "imposer_loaded"
+    require "$@"
+    event fire "imposer_loaded"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
-        cat-php | wp eval-file - "$IMPOSER_JSON"; event fire "imposer_done"
+        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
+        event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
 }
@@ -222,7 +232,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 
 ```shell
 imposer.json() { require "$@"; event fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
-imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php; }
+imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php imposer_php; }
 ```
 
 
