@@ -23,7 +23,7 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
 
 - [How States Work](#how-states-work)
   * [Extending The System](#extending-the-system)
-  * [Shell Hooks](#shell-hooks)
+  * [Event Hooks](#event-hooks)
 - [Installation, Requirements, and Use](#installation-requirements-and-use)
   * [Imposer Subcommands](#imposer-subcommands)
     + [imposer apply *[state...]*](#imposer-apply-state)
@@ -117,7 +117,7 @@ If you're distributing your state as part of a wordpress theme or plugin, you ca
 
 You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer apply my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
 
-### Shell Hooks
+### Event Hooks
 
 Imposer offers a system of event hooks for `shell` code, similar to Wordpress's `add_action` and `do_action` system for PHP.  State files can use the [bashup events](https://github.com/bashup/events/) API to register bash functions that will then be called when specific events are fired.  For example:
 
@@ -125,11 +125,12 @@ Imposer offers a system of event hooks for `shell` code, similar to Wordpress's 
 my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER_JSON"; }
 
-event on "after_state"    my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
-event on "state_loaded"/1 my_plugin.message "Just loaded a state called:"
-event on "imposer_loaded" my_plugin.message "All states have finished loading."
-event on "json_loaded"    my_plugin.handle_json
-event on "imposer_done"   my_plugin.message "All PHP code has been run."
+event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
+event on "state_loaded"/1           my_plugin.message "Just loaded a state called:"
+event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
+event on "imposer_loaded"           my_plugin.message "All states have finished loading."
+event on "json_loaded"              my_plugin.handle_json
+event on "imposer_done"             my_plugin.message "All PHP code has been run."
 ```
 
 The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `/` and a number at the end of the event name.  (So above, the `state_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a state called:"`, which in this case will be the name of the state loaded.)
@@ -139,9 +140,17 @@ Also, you can put arguments after the name of your function, and any arguments s
 Imposer currently offers the following built-in events:
 
 * `after_state` -- fires when the *currently loading* state file (and all its dependencies) have finished loading.  (Note that the "currently loading" file is not necessarily the same as the file where a callback is being registered, which means that state files can define APIs that register callbacks to run when the *calling* state file is finished.)
+
 * `state_loaded` *statename sourcefile*-- emitted when *any* state has finished loading.  Callbacks can register to receive up to two arguments: the state's name and the path to the source file it was loaded from.
+
+* `persistent_states_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is a one-time asynchronous event: you can register for it even after it has already happened, and your callback will be invoked immediately.
+
+  The purpose of this event is to let you disable functionality that should only be available to persistent (i.e. project-defined) states, and not from states added to the command line.
+
 * `imposer_loaded` -- fires when all state files are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
+
 * `json_loaded` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
+
 * `imposer_done` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
 
 Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit` or `event fire`.  (See the [event API docs](https://github.com/bashup/events/#events-api) for more info.)

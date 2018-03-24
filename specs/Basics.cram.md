@@ -285,6 +285,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 # JSON dump:
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
     hello from imposer-project.md!
+    The project configuration has been loaded.
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.
@@ -317,6 +318,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 # PHP dump (includes only state-supplied code, no core code:
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
     hello from imposer-project.md!
+    The project configuration has been loaded.
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.
@@ -330,6 +332,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy
     hello from imposer-project.md!
+    The project configuration has been loaded.
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.

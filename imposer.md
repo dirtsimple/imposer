@@ -18,7 +18,7 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 
 ### File and Function Names
 
-Configuration is loaded using loco.   Subcommand functions are named `imp.X`, where `X` is the command or option name.
+Configuration is loaded using loco.  Subcommand functions are named `imp.X`, where `X` is the command or option name.
 
 ```shell
 loco_preconfig() {
@@ -34,6 +34,7 @@ loco_loadproject() {
 	cd "$LOCO_ROOT"
 	imposed_states+="<imposer-project>"
 	[[ $LOCO_PROJECT != *.md ]] || __load_state imposer-project "$LOCO_PROJECT"
+	event resolve persistent_states_loaded
 }
 ```
 
