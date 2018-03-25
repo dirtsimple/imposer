@@ -6,7 +6,7 @@
 
 Imposer is a modular configuration manager for Wordpress, allowing state information from outside the database (i.e. files, environment variables, etc.) to be "imposed" upon a Wordpress instance's database.  State information is defined in markdown files (like this one) containing mixed shell script, jq code, YAML, and PHP.
 
-Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](https://github.com/bashup/loco) for command-line parsing and configuration loading, and [jqmd](https://github.com/bashup/jqmd) for literate programming support.  It also uses [bashup/events](https://github.com/bashup/events) as its event subscription framework.
+Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](https://github.com/bashup/loco) for command-line parsing and configuration loading, and [jqmd](https://github.com/bashup/jqmd) for literate programming support.  It also uses [bashup/events](https://github.com/bashup/events) as its event subscription framework, and [.devkit](https://github.com/bashup/.devkit)'s `tty` module.
 
 ```shell mdsh
 @module imposer.md
@@ -16,6 +16,9 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 @import bashup/jqmd   mdsh-source "$BASHER_PACKAGES_PATH/bashup/jqmd/jqmd.md"
 @import bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
 @import bashup/events tail -n +2  "$BASHER_PACKAGES_PATH/bashup/events/bashup.events"
+@import .devkit/tty   tail -n +2  "$DEVKIT_HOME/modules/tty"
+
+echo tty_prefix=IMPOSER_   # Use IMPOSER_ISATTY, IMPOSER_PAGER, etc.
 ```
 
 ## Core Configuration
@@ -266,7 +269,13 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 
 ```shell
 imposer.json() { require "$@"; event fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
-imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php imposer_php; }
+
+colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l php; }
+
+imposer.php()  {
+    require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS
+    tty pager colorize-php -- cat-php imposer_php
+}
 ```
 
 ### Tweaks

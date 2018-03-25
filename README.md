@@ -226,9 +226,13 @@ Load and execute the specified states, building a JSON configuration and accumul
 
 Just like `imposer apply`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
 
+If the output is a tty and `less` is available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`; an empty string disables paging.
+
 #### imposer php *[state...]*
 
 Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.
+
+If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
 
 #### imposer path
 
