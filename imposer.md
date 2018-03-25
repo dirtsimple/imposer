@@ -100,9 +100,9 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 PHP blocks are syntax-checked at compile time (so that the check is cached).  PHP blocks can be assembled in any array variable; element 0 contains namespaced code, and element 1 contains non-namespaced code that hasn't yet been wrapped in a namespace.  Namespace wrapping is lazy: as many non-namespaced blocks as possible are wrapped in a single large `namespace { }` block, instead of wrapping each block as it comes.
 
-```shell ! echo "$1"; eval "$1"
-cat-php() { local v1=$1 v2=$1[1]; compact-php $v1 $v2; printf '<?php\n%s' "${!v1-}${!v2-}"; }
+The following functions need to be available to both compile-time building of imposer, *and* at runtime, since both include PHP code:
 
+```shell ! echo "$1"; eval "$1"
 compile-php() {
     if REPLY="$(echo "<?php $2" | php -l 2>&1)"; local s=$?; ((s)); then
         php-error "$REPLY" $s "${3-}"; return
@@ -134,6 +134,29 @@ php-uses-namespace() {
 }
 
 mdsh-compile-php() { compile-php imposer_php "$1" "$3"; }
+```
+
+But at runtime, we compile state and configuration files in such a way that PHP blocks are saved to `php_ext` instead of `imposer_php`.  This separates the core runtime from extensions, allowing the `imposer php` command to just output the extensions, while still outputting both to .
+
+```shell
+# Compile non-core PHP as php_ext
+mdsh-compile-php() { compile-php php_ext "$1" "$3"; }
+
+# Dump one or more PHP buffers
+cat-php() {
+    local v1 v2 t php=()
+    while (($#)); do
+        v1=$1 v2=$1[1]; compact-php $v1 $v2; t=${!v1-}${!v2-}
+        if php-uses-namespace "$t"; then
+            compact-php php php[1] force
+            php+="$t"
+        else
+            php[1]+="$t"
+        fi
+        shift
+    done
+    printf "<?php\n%s" "${php-}${php[1]-}"
+}
 ```
 
 ### JSON and YAML
@@ -256,7 +279,7 @@ imposer.apply() {
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
-        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
+        cat-php imposer_php php_ext | wp eval-file - "$IMPOSER_JSON"
         event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
@@ -274,7 +297,7 @@ colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l p
 
 imposer.php()  {
     require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS
-    tty pager colorize-php -- cat-php imposer_php
+    tty pager colorize-php -- cat-php php_ext
 }
 ```
 

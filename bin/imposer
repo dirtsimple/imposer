@@ -493,8 +493,6 @@ imposer.path() {
 }
 
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
-cat-php() { local v1=$1 v2=$1[1]; compact-php $v1 $v2; printf '<?php\n%s' "${!v1-}${!v2-}"; }
-
 compile-php() {
     if REPLY="$(echo "<?php $2" | php -l 2>&1)"; local s=$?; ((s)); then
         php-error "$REPLY" $s "${3-}"; return
@@ -527,6 +525,24 @@ php-uses-namespace() {
 
 mdsh-compile-php() { compile-php imposer_php "$1" "$3"; }
 
+# Compile non-core PHP as php_ext
+mdsh-compile-php() { compile-php php_ext "$1" "$3"; }
+
+# Dump one or more PHP buffers
+cat-php() {
+    local v1 v2 t php=()
+    while (($#)); do
+        v1=$1 v2=$1[1]; compact-php $v1 $v2; t=${!v1-}${!v2-}
+        if php-uses-namespace "$t"; then
+            compact-php php php[1] force
+            php+="$t"
+        else
+            php[1]+="$t"
+        fi
+        shift
+    done
+    printf "<?php\n%s" "${php-}${php[1]-}"
+}
 if [[ $0 == "${BASH_SOURCE-}" ]]; then
     realpath.dirname "$0"
     realpath.absolute "$REPLY" yaml2json.php
@@ -576,7 +592,7 @@ imposer.apply() {
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
-        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
+        cat-php imposer_php php_ext | wp eval-file - "$IMPOSER_JSON"
         event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
@@ -587,7 +603,7 @@ colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l p
 
 imposer.php()  {
     require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS
-    tty pager colorize-php -- cat-php imposer_php
+    tty pager colorize-php -- cat-php php_ext
 }
 mdsh_raw_php_tweaks_header+=($'# Plugin Name:  Imposer Tweaks\n# Plugin URI:   https://github.com/dirtsimple.org/imposer#adding-code-tweaks\n# Description:  Automatically-generated from tweaks in imposer state files\n# Version:      0.0.0\n# Author:       Various\n# License:      Unknown\n\n')
 warn-unloaded-tweaks() {

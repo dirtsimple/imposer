@@ -230,7 +230,7 @@ If the output is a tty and `less` is available, the output is colorized and page
 
 #### imposer php *[state...]*
 
-Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.
+Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.  (Note: only the PHP supplied by configuration or state files is included; imposer's built-in PHP is excluded.)
 
 If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
 

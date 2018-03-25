@@ -303,7 +303,6 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     Just loaded a state called: dummy
     All states have finished loading.
     <?php
-    # imposer runtime goes here
     $my_plugin_info = $state['my_ecommerce_plugin'];
     
     MyPluginAPI::setup_products($my_plugin_info['products']);
