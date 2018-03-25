@@ -22,6 +22,7 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
 <!-- toc -->
 
 - [How States Work](#how-states-work)
+  * [Adding Code Tweaks](#adding-code-tweaks)
   * [Extending The System](#extending-the-system)
   * [Event Hooks](#event-hooks)
 - [Installation, Requirements, and Use](#installation-requirements-and-use)
@@ -90,9 +91,21 @@ All the PHP blocks defined by all the states are joined together in one giant PH
 
 (Note: the configuration map in `$state` is built up from nothing on each imposer run, and only contains values put there by the state files loaded *during that imposer run*.  It does *not* contain existing plugin or option settings, etc.  If you need to read the existing-in-Wordpress values of such things, you must use PHP code that invokes the Wordpress API.  Think of the configuration map as a to-do list or list of "things we'd like to ensure are this way in Wordpress as of this run".)
 
+### Adding Code Tweaks
+
+A lot of Wordpress plugins require you to add code to your theme's `functions.php` in order to get them to work the way you want.  But it can be a hassle to manage those bits of code, especially when switching themes, or when you need a tweak to be applied consistently across multiple sites.  To address this issue, state files can also include "tweaks" -- code blocks tagged as `php tweak`, like this one:
+
+```php tweak
+add_filter('made_up_example', '__return_true');
+```
+
+When you run `imposer apply`, these code blocks are joined together and written to a dummy plugin called `imposer-tweaks` in the Wordpress plugins directory, containing all the loaded tweaks.  This plugin is also activated, unless you explicitly *deactivate* it afterward.  Since any state file can potentially include tweaks, this is a powerful tool for modularizing and reusing these types of code snippets.
+
+Note, however, that only state files that are directly or indirectly `require`d by your `imposer-project.md` or global imposer configuration will have their tweaks included in the plugin.  If you specify states on the command line that contain tweaks, Imposer will output warnings for each such state, and will not actually add the code to the generated plugin.  (This is because the plugin is generated from scratch each time, so its contents would be change whenever you re-ran `imposer apply` with different arguments.)
+
 ### Extending The System
 
-You can use PHP blocks to do either WP API operations that aren't currently built-in to imposer, or to create extensions to the configuration format.  For example, if there's a plugin or wp-cli package that defines an API for some type of object, like LMS courses or e-commerce products, you could extend the configuration format with a new top-level key like `my_ecommerce_plugin`, containing a subkey for products.
+Aside from tweaks, you can use PHP blocks to do either WP API operations that aren't currently built-in to imposer, or to create extensions to the configuration format.  For example, if there's a plugin or wp-cli package that defines an API for some type of object, like LMS courses or e-commerce products, you could extend the configuration format with a new top-level key like `my_ecommerce_plugin`, containing a subkey for products.
 
 You would then include a state file in your plugin to initialize this key, with something like:
 
@@ -153,9 +166,7 @@ Imposer currently offers the following built-in events:
 
 * `imposer_done` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
 
-Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit` or `event fire`.  (See the [event API docs](https://github.com/bashup/events/#events-api) for more info.)
-
-
+Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit` or `event fire`.  (See the [event API docs](https://github.com/bashup/events/#readme) for more info.)
 
 ## Installation, Requirements, and Use
 

@@ -6,13 +6,13 @@
 
 Imposer is a modular configuration manager for Wordpress, allowing state information from outside the database (i.e. files, environment variables, etc.) to be "imposed" upon a Wordpress instance's database.  State information is defined in markdown files (like this one) containing mixed shell script, jq code, YAML, and PHP.
 
-Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](https://github.com/bashup/loco) for command-line parsing and configuration loading, and [jqmd](https://github.com/bashup/jqmd) for literate programming support.
+Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](https://github.com/bashup/loco) for command-line parsing and configuration loading, and [jqmd](https://github.com/bashup/jqmd) for literate programming support.  It also uses [bashup/events](https://github.com/bashup/events) as its event subscription framework.
 
 ```shell mdsh
 @module imposer.md
 @main loco_main
 
-@import pjeby/license @comment    LICENSE
+@import pjeby/license @comment    "LICENSE"
 @import bashup/jqmd   mdsh-source "$BASHER_PACKAGES_PATH/bashup/jqmd/jqmd.md"
 @import bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
 @import bashup/events tail -n +2  "$BASHER_PACKAGES_PATH/bashup/events/bashup.events"
@@ -130,7 +130,7 @@ php-uses-namespace() {
     ${o:+shopt -u $o}; REPLY=${BASH_REMATCH[3]-}; return $r
 }
 
-mdsh-compile-php() { compile-php imposer_php "$1"; }
+mdsh-compile-php() { compile-php imposer_php "$1" "$3"; }
 ```
 
 ### JSON and YAML
@@ -269,4 +269,43 @@ imposer.json() { require "$@"; event fire "imposer_loaded"; ! HAVE_FILTERS || RU
 imposer.php()  { mdsh_raw_php=(); require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS; cat-php imposer_php; }
 ```
 
+### Tweaks
+
+Code blocks designated `php tweaks` are concatenated to create a modular, plugin-based alternative to managing patches in `functions.php`.
+
+```php tweaks_header
+# Plugin Name:  Imposer Tweaks
+# Plugin URI:   https://github.com/dirtsimple.org/imposer#adding-code-tweaks
+# Description:  Automatically-generated from tweaks in imposer state files
+# Version:      0.0.0
+# Author:       Various
+# License:      Unknown
+
+```
+
+```shell
+warn-unloaded-tweaks() {
+    echo "warning: state $IMPOSER_STATE contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration." >&2
+}
+
+activate-tweaks() {
+    php_tweaks=("" "${mdsh_raw_php_tweaks_header}")
+    FILTER '.plugins."imposer-tweaks" = true'
+    event off "php_tweak" activate-tweaks
+    event on  "json_loaded" write-plugin
+}
+
+write-plugin() { cat-php captured_tweaks >"$(wp plugin path)/imposer-tweaks.php"; }
+
+capture-tweaks() {
+    captured_tweaks=("${php_tweaks-}" "${php_tweaks[1]-}"); unset php_tweaks[@]
+    event off "php_tweak" activate-tweaks
+    event on  "php_tweak" event on "after_state" warn-unloaded-tweaks
+}
+
+event on "persistent_states_loaded" capture-tweaks
+event once "php_tweak" activate-tweaks
+
+mdsh-compile-php_tweak() { echo 'event emit php_tweak'; compile-php php_tweaks "$1" "$3"; }
+```
 

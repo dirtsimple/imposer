@@ -264,6 +264,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
     hello from imposer-project.md!
     The project configuration has been loaded.
+    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.
@@ -297,6 +298,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
     hello from imposer-project.md!
     The project configuration has been loaded.
+    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.
@@ -312,6 +314,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy
     hello from imposer-project.md!
     The project configuration has been loaded.
+    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.
@@ -319,5 +322,50 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     wp eval-file -
     All PHP code has been run.
+
+````
+### PHP Tweaks
+
+````sh
+    $ unset -f wp
+    $ ls plugins
+
+    $ cat >>imposer-project.md <<'EOF'
+    > ```shell
+    > require dummy
+    > event off "json_loaded" my_plugin.handle_json
+    > ```
+    > EOF
+    $ IMPOSER_PATH=imposer imposer-cmd apply
+    hello from imposer-project.md!
+    The current state file (dummy) is finished loading.
+    Just loaded a state called: dummy
+    Just loaded a state called: imposer-project
+    The project configuration has been loaded.
+    All states have finished loading.
+    --- JSON: ---
+    {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true,"imposer-tweaks":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
+    --- PHP: ---
+    <?php
+    # imposer runtime goes here
+    $my_plugin_info = $state['my_ecommerce_plugin'];
+    
+    MyPluginAPI::setup_products($my_plugin_info['products']);
+    MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    All PHP code has been run.
+
+    $ ls plugins
+    imposer-tweaks.php
+
+    $ cat plugins/imposer-tweaks.php
+    <?php
+    # Plugin Name:  Imposer Tweaks
+    # Plugin URI:   https://github.com/dirtsimple.org/imposer#adding-code-tweaks
+    # Description:  Automatically-generated from tweaks in imposer state files
+    # Version:      0.0.0
+    # Author:       Various
+    # License:      Unknown
+    
+    add_filter('made_up_example', '__return_true');
 
 ````
