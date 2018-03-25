@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+case "$*" in
+    "global config --absolute vendor-dir") echo "COMPOSER_GLOBAL_VENDOR";;
+    "config --absolute vendor-dir") echo "vendor";;
+    *) echo "unexpected composer $*" >&9; exit 64 ;;
+esac

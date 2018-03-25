@@ -3,6 +3,9 @@
 ````sh
 # Load functions and turn off error exit
     $ source "$TESTDIR/../imposer.md"; set +e
+
+# Mock wp and composer
+    $ exec 9>&2; export PATH="$TESTDIR/mocks:$PATH"
 ````
 
 ## Core Configuration
@@ -40,30 +43,6 @@ State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of dire
 * The `composer config vendor-dir`, if `composer.json` is present (e.g. `./vendor/`)
 * The wp-cli package path (typically `~/.wp-cli/packages`)
 * The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`.
-
-````sh
-# Mock wp and composer
-    $ exec 9>&2;
-    $ wp() {
-    >     case "$*" in
-    >         "theme path") echo "themes";;
-    >         "plugin path") echo "plugins";;
-    >         "package path") echo "packages";;
-    >         "eval-file - "*)
-    >             echo "--- JSON: ---"; printf '%s\n' "${@:3}"
-    >             echo "--- PHP: ---"; cat
-    >             ;;
-    >         *) echo "unexpected wp $*" >&9; exit 64 ;;
-    >     esac
-    > }
-    $ composer() {
-    >     case "$*" in
-    >         "global config --absolute vendor-dir") echo "COMPOSER_GLOBAL_VENDOR";;
-    >         "config --absolute vendor-dir") echo "vendor";;
-    >         *) echo "unexpected composer $*" >&2; exit 64 ;;
-    >     esac
-    > }
-````
 
 #### `path` and `default-path`
 
