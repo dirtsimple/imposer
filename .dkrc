@@ -15,13 +15,14 @@ dk use: bash32            # enable doing tests/console/etc. in bash3.2 w/docker
 
 # Define overrides, new commands, functions, etc. here:
 
-dk.bootstrap() {
-    for REPLY in mdsh jqmd loco; do require $REPLY github bashup/$REPLY master bin/$REPLY; done
-    require realpaths     github bashup/realpaths master realpaths
-    require bashup.events github bashup/events    master bashup.events
-    [[ -f composer.lock ]] || composer install
-}
+for REPLY in mdsh jqmd loco; do
+    on boot require $REPLY github bashup/$REPLY master bin/$REPLY
+done
 
-dk.build() {
-    dk test && jqmd -R --out bin/imposer --compile imposer.md && chmod +x bin/imposer
-}
+on boot require realpaths     github bashup/realpaths master realpaths
+on boot require bashup.events github bashup/events    master bashup.events
+
+[[ -f composer.lock ]] || on boot composer install
+
+on build jqmd -R --out bin/imposer --compile imposer.md
+on build chmod +x bin/imposer
