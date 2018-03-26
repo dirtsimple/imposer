@@ -7,15 +7,15 @@ namespace dirtsimple;
 class Imposer {
 
 	static function impose_json($json) {
-		impose( json_decode($json, true) );
+		static::impose( json_decode($json, true) );
 	}
 		
 	static function impose($state) {
 		foreach ( $state as $key => $val ) {
-			$state[$key] = apply_filter( "imposer_state_$key", $val, $state );
+			$state[$key] = apply_filters( "imposer_state_$key", $val, $state );
 		}
 
-		$state = apply_filter( 'imposer_state', $state );
+		$state = apply_filters( 'imposer_state', $state );
 
 		static::impose_options( $state['options'] );
 		static::impose_plugins( $state['plugins'] );
@@ -32,7 +32,7 @@ class Imposer {
 				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
 			}
 		}
-		do_action('imposed_options', $options, $state);
+		do_action('imposed_options', $options);
 	}
 	
 	static function impose_plugins($plugins) {
@@ -55,6 +55,6 @@ class Imposer {
 			deactivate_plugins($deactivate);  # deactivate first, in case of conflicts
 			activate_plugins($activate);
 		}
-		do_action('imposed_plugins', $plugins, $state);
+		do_action('imposed_plugins', $plugins);
 	}
 }
