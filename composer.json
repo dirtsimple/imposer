@@ -26,6 +26,7 @@
         "wp-cli/eval-command": "^1.0.6|dev-master",
         "dirtsimple/yaml2json": "^1.0"
     },
+    "autoload": { "classmap": ["imposer.php"] },
     "bin": [
         "bin/imposer"
     ]

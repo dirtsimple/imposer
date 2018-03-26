@@ -525,9 +525,6 @@ php-uses-namespace() {
 
 mdsh-compile-php() { compile-php imposer_php "$1" "$3"; }
 
-# Compile non-core PHP as php_ext
-mdsh-compile-php() { compile-php php_ext "$1" "$3"; }
-
 # Dump one or more PHP buffers
 cat-php() {
     local v1 v2 t php=()
@@ -543,6 +540,7 @@ cat-php() {
     done
     printf "<?php\n%s" "${php-}${php[1]-}"
 }
+
 if [[ $0 == "${BASH_SOURCE-}" ]]; then
     realpath.dirname "$0"
     realpath.absolute "$REPLY" yaml2json.php
@@ -551,7 +549,6 @@ if [[ $0 == "${BASH_SOURCE-}" ]]; then
     fi
 fi
 FILTER  jqmd::data\(\{\"options\":\{\}\,\"plugins\":\{\}\}\)
-imposer_php[1]+=$'$state = json_decode($args[0], true);\n\nforeach ( $state[\'options\'] as $opt => $new) {\n\t$old = get_option($opt);\n\tif (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);\n\tif ($new !== $old) {\n\t\tif ($old === false) add_option($opt, $new); else update_option($opt, $new);\n\t}\n}\n\nif ( !empty( $plugins = $state[\'plugins\'] ) ) {\n\t$fetcher = new \\WP_CLI\\Fetchers\\Plugin;\n\t$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), \'file\', \'name\' );\n\t$activate = $deactivate = [];\n\tforeach ($plugins as $plugin => $desired) {\n\t\t$desired = ($desired !== false);\n\t\tif ( empty($plugin_files[$plugin]) ) {\n\t\t\tcontinue; # XXX warn plugin of that name isn\'t installed\n\t\t}\n\t\tif ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;\n\t\tif ( $desired ) {\n\t\t\t$activate[] = $plugin_files[$plugin];\n\t\t} else {\n\t\t\t$deactivate[] = $plugin_files[$plugin];\n\t\t}\n\t}\n\tdeactivate_plugins($deactivate);  # deactivate first, in case of conflicts\n\tactivate_plugins($activate);\n}\n'
 imposed_states=
 require() {
     get_imposer_dirs
@@ -592,7 +589,8 @@ imposer.apply() {
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
-        cat-php imposer_php php_ext | wp eval-file - "$IMPOSER_JSON"
+        imposer_php[1]+=$'dirtsimple\Imposer::impose_json( $args[0] );\n'
+        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
         event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
@@ -603,7 +601,7 @@ colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l p
 
 imposer.php()  {
     require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS
-    tty pager colorize-php -- cat-php php_ext
+    tty pager colorize-php -- cat-php imposer_php
 }
 mdsh_raw_php_tweaks_header+=($'# Plugin Name:  Imposer Tweaks\n# Plugin URI:   https://github.com/dirtsimple.org/imposer#adding-code-tweaks\n# Description:  Automatically-generated from tweaks in imposer state files\n# Version:      0.0.0\n# Author:       Various\n# License:      Unknown\n\n')
 warn-unloaded-tweaks() {

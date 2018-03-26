@@ -134,13 +134,6 @@ php-uses-namespace() {
 }
 
 mdsh-compile-php() { compile-php imposer_php "$1" "$3"; }
-```
-
-But at runtime, we compile state and configuration files in such a way that PHP blocks are saved to `php_ext` instead of `imposer_php`.  This separates the core runtime from extensions, allowing the `imposer php` command to just output the extensions, while still outputting both to .
-
-```shell
-# Compile non-core PHP as php_ext
-mdsh-compile-php() { compile-php php_ext "$1" "$3"; }
 
 # Dump one or more PHP buffers
 cat-php() {
@@ -180,39 +173,7 @@ options: {}
 plugins: {}
 ```
 
-which is then processed from PHP to modify wordpress options and plugins:
-
-```php
-$state = json_decode($args[0], true);
-
-foreach ( $state['options'] as $opt => $new) {
-	$old = get_option($opt);
-	if (is_array($old) && is_array($new)) $new = array_replace_recursive($old, $new);
-	if ($new !== $old) {
-		if ($old === false) add_option($opt, $new); else update_option($opt, $new);
-	}
-}
-
-if ( !empty( $plugins = $state['plugins'] ) ) {
-	$fetcher = new \WP_CLI\Fetchers\Plugin;
-	$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), 'file', 'name' );
-	$activate = $deactivate = [];
-	foreach ($plugins as $plugin => $desired) {
-		$desired = ($desired !== false);
-		if ( empty($plugin_files[$plugin]) ) {
-			continue; # XXX warn plugin of that name isn't installed
-		}
-		if ( is_plugin_active($plugin_files[$plugin]) == $desired ) continue;
-		if ( $desired ) {
-			$activate[] = $plugin_files[$plugin];
-		} else {
-			$deactivate[] = $plugin_files[$plugin];
-		}
-	}
-	deactivate_plugins($deactivate);  # deactivate first, in case of conflicts
-	activate_plugins($activate);
-}
-```
+which is then processed from PHP to modify wordpress options and plugins.
 
 ### Imposing Named States
 
@@ -279,7 +240,8 @@ imposer.apply() {
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
-        cat-php imposer_php php_ext | wp eval-file - "$IMPOSER_JSON"
+        imposer_php[1]+=$'dirtsimple\Imposer::impose_json( $args[0] );\n'
+        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
         event fire "imposer_done"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
@@ -297,7 +259,7 @@ colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l p
 
 imposer.php()  {
     require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS
-    tty pager colorize-php -- cat-php php_ext
+    tty pager colorize-php -- cat-php imposer_php
 }
 ```
 

@@ -87,9 +87,9 @@ For most things, though, it's both clearer and simpler to just use YAML and JSON
 
 Last, but not least, you can define PHP blocks.  Unlike the other types of blocks, PHP blocks are "saved up" and executed later, after imposer has finished executing all of the state files to create the complete JSON configuration map.  PHP blocks are individually syntax-checked, and can contain namespaced code as long as the entire block is either wrapped in  `namespace ... {  }` blocks, or does not use namespaces at all.
 
-All the PHP blocks defined by all the states are joined together in one giant PHP file that gets passed into `wp eval-file`, with the configuration map as a command-line argument.  The configuration map is stored  in the `$state` variable, which your code should not modify.  All of the builtin configuration keys (just `options` and `plugins` at this moment) will have already been processed before your PHP code runs.
+All the PHP blocks defined by all the states are joined together in one giant PHP file that gets passed into `wp eval-file`, and then imposer's PHP hooks are run.  One of those hooks, `imposer_impose`, receives a `$state` parameter containing the JSON configuration map.  Your PHP blocks can register action callbacks to perform operations using this value.
 
-(Note: the configuration map in `$state` is built up from nothing on each imposer run, and only contains values put there by the state files loaded *during that imposer run*.  It does *not* contain existing plugin or option settings, etc.  If you need to read the existing-in-Wordpress values of such things, you must use PHP code that invokes the Wordpress API.  Think of the configuration map as a to-do list or list of "things we'd like to ensure are this way in Wordpress as of this run".)
+(Note: the configuration map in `$state` is built up from nothing on each imposer run, and only contains values put there by the state files loaded *during that imposer run*.  It does *not* contain any existing plugin or option settings, etc.  If you need to read the existing-in-Wordpress values of such things, you must use PHP code that invokes the Wordpress API.  Think of the configuration map as a to-do list or list of "things we'd like to ensure are this way in Wordpress as of this run".)
 
 ### Adding Code Tweaks
 
@@ -115,24 +115,46 @@ my_ecommerce_plugin:
   categories: {}
 ```
 
-Your plugin would then follow this with some PHP code to read this data  and do something with it.  It's best to keep the actual code brief, just calling into your actual plugin to load the data like this:
+Your plugin would then follow this with some PHP code to read this data  and do something with it.  It's best to keep the actual code in the state file brief, just calling into your actual plugin to load the data like this:
 
 ```php
-$my_plugin_info = $state['my_ecommerce_plugin'];
+function my_ecommerce_plugin_impose($state) {
+	$my_plugin_info = $state['my_ecommerce_plugin'];
+	MyPluginAPI::setup_products($my_plugin_info['products']);
+	MyPluginAPI::setup_categories($my_plugin_info['categories']);
+}
 
-MyPluginAPI::setup_products($my_plugin_info['products']);
-MyPluginAPI::setup_categories($my_plugin_info['categories']);
+add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
 ```
 
 And then users who want to impose product definitions in their state files would `require` your state file before adding in their own YAML or JSON with product data.  Any PHP they defined after `require`-ing your state file would then run after your own PHP code, allowing others to further extend and build on what you did.
 
-If you're distributing your state as part of a wordpress theme or plugin, you can include the state file as `default.state.md` in the root of your plugin, or inside an `imposer/` subdirectory.  Users can then `require "your-theme-or-plugin-name"` to load the default state file.  If on the other hand you're distributing it as a `composer` package, it would work the same way  except people would `require "your-org/your-name"` to load its default state file.
+You might be wondering why you couldn't just put the above code directly into your plugin.  Well, you *could*, except then you would have bugs whenever your plugin is freshly activated.  By the time imposer loads the code for a freshly-activated plugin, it's too late to register for almost any of imposer's actions or filters.
 
-You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer apply my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
+So, given that this code is only needed when running `imposer apply` anyway, you might as well just put it in the state file.  If you absolutely *must* put the code in your plugin, though, you can always do something like this in the state file:
+
+````php
+// Pre-activate the plugin so it can register its hooks early
+activate_plugin('my_ecommerce_plugin/my-ecommerce-plugin.php');
+````
+
+If you're distributing your state as part of a wordpress theme or plugin, you can include the state file as `default.state.md` in the root of your plugin, or inside an `imposer-states/` subdirectory.  Users can then `require "your-theme-or-plugin-name"` to load the default state file.  If on the other hand you're distributing it as a `composer` package, it would work the same way  except people would `require "your-org/your-name"` to load its default state file.
+
+You can of course have state files besides a default: you can use them to provide a variety of profiles for configuring your plugin or theme.  For example, if your theme has various example or starter sites, you can define them as state files, and people could import them with `imposer apply my-theme/portfolio`, to load the `portfolio.state.md` in the root or `imposer-states/` subdirectory of your theme.  Such state files can depend on other state files, and users can build their own state files on top of those, using `require`.
+
+### Actions and Filters
+
+For plugins and PHP blocks within state files, imposer offers the following actions and filters (listed in execution order):
+
+* Filter `imposer_state_(key)($value, $state)` -- each top-level key in the JSON configuration map is passed through a filter named `imposer_state_KEY`, where `KEY` is the key name.  So for example, if you want to alter the `options` or `plugins `imposer will apply, you can add filters to `imposer_state_options` and `imposer_state_plugins`.  The first argument is the value of the key, the second is the current contents of overall configuration map.
+* Filter `imposer_state($state)` -- filter this to make any changes to the configuration map that span multiple keys: the individual keys will have already been modified by the preceding filters.
+* Actions `imposed_options($options, $state)` and `imposed_plugins($plugins, $state)` -- fired after imposer finishes applying the options or activating/deactivating plugins, respectively.
+* Action `imposer_impose($state)` -- hook this to actually perform your state or plugin's configuration process.
+* Action `imposer_imposed($state)` -- this is run after  the previous hook, to allow for cleanup operations before the script exits.
 
 ### Event Hooks
 
-Imposer offers a system of event hooks for `shell` code, similar to Wordpress's `add_action` and `do_action` system for PHP.  State files can use the [bashup events](https://github.com/bashup/events/) API to register bash functions that will then be called when specific events are fired.  For example:
+In additon to its PHP actions and filters, Imposer offers a system of event hooks for `shell` code.  State files can use the [bashup events](https://github.com/bashup/events/) API to register bash functions that will then be called when specific events are fired.  For example:
 
 ```shell
 my_plugin.message() { echo "$@"; }
@@ -166,7 +188,7 @@ Imposer currently offers the following built-in events:
 
 * `imposer_done` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
 
-Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit` or `event fire`.  (See the [event API docs](https://github.com/bashup/events/#readme) for more info.)
+Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit`, `event fire`, etc..  (See the [event API docs](https://github.com/bashup/events/#readme) for more info.)
 
 ## Installation, Requirements, and Use
 
@@ -230,7 +252,7 @@ If the output is a tty and `less` is available, the output is colorized and page
 
 #### imposer php *[state...]*
 
-Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.  (Note: only the PHP supplied by configuration or state files is included; imposer's built-in PHP is excluded.)
+Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.
 
 If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
 

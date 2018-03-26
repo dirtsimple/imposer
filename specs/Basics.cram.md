@@ -17,8 +17,6 @@
     $ cat >imposer-project.md <<'EOF'
     > ```shell
     > echo "hello from imposer-project.md!"
-    > printf -v PHP_RUNTIME '%s\n' "${imposer_php[@]}"  # save the runtime
-    > imposer_php=('' $'# imposer runtime goes here\n') # blank it out
     > ```
     > EOF
 
@@ -237,7 +235,7 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
     {"options":{},"plugins":{}}
     --- PHP: ---
     <?php
-    # imposer runtime goes here
+    dirtsimple\Imposer::impose_json( $args[0] );
     EVENT: imposer_done
 
 # Running apply resets the filters and events, so doing it again is a no-op:
@@ -303,10 +301,13 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     Just loaded a state called: dummy
     All states have finished loading.
     <?php
-    $my_plugin_info = $state['my_ecommerce_plugin'];
+    function my_ecommerce_plugin_impose($state) {
+    	$my_plugin_info = $state['my_ecommerce_plugin'];
+    	MyPluginAPI::setup_products($my_plugin_info['products']);
+    	MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    }
     
-    MyPluginAPI::setup_products($my_plugin_info['products']);
-    MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
 
 # And just for the heck of it, show all the events:
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
@@ -346,11 +347,14 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true,"imposer-tweaks":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     --- PHP: ---
     <?php
-    # imposer runtime goes here
-    $my_plugin_info = $state['my_ecommerce_plugin'];
+    function my_ecommerce_plugin_impose($state) {
+    	$my_plugin_info = $state['my_ecommerce_plugin'];
+    	MyPluginAPI::setup_products($my_plugin_info['products']);
+    	MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    }
     
-    MyPluginAPI::setup_products($my_plugin_info['products']);
-    MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
+    dirtsimple\Imposer::impose_json( $args[0] );
     All PHP code has been run.
 
     $ ls plugins
