@@ -35,8 +35,8 @@ loco_preconfig() {
     LOCO_SITE_CONFIG=/etc/imposer.md
 }
 
-loco_site_config() { run-markdown "$1"; }
-loco_user_config() { run-markdown "$1"; }
+loco_site_config() { mark-read "$1"; run-markdown "$1"; }
+loco_user_config() { mark-read "$1"; run-markdown "$1"; }
 loco_loadproject() {
 	cd "$LOCO_ROOT"
 	imposed_states+="<imposer-project>"
@@ -224,6 +224,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 ```shell
 __load_state() {
     local IMPOSER_STATE=$1 bashup_event_after_state=   # just for this file
+    mark-read "$2"
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
@@ -234,14 +235,37 @@ __load_state() {
     event emit "state_loaded" "$1" "$2"
 }
 ```
+#### State Tracking and File Listing
+
+We track which state files are loaded, to allow for things like watching and re-running imposer.
+
+```shell
+files_used=()
+mark-read() { files_used+=("$@"); }
+
+run-states() { require "$@"; event fire "imposer_loaded"; }
+
+files-read() {
+	for REPLY in ${files_used[@]+"${files_used[@]}"}; do
+	    realpath.relative "$REPLY"; echo "$REPLY"
+	done
+}
+
+imposer.sources() {
+	run-states "$@" >/dev/null; CLEAR_FILTERS
+	tty pager -- files-read
+}
+```
+
+
+
 ### Processing JSON and PHP
 
 After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
 
 ```shell
 imposer.apply() {
-    require "$@"
-    event fire "imposer_loaded"
+    run-states "$@"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
@@ -258,12 +282,12 @@ imposer.apply() {
 The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
 
 ```shell
-imposer.json() { require "$@"; event fire "imposer_loaded"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.json() { run-states "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
 
 colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l php; }
 
 imposer.php()  {
-    require "$@"; event fire "imposer_loaded"; CLEAR_FILTERS
+    run-states "$@"; CLEAR_FILTERS
     tty pager colorize-php -- cat-php imposer_php
 }
 ```

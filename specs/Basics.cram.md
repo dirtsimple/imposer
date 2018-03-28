@@ -309,6 +309,16 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     
     add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
 
+# Sources dump:
+    $ IMPOSER_PATH=imposer imposer-cmd sources dummy
+    hello from imposer-project.md!
+    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
+    imposer-project.md
+    imposer/dummy.state.md
+    imposer/some/state.state.md
+    imposer/foo/other.state.md
+    imposer/this/that.state.md
+
 # And just for the heck of it, show all the events:
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy

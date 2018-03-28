@@ -24,12 +24,14 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
 - [How States Work](#how-states-work)
   * [Adding Code Tweaks](#adding-code-tweaks)
   * [Extending The System](#extending-the-system)
+  * [Actions and Filters](#actions-and-filters)
   * [Event Hooks](#event-hooks)
 - [Installation, Requirements, and Use](#installation-requirements-and-use)
   * [Imposer Subcommands](#imposer-subcommands)
     + [imposer apply *[state...]*](#imposer-apply-state)
     + [imposer json *[state...]*](#imposer-json-state)
     + [imposer php *[state...]*](#imposer-php-state)
+    + [imposer sources *[state...]*](#imposer-sources-state)
     + [imposer path](#imposer-path)
     + [imposer default-path](#imposer-default-path)
 - [Project Status](#project-status)
@@ -259,6 +261,14 @@ If the output is a tty and `less` is available, the output is colorized and page
 Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.
 
 If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
+
+#### imposer sources *[state...]*
+
+Like the `json` and `php` commands, except that a list of all source state files is output, one file per line, using paths relative to the project root. (This can be useful as input to a file watcher like [entr](http://entrproject.org/), to watch the files for changes and re-run `imposer apply`.)
+
+If the output is a tty and `$IMPOSER_PAGER` is available (`less -FRX` by default), the output is paged.
+
+The output includes all source files read (or cached), including any global config files and the `imposer-project.md`, if any.  If a state file reads non-state files as part of its operation, it should call the shell function `mark-read` with one or more file names.  The named files will then be output when this command is run.
 
 #### imposer path
 

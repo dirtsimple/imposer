@@ -457,8 +457,8 @@ loco_preconfig() {
     LOCO_SITE_CONFIG=/etc/imposer.md
 }
 
-loco_site_config() { run-markdown "$1"; }
-loco_user_config() { run-markdown "$1"; }
+loco_site_config() { mark-read "$1"; run-markdown "$1"; }
+loco_user_config() { mark-read "$1"; run-markdown "$1"; }
 loco_loadproject() {
 	cd "$LOCO_ROOT"
 	imposed_states+="<imposer-project>"
@@ -579,6 +579,7 @@ __find_state() {
 }
 __load_state() {
     local IMPOSER_STATE=$1 bashup_event_after_state=   # just for this file
+    mark-read "$2"
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
@@ -588,9 +589,19 @@ __load_state() {
     event fire "after_state"
     event emit "state_loaded" "$1" "$2"
 }
+files_used=()
+mark-read() { files_used+=("$@"); }
+
+run-states() { require "$@"; event fire "imposer_loaded"; }
+
+imposer.sources() {
+	run-states "$@" >/dev/null; CLEAR_FILTERS
+	for REPLY in ${files_used[@]+"${files_used[@]}"}; do
+	    realpath.relative "$REPLY"; echo "$REPLY"
+	done
+}
 imposer.apply() {
-    require "$@"
-    event fire "imposer_loaded"
+    run-states "$@"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
         event fire "json_loaded"
