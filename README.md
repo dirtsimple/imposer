@@ -99,7 +99,9 @@ A lot of Wordpress plugins require you to add code to your theme's `functions.ph
 add_filter('made_up_example', '__return_true');
 ```
 
-When you run `imposer apply`, these code blocks are joined together and written to a dummy plugin called `imposer-tweaks` in the Wordpress plugins directory, containing all the loaded tweaks.  This plugin is also activated, unless you explicitly *deactivate* it afterward.  Since any state file can potentially include tweaks, this is a powerful tool for modularizing and reusing these types of code snippets.
+When you run `imposer apply`, these code blocks are joined together and written to a dummy plugin called `imposer-tweaks` in the `$IMPOSER_PLUGINS` directory (which defaults to the `wp plugin path`).  This plugin is also activated, unless you explicitly *deactivate* it at some point after the first `php tweak` block is reached.
+
+Since any state file can potentially include tweaks, this is a powerful tool for modularizing and reusing these types of code snippets.
 
 Note, however, that only state files that are directly or indirectly `require`d by your `imposer-project.md` or global imposer configuration will have their tweaks included in the plugin.  If you specify states on the command line that contain tweaks, Imposer will output warnings for each such state, and will not actually add the code to the generated plugin.  (This is because the plugin is generated from scratch each time, so its contents would be change whenever you re-ran `imposer apply` with different arguments.)
 
@@ -215,14 +217,16 @@ For convenience, state names do not include the `.state.md` suffix, and can also
 
 (The last rule means that you can create a composer package called e.g. `mycompany/imposer-states` containing a library of state files, that you can then require as `mycompany/foo` to load `foo.state.md` from `vendor/mycompany/imposer-states`.  Or you can make a Wordpress plugin called `myplugin`, and then require  `myplugin/bar` to load `bar.state.md` from the plugin's `imposer-states/` directory or its root.)
 
-The default `IMPOSER_PATH` contains:
+The default `IMPOSER_PATH` is assembled from:
 
 * `./imposer` (i.e., the `imposer` subdirectory of the project root)
-* The Wordpress themes directory as provided by wp-cli (e.g. `wp-content/themes/`)
-* The Wordpress plugin directory as provided by wp-cli (e.g. `wp-content/plugins/`)
-* The `COMPOSER_VENDOR_DIR` (e.g. `vendor/`), if a `composer.json` is present
-* The wp-cli package path, as provided by wp-cli (typically `~/.wp-cli/packages`)
-* The global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`
+* `$IMPOSER_THEMES`, defaulting to the Wordpress themes directory as provided by wp-cli (e.g. `wp-content/themes/`)
+* `$IMPOSER_PLUGINS`, defaulting to the Wordpress plugin directory as provided by wp-cli (e.g. `wp-content/plugins/`)
+* `$IMPOSER_VENDOR`, defaulting to the `COMPOSER_VENDOR_DIR` (e.g. `vendor/`), if a `composer.json` is present
+* `$IMPOSER_PACKAGES`, defaulting to the wp-cli package path, as provided by wp-cli (typically `~/.wp-cli/packages`)
+* `$IMPOSER_GLOBALS`, defaulting to the global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`
+
+(You can remove any of the above directories from consideration for the default `IMPOSER_PATH` by setting the corresponding variable to an empty string.)
 
 This allows states to be distributed and installed in a variety of ways, while still being overrideable at the project level (via the main `imposer/`) directory.  (For example, if you add an `imposer/foo/bar.state.md` file to your project, it will replace the `bar` state of any theme/plugin named `foo`, or the default state of a composer package named `foo/bar`.)
 
@@ -274,7 +278,7 @@ While imposer is not generally performance-critical, you may be running it a lot
 
 * Due to limitations of the Windows platform, bash scripts like imposer run painfully slowly under Cygwin.  If possible, use a VM, Docker container, or the Linux Subsystem for Windows to get decent performance.
 * On average, Imposer spends most of its execution time running large php programs (`composer` and `wp`) from the command line, so [enabling the CLI opcache](https://pierre-schmitz.com/using-opcache-to-speed-up-your-cli-scripts/) will help a lot.
-* Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` up to three times each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`.  (You can run `imposer path` to find out the directories imposer is currently using, or `imposer default-path` to get the directories imposer would use if `IMPOSER_PATH` were not set.)
+* Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` up to three times each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`, or at least the individual directories such as `IMPOSER_PLUGINS`.  (You can run `imposer path` to find out the directories imposer is currently using, or `imposer default-path` to get the directories imposer would use if `IMPOSER_PATH` were not set.)
 * By default, the compiled version of state files are cached in `imposer/.cache` in your project root.  You can change this by setting `IMPOSER_CACHE` to the desired directory, or an empty string to disable caching.  (It's best to keep this enabled, and delete it rarely, since uncached compilation is slow.)
 * In situations where caching is disabled, or your cache is frequently cleared, YAML blocks are processed slower than JSON blocks. You can speed this up a bit by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or elimnate the overhead altogether by using JSON blocks instead.
 * wp-cli commands are generally slow to start: if you have a choice between running wp-cli from a `shell` block, or writing PHP code directly, the latter is considerably faster.

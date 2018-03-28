@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+REPLY="$*";
 
-case "$*" in
+case "${REPLY% --skip-plugins --skip-themes --skip-packages}" in
     "theme path") echo "themes";;
     "plugin path") echo "plugins";;
     "package path") echo "packages";;

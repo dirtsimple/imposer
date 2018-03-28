@@ -59,6 +59,8 @@ State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of dire
 ```shell
 imposer_dirs=()
 
+wpcon() { wp "$@" --skip-plugins --skip-themes --skip-packages; }
+
 get_imposer_dirs() {
     if [[ ${imposer_dirs[@]+_} ]]; then
         return
@@ -67,9 +69,12 @@ get_imposer_dirs() {
     elif [[ ${IMPOSER_PATH-} ]]; then
         IFS=: eval 'set -- $IMPOSER_PATH'
     else
-        set -- imposer "$(wp theme path)" "$(wp plugin path)" \
-            "$( [[ -f composer.json ]] &&  composer config --absolute vendor-dir)" \
-            "$(wp package path)" "$(composer global config --absolute vendor-dir)"
+        set -- imposer \
+            "${IMPOSER_THEMES=$(wpcon theme path)}" \
+            "${IMPOSER_PLUGINS=$(wpcon plugin path)}" \
+            "${IMPOSER_VENDOR=$( [[ -f composer.json ]] && composer config --absolute vendor-dir)}" \
+            "${IMPOSER_PACKAGES=$(wpcon package path)}" \
+            "${IMPOSER_GLOBALS=$(composer global config --absolute vendor-dir)}"
     fi
     imposer_dirs=()
     for REPLY; do
@@ -289,7 +294,9 @@ activate-tweaks() {
     event on  "json_loaded" write-plugin
 }
 
-write-plugin() { cat-php captured_tweaks >"$(wp plugin path)/imposer-tweaks.php"; }
+write-plugin() {
+    cat-php captured_tweaks >"${IMPOSER_PLUGINS=$(wpcon plugin path)}/imposer-tweaks.php"
+}
 
 capture-tweaks() {
     captured_tweaks=("${php_tweaks-}" "${php_tweaks[1]-}"); unset php_tweaks[@]
