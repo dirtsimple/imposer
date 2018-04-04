@@ -225,18 +225,18 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
 
 ````sh
 # Running `imposer apply` calls `wp eval-file` with the accumulated JSON and PHP:
-    $ event on "imposer_loaded" echo "EVENT: imposer_loaded"
-    $ event on "json_loaded" echo "EVENT: json_loaded"
-    $ event on "imposer_done" echo "EVENT: imposer_done"
+    $ event on "all_states_loaded" echo "EVENT: all_states_loaded"
+    $ event on "before_apply" echo "EVENT: before_apply"
+    $ event on "after_apply" echo "EVENT: after_apply"
     $ imposer apply
-    EVENT: imposer_loaded
-    EVENT: json_loaded
+    EVENT: all_states_loaded
+    EVENT: before_apply
     --- JSON: ---
     {"options":{},"plugins":{}}
     --- PHP: ---
     <?php
     dirtsimple\Imposer::impose_json( $args[0] );
-    EVENT: imposer_done
+    EVENT: after_apply
 
 # Running apply resets the filters and events, so doing it again is a no-op:
     $ imposer apply
@@ -343,7 +343,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ cat >>imposer-project.md <<'EOF'
     > ```shell
     > require dummy
-    > event off "json_loaded" my_plugin.handle_json
+    > event off "before_apply" my_plugin.handle_json
     > ```
     > EOF
     $ IMPOSER_PATH=imposer imposer-cmd apply

@@ -83,9 +83,7 @@ Let's quickly override something with a bit of jq code:
 
 Each `jq` block must be a valid jq filter expression.  (If you want to do multiple things in the same block, separate them with a `|`. )
 
-For most things, though, it's both clearer and simpler to just use YAML and JSON blocks, leaving jq code for those rare instances where you need to manipulate the configuration in a way not supported by YAML or JSON blocks.  For example, if you need to read one part of the configuration in order to set another, the only reasonable way to do that is with jq code.
-
-(For more on what you can do with `jq` blocks and shell scripting, see the [jqmd docs](https://github.com/bashup/jqmd).)
+For most things, though, it's both clearer and simpler to just use YAML and JSON blocks, leaving jq code for those rare instances where you need to manipulate the configuration in a way not supported by YAML or JSON blocks.  (For more on what you can do with `jq` blocks and shell scripting, see the [jqmd docs](https://github.com/bashup/jqmd).)
 
 Last, but not least, you can define PHP blocks.  Unlike the other types of blocks, PHP blocks are "saved up" and executed later, after imposer has finished executing all of the state files to create the complete JSON configuration map.  PHP blocks are individually syntax-checked, and can contain namespaced code as long as the entire block is either wrapped in  `namespace ... {  }` blocks, or does not use namespaces at all.
 
@@ -105,11 +103,11 @@ When you run `imposer apply`, these code blocks are joined together and written 
 
 Since any state file can potentially include tweaks, this is a powerful tool for modularizing and reusing these types of code snippets.
 
-Note, however, that only state files that are directly or indirectly `require`d by your `imposer-project.md` or global imposer configuration will have their tweaks included in the plugin.  If you specify states on the command line that contain tweaks, Imposer will output warnings for each such state, and will not actually add the code to the generated plugin.  (This is because the plugin is generated from scratch each time, so its contents would be change whenever you re-ran `imposer apply` with different arguments.)
+Note, however, that only state files that are directly or indirectly `require`d by your `imposer-project.md` or global imposer configuration will have their tweaks included in the plugin.  If you specify states on the command line that contain tweaks, Imposer will output warnings for each such state, and will not actually add the code to the generated plugin.  (This is because the plugin is generated from scratch each time, so its contents would change whenever you re-ran `imposer apply` with different arguments.)
 
 ### Extending The System
 
-Aside from tweaks, you can use PHP blocks to do either WP API operations that aren't currently built-in to imposer, or to create extensions to the configuration format.  For example, if there's a plugin or wp-cli package that defines an API for some type of object, like LMS courses or e-commerce products, you could extend the configuration format with a new top-level key like `my_ecommerce_plugin`, containing a subkey for products.
+Aside from tweaks, you can use PHP blocks to do custom WP API operations and to extend the configuration format.  For example, if there's a plugin or wp-cli package that defines an API for some type of object, like LMS courses or e-commerce products, you could extend the configuration format with a new top-level key like `my_ecommerce_plugin`, containing a subkey for products.
 
 You would then include a state file in your plugin to initialize this key, with something like:
 
@@ -133,7 +131,7 @@ add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
 
 And then users who want to impose product definitions in their state files would `require` your state file before adding in their own YAML or JSON with product data.  Any PHP they defined after `require`-ing your state file would then run after your own PHP code, allowing others to further extend and build on what you did.
 
-You might be wondering why you couldn't just put the above code directly into your plugin.  Well, you *could*, except then you would have bugs whenever your plugin is freshly activated.  By the time imposer loads the code for a freshly-activated plugin, it's too late to register for almost any of imposer's actions or filters.
+(You might be wondering why you couldn't just put the above code directly into your plugin.  Well, you *could*, except then you would have bugs whenever your plugin is freshly activated.  By the time imposer loads the code for a freshly-activated plugin, it's too late to register for almost any of imposer's actions or filters!)
 
 So, given that this code is only needed when running `imposer apply` anyway, you might as well just put it in the state file.  If you absolutely *must* put the code in your plugin, though, you can always do something like this in the state file:
 
@@ -167,9 +165,9 @@ my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER
 event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
 event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
 event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
-event on "imposer_loaded"           my_plugin.message "All states have finished loading."
-event on "json_loaded"              my_plugin.handle_json
-event on "imposer_done"             my_plugin.message "All PHP code has been run."
+event on "all_states_loaded"        my_plugin.message "All states have finished loading."
+event on "before_apply"             my_plugin.handle_json
+event on "after_apply"              my_plugin.message "All PHP code has been run."
 ```
 
 The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `state_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a state called:"`, which in this case will be the name of the state loaded.)
@@ -186,13 +184,15 @@ Imposer currently offers the following built-in events:
 
   The purpose of this event is to let you disable functionality that should only be available to persistent (i.e. project-defined) states, and not from states added to the command line.
 
-* `imposer_loaded` -- fires when all state files are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
+* `all_states_loaded` -- fires when all state files are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
 
-* `json_loaded` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
+* `before_apply` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
 
-* `imposer_done` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
+* `after_apply` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
 
 Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit`, `event fire`, etc..  (See the [event API docs](https://github.com/bashup/events/#readme) for more info.)
+
+Note: if your state file needs to run shell commands that will change the state of the system in some way, you must **only** run these commands during the `before_apply` or `after_apply` events, so that they are only run by the  `imposer apply` subcommand and not by diagnostic commands like `imposer json` or `imposer php`.
 
 ## Installation, Requirements, and Use
 
@@ -234,9 +234,9 @@ This allows states to be distributed and installed in a variety of ways, while s
 
 While we're discussing precedence order, you may find it useful to have an explicit listing of the phases in which `imposer apply` executes:
 
-* First phase: load and execute state files by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `imposer_loaded` event fires at the end of this phase.)
-* Second phase: run `jq` using the accumulated jq code generated by the YAML, JSON, jq, etc. code blocks executed during the first phase, creating a new JSON configuration map.  (The `json_loaded` event fires at the end of this phase.)
-* Third phase: run `wp eval-file` on the accumulated PHP code generated by the code blocks executed during the first phase, passing the JSON output by the second phase as a command-line argument.  (The `imposer_done` event fires at the end of this phase.)
+* First phase: load and execute state files by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `all_states_loaded` event fires at the end of this phase.)
+* Second phase: run `jq` using the accumulated jq code generated by the YAML, JSON, jq, etc. code blocks executed during the first phase, creating a new JSON configuration map.  (The `before_apply` event fires at the end of this phase.)
+* Third phase: run `wp eval-file` on the accumulated PHP code generated by the code blocks executed during the first phase, passing the JSON output by the second phase as a command-line argument.  (The `after_apply` event fires at the end of this phase.)
 
 So, even though it looks like shell, PHP, and YAML/JSON/jq code execution are interleaved, in reality all the shell code is executed first: it's just that any code block *other* than shell code blocks are translated to shell code that accumulates either jq or PHP code for execution in the second or third phase.  This means that you can't (for example) have two YAML blocks reference the same environment variable and change it "in between them" using shell code, because whatever value the environment variable has at the end of phase one is what will be used when *both* blocks are executed during phase two.
 
@@ -252,13 +252,13 @@ Load and execute the specified states, building a JSON configuration and accumul
 
 #### imposer json *[state...]*
 
-Just like `imposer apply`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
+Just like `imposer apply`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  The `all_states_loaded` event will fire, but the `before_apply` and `after_apply` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
 
 If the output is a tty and `less` is available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`; an empty string disables paging.
 
 #### imposer php *[state...]*
 
-Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `imposer_loaded` event will fire, but the `json_loaded` and `imposer_done` events will not.
+Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `all_states_loaded` event will fire, but the `before_apply` and `after_apply` events will not.
 
 If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
 
@@ -290,6 +290,6 @@ While imposer is not generally performance-critical, you may be running it a lot
 * On average, Imposer spends most of its execution time running large php programs (`composer` and `wp`) from the command line, so [enabling the CLI opcache](https://pierre-schmitz.com/using-opcache-to-speed-up-your-cli-scripts/) will help a lot.
 * Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` up to three times each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`, or at least the individual directories such as `IMPOSER_PLUGINS`.  (You can run `imposer path` to find out the directories imposer is currently using, or `imposer default-path` to get the directories imposer would use if `IMPOSER_PATH` were not set.)
 * By default, the compiled version of state files are cached in `imposer/.cache` in your project root.  You can change this by setting `IMPOSER_CACHE` to the desired directory, or an empty string to disable caching.  (It's best to keep this enabled, and delete it rarely, since uncached compilation is slow.)
-* In situations where caching is disabled, or your cache is frequently cleared, YAML blocks are processed slower than JSON blocks. You can speed this up a bit by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or elimnate the overhead altogether by using JSON blocks instead.
+* In situations where caching is disabled, or your cache is frequently cleared, YAML blocks are compiled more slowly than JSON blocks. You can speed this up a bit by installing  [yaml2json](https://github.com/bronze1man/yaml2json), or by using JSON blocks instead.
 * wp-cli commands are generally slow to start: if you have a choice between running wp-cli from a `shell` block, or writing PHP code directly, the latter is considerably faster.
 

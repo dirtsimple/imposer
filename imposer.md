@@ -243,7 +243,7 @@ We track which state files are loaded, to allow for things like watching and re-
 files_used=()
 mark-read() { files_used+=("$@"); }
 
-run-states() { require "$@"; event fire "imposer_loaded"; }
+run-states() { require "$@"; event fire "all_states_loaded"; }
 
 files-read() {
 	for REPLY in ${files_used[@]+"${files_used[@]}"}; do
@@ -268,10 +268,10 @@ imposer.apply() {
     run-states "$@"
     if HAVE_FILTERS; then
         declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
-        event fire "json_loaded"
+        event fire "before_apply"
         imposer_php[1]+=$'dirtsimple\Imposer::impose_json( $args[0] );\n'
         cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
-        event fire "imposer_done"
+        event fire "after_apply"
         CLEAR_FILTERS  # prevent auto-run to stdout
     fi
 }
@@ -315,7 +315,7 @@ activate-tweaks() {
     php_tweaks=("" "${mdsh_raw_php_tweaks_header}")
     FILTER '.plugins."imposer-tweaks" = true'
     event off "php_tweak" activate-tweaks
-    event on  "json_loaded" write-plugin
+    event on  "before_apply" write-plugin
 }
 
 write-plugin() {
