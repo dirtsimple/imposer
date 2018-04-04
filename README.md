@@ -165,14 +165,14 @@ my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER_JSON"; }
 
 event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
-event on "state_loaded"/1           my_plugin.message "Just loaded a state called:"
+event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
 event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
 event on "imposer_loaded"           my_plugin.message "All states have finished loading."
 event on "json_loaded"              my_plugin.handle_json
 event on "imposer_done"             my_plugin.message "All PHP code has been run."
 ```
 
-The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `/` and a number at the end of the event name.  (So above, the `state_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a state called:"`, which in this case will be the name of the state loaded.)
+The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `state_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a state called:"`, which in this case will be the name of the state loaded.)
 
 Also, you can put arguments after the name of your function, and any arguments supplied by the event will be added after those. Duplicate registrations have no effect, but you can register the same function multiple times for the same event if it has different arguments or a different argument count.
 

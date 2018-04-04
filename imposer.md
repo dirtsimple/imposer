@@ -223,7 +223,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 
 ```shell
 __load_state() {
-    local IMPOSER_STATE=$1 bashup_event_after_state=   # just for this file
+    local IMPOSER_STATE=$1 bashup_event_after__state=   # just for this file
     mark-read "$2"
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
