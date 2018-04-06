@@ -12,11 +12,11 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 @module imposer.md
 @main loco_main
 
-@import pjeby/license @comment    "LICENSE"
-@import bashup/jqmd   mdsh-source "$BASHER_PACKAGES_PATH/bashup/jqmd/jqmd.md"
-@import bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
-@import bashup/events tail -n +2  "$BASHER_PACKAGES_PATH/bashup/events/bashup.events"
-@import .devkit/tty   tail -n +2  "$DEVKIT_HOME/modules/tty"
+@require pjeby/license @comment    "LICENSE"
+@require bashup/jqmd   mdsh-source "$BASHER_PACKAGES_PATH/bashup/jqmd/jqmd.md"
+@require bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
+@require bashup/events tail -n +2  "$BASHER_PACKAGES_PATH/bashup/events/bashup.events"
+@require .devkit/tty   tail -n +2  "$DEVKIT_HOME/modules/tty"
 
 echo tty_prefix=IMPOSER_   # Use IMPOSER_ISATTY, IMPOSER_PAGER, etc.
 ```
