@@ -76,10 +76,10 @@ mdsh-misc()          { mdsh-data "$@"; }    # Treat unknown languages as data
 mdsh-compile-()      { :; }                 # Ignore language-less blocks
 
 mdsh-compile-mdsh()  { eval "$1"; }         # Execute `mdsh` blocks in-line
-mdsh-compile-mdsh_main() { [[ $MDSH_MODULE ]] || eval "$1"; }
+mdsh-compile-mdsh_main() { ! @is-main || eval "$1"; }
 
 mdsh-compile-shell() { printf '%s' "$1"; }  # Copy `shell` blocks to the output
-mdsh-compile-shell_main() { [[ $MDSH_MODULE ]] || printf '%s' "$1"; }
+mdsh-compile-shell_main() { ! @is-main || printf '%s' "$1"; }
 mdsh-data() {
 	printf "mdsh_raw_${1//[^_[:alnum:]]/_}+=(%q)\n" "$2"
 }
@@ -150,15 +150,16 @@ mdsh.-h() { mdsh.--help "$@"; }
 MDSH_LOADED_MODULES=
 MDSH_MODULE=
 
-@import() { @require "$@"; }
 @require() {
-	if ! [[ $MDSH_LOADED_MODULES == *"<$1>"* ]]; then
-		MDSH_LOADED_MODULES+="<$1>"; local MDSH_MODULE=$1
+	flatname "$1"
+	if ! [[ $MDSH_LOADED_MODULES == *"<$REPLY>"* ]]; then
+		MDSH_LOADED_MODULES+="<$REPLY>"; local MDSH_MODULE=$1
 		"${@:2}"
 	fi
 }
+@is-main() { ! [[ $MDSH_MODULE ]]; }
 @module() {
-	! [[ $MDSH_MODULE ]] || return 0
+	@is-main || return 0
 	set -- "${1:-${MDSH_SOURCE-}}"
 	echo "#!/usr/bin/env bash"
 	echo "# ---"
@@ -167,7 +168,7 @@ MDSH_MODULE=
 	echo
 }
 @main() {
-	! [[ $MDSH_MODULE ]] || return 0
+	@is-main || return 0
 	MDSH_FOOTER=$'if [[ $0 == "${BASH_SOURCE-}" ]]; then '"$1"$' "$@"; fi\n'
 }
 @comment() (  # subshell for cd
@@ -202,9 +203,9 @@ mdsh-cache() {
 	[[ -d "$1" ]] || mkdir -p "$1"
 	flatname "${3:-$2}"; REPLY="$1/$REPLY"; mdsh-make "$2" "$REPLY" "${@:4}"
 }
-
 flatname() {
 	REPLY="${1//\%/%25}"; REPLY="${REPLY//\//%2F}"; REPLY="${REPLY/#./%2E}"
+	REPLY="${REPLY//</%3C}"; REPLY="${REPLY//>/%3E}"
 	REPLY="${REPLY//\\/%5C}"
 }
 # run-markdown file args...
@@ -242,11 +243,11 @@ const() {
 # Load the runtime so it's usable by mdsh
 printf -v REPLY '%s\n' "${mdsh_raw_bash_runtime[@]}"; eval "$REPLY"
 
-# Add runtime to the top of compiled scripts
-printf -v REPLY 'mdsh:file-header() { echo -n %q; }' "$REPLY"; eval "$REPLY"
+# Add runtime to the top of compiled (main) scripts
+printf -v REPLY 'mdsh:file-header() { ! @is-main || echo -n %q; }' "$REPLY"; eval "$REPLY"
 
-# Ensure scripts process any leftover filters at end
-mdsh:file-footer() { echo 'if [[ $0 == ${BASH_SOURCE-} ]] && HAVE_FILTERS; then RUN_JQ; fi'; }
+# Ensure (main) scripts process any leftover filters at end
+mdsh:file-footer() { ! @is-main || echo 'if [[ $0 == ${BASH_SOURCE-} ]] && HAVE_FILTERS; then RUN_JQ; fi'; }
 mdsh.--no-runtime() ( unset -f mdsh:file-header mdsh:file-footer; mdsh-main "$@"; )
 mdsh.--yaml() (
     fn-exists "yaml2json:${1-}" || mdsh-error "No such yaml2json processor: ${1-}" || exit $?
@@ -399,13 +400,13 @@ for lv in ${!LOCO_@}; do unset $lv; done
 
 LOCO_SCRIPT=$0
 event(){ case $1 in error|quote|encode);; *)
-	__ev.encode "${2-}";local f n e=bashup_event_$REPLY;f=${e/event/flag}
-	case $1 in emit) shift;${!f-};eval "${!e-}"; return ;;on|off|has)
-		case "${3-}" in @_) n='$#';; @*[^0-9]*);; @[0-9]*) n=${3#@};; esac; ${n+
+	__ev.encode "${2-}";local f n= e=bashup_event_$REPLY;f=${e/event/flag}
+	case $1 in emit) shift;${!f-};eval "${!e-}"; return ;;on|once|off|has)
+		case "${3-}" in @_) n='$#';; @*[^0-9]*);; @[0-9]*) n=${3#@};; esac; ${n:+
 		set -- "$1" "$2" "${@:4}" }
 		case $1/$# in
 			has/[12]) REPLY=;; */[12]) set error "${2-}: missing callback";;
-			*) __ev.quote "${@:3}";[[ ${n-0} == 0 ]]||REPLY+=' "${@:2:'"$n"'}"';REPLY+=$'\n'
+			*) __ev.quote "${@:3}";! ((${n/\$#/1}))||REPLY+=' "${@:2:'"$n"'}"';REPLY+=$'\n'
 		esac
 	esac
 esac ;__ev."$@";}
@@ -422,7 +423,8 @@ __ev.resolve(){
 	readonly $f="eval __ev.error 'event \"'$1'\" already resolved' 70;return" $e="set -- $REPLY"
 }
 __ev.resolved(){ [[ ${!f-} ]];}
-__ev.once(){ event on "${1%/*}" event off "$@" && event on "$@";}
+__ev.once(){ n=${n:-0} n=${n/\$#/_}; event on "$1" @$n __ev_once $# @$n "$@";}
+__ev_once(){ event off "$3" "$2" __ev_once "${@:1:$1+2}"; "${@:4}";}
 __ev_jit(){
 	local r=${__ev_jit-} s=$1;((${#r}<250))||__ev_jit=
 	while [[ "$s" ]]; do
@@ -466,8 +468,9 @@ loco_site_config() { mark-read "$1"; run-markdown "$1"; }
 loco_user_config() { mark-read "$1"; run-markdown "$1"; }
 loco_loadproject() {
 	cd "$LOCO_ROOT"
-	imposed_states+="<imposer-project>"
-	[[ $LOCO_PROJECT != *.md ]] || __load_state imposer-project "$LOCO_PROJECT"
+	if [[ $LOCO_PROJECT == *.md ]]; then
+		@require "imposer:project" __load_state imposer-project "$LOCO_PROJECT"
+	fi
 	event resolve persistent_states_loaded
 }
 imposer_dirs=()
@@ -559,19 +562,16 @@ if [[ $0 == "${BASH_SOURCE-}" ]]; then
     fi
 fi
 FILTER  jqmd::data\(\{\"options\":\{\}\,\"plugins\":\{\}\}\)
-imposed_states=
 require() {
     get_imposer_dirs
-    while (($#)); do
-        if ! [[ $imposed_states == *"<$1>"* ]]; then
-            imposed_states+="<$1>"
-            if __find_state "$1"; then
-                __load_state "$1" "$REPLY"
-            else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
-            fi
-        fi
-        shift
-    done
+    while (($#)); do @require "imposer-state:$1" __find_and_load "$1"; shift; done
+}
+
+__find_and_load() {
+    if __find_state "$1"; then
+        __load_state "$1" "$REPLY"
+    else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
+    fi
 }
 __find_state() {
     realpath.basename "$1"; local name=$REPLY
@@ -588,7 +588,7 @@ __load_state() {
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
-        mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
+        mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1"
         source "$REPLY"
     fi
     event fire "after_state"
@@ -651,7 +651,7 @@ capture-tweaks() {
 }
 
 event on "persistent_states_loaded" capture-tweaks
-event once "php_tweak" activate-tweaks
+event on "php_tweak" activate-tweaks
 
 mdsh-compile-php_tweak() { echo 'event emit php_tweak'; compile-php php_tweaks "$1" "$3"; }
 if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi

@@ -39,8 +39,9 @@ loco_site_config() { mark-read "$1"; run-markdown "$1"; }
 loco_user_config() { mark-read "$1"; run-markdown "$1"; }
 loco_loadproject() {
 	cd "$LOCO_ROOT"
-	imposed_states+="<imposer-project>"
-	[[ $LOCO_PROJECT != *.md ]] || __load_state imposer-project "$LOCO_PROJECT"
+	if [[ $LOCO_PROJECT == *.md ]]; then
+		@require "imposer:project" __load_state imposer-project "$LOCO_PROJECT"
+	fi
 	event resolve persistent_states_loaded
 }
 ```
@@ -185,19 +186,16 @@ which is then processed from PHP to modify wordpress options and plugins.
 States are imposed by sourcing the compiled form of their `.state.md` file, at most once.  States can require other states by calling `require` with one or more state names.
 
 ```shell
-imposed_states=
 require() {
     get_imposer_dirs
-    while (($#)); do
-        if ! [[ $imposed_states == *"<$1>"* ]]; then
-            imposed_states+="<$1>"
-            if __find_state "$1"; then
-                __load_state "$1" "$REPLY"
-            else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
-            fi
-        fi
-        shift
-    done
+    while (($#)); do @require "imposer-state:$1" __find_and_load "$1"; shift; done
+}
+
+__find_and_load() {
+    if __find_state "$1"; then
+        __load_state "$1" "$REPLY"
+    else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
+    fi
 }
 ```
 
@@ -228,7 +226,7 @@ __load_state() {
     if [[ ! "${IMPOSER_CACHE-_}" ]]; then
         run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
     else
-        mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1" unset -f mdsh:file-header mdsh:file-footer
+        mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1"
         source "$REPLY"
     fi
     event fire "after_state"
@@ -329,7 +327,7 @@ capture-tweaks() {
 }
 
 event on "persistent_states_loaded" capture-tweaks
-event once "php_tweak" activate-tweaks
+event on "php_tweak" activate-tweaks
 
 mdsh-compile-php_tweak() { echo 'event emit php_tweak'; compile-php php_tweaks "$1" "$3"; }
 ```

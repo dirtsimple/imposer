@@ -204,7 +204,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
     > echo "loading load-test"
     > EOF
 
-    $ __load_state load-test imposer/load-test.state.md
+    $ @require "test-this:load-test" __load_state load-test imposer/load-test.state.md
     loading load-test
 
     $ cat imposer/.cache/load-test
