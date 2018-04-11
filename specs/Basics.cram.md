@@ -232,7 +232,7 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
     EVENT: all_states_loaded
     EVENT: before_apply
     --- JSON: ---
-    {"options":{},"plugins":{}}
+    {"options":{},"plugins":{"imposer-tweaks":false}}
     --- PHP: ---
     <?php
     dirtsimple\Imposer::impose_json( $args[0] );
@@ -282,6 +282,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
         }
       },
       "plugins": {
+        "imposer-tweaks": false,
         "disable_me": false,
         "wp_mail_smtp": null,
         "some-plugin": true
@@ -329,7 +330,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     Just loaded a state called: dummy
     All states have finished loading.
     The JSON going to eval-file is:
-    {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
+    {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":false,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     wp eval-file -
     All PHP code has been run.
 
@@ -354,7 +355,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     The project configuration has been loaded.
     All states have finished loading.
     --- JSON: ---
-    {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"disable_me":false,"wp_mail_smtp":null,"some-plugin":true,"imposer-tweaks":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
+    {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":true,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     --- PHP: ---
     <?php
     function my_ecommerce_plugin_impose($state) {

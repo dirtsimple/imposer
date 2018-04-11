@@ -172,11 +172,11 @@ if [[ $0 == "${BASH_SOURCE-}" ]]; then
 fi
 ```
 
-The default state map begins with an empty options and plugins map:
+The default state map begins with an empty options and plugins map (with imposer-tweaks disabled, to handle the case where one has removed all previous tweaks from an installation):
 
 ```yaml
 options: {}
-plugins: {}
+plugins: {imposer-tweaks: false}
 ```
 
 which is then processed from PHP to modify wordpress options and plugins.
