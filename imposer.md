@@ -265,12 +265,12 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
 imposer.apply() {
     run-states "$@"
     if HAVE_FILTERS; then
-        declare -r IMPOSER_JSON="$(RUN_JQ -c -n)"
+        CALL_JQ -c -n || return
+        declare -r IMPOSER_JSON="$REPLY"
         event fire "before_apply"
         imposer_php[1]+=$'dirtsimple\Imposer::impose_json( $args[0] );\n'
         cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
         event fire "after_apply"
-        CLEAR_FILTERS  # prevent auto-run to stdout
     fi
 }
 ```
