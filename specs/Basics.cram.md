@@ -102,10 +102,10 @@ You can run `imposer path` and `imposer default-path` to get the current set of 
 States are imposed by sourcing the compiled form of their `.state.md` file, at most once.  States can require other states by calling `require` with one or more state names.
 
 ````sh
-# Mock __find_state and __load_state
-    $ old_states="$(declare -f __find_state __load_state)"
+# Mock have_state and __load_state
+    $ old_states="$(declare -f have_state __load_state)"
     $ __load_state() { echo "load state:" "$@"; }
-    $ __find_state() { REPLY="found/$1"; echo "find state:" "$@"; }
+    $ have_state() { REPLY="found/$1"; echo "find state:" "$@"; }
 
 # require loads the named state only once
     $ require fizz/buzz
@@ -122,12 +122,12 @@ States are imposed by sourcing the compiled form of their `.state.md` file, at m
     loading: whiz/bang
 
 # failure to find a state produces an error
-    $ __find_state() { false; }
+    $ have_state() { false; }
     $ (require cant/find)
     Could not find state cant/find in /*/imposer /*/plugins /*/vendor (glob)
     [64]
 
-# Restore __find_state and __load_state
+# Restore have_state and __load_state
     $ eval "$old_states"
 ````
 
@@ -149,19 +149,19 @@ States are looked up in each directory on the imposer path, checking for files i
     */imposer:*/plugins:*/vendor (glob)
 
 # Paths for an unprefixed name:
-    $ __find_state baz
+    $ have_state baz
     ./imposer baz baz/default baz/imposer-states/default ./imposer-states/baz
     ./plugins baz baz/default baz/imposer-states/default ./imposer-states/baz
     ./vendor baz baz/default baz/imposer-states/default ./imposer-states/baz
     [1]
 
-    $ __find_state bar/baz
+    $ have_state bar/baz
     ./imposer bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     ./plugins bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     ./vendor bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     [1]
 
-    $ __find_state foo/bar/baz
+    $ have_state foo/bar/baz
     ./imposer foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
     ./plugins foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
     ./vendor foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
@@ -171,25 +171,41 @@ States are looked up in each directory on the imposer path, checking for files i
     $ eval "$old_rie"
 
 # Non-existent state, return false:
-    $ __find_state x
+    $ (have_state x)
     [1]
 
 # In last directory, name as file under imposer
     $ mkdir -p vendor/imposer-states
     $ touch vendor/imposer-states/x.state.md
-    $ __find_state x && echo "$REPLY"
+    $ (have_state x && echo "$REPLY")
     /*/vendor/./imposer-states/x.state.md (glob)
 
 # Override w/directory:
     $ mkdir -p vendor/x/imposer-states/
     $ touch vendor/x/imposer-states/default.state.md
-    $ __find_state x && echo "$REPLY"
+    $ (have_state x && echo "$REPLY")
     /*/vendor/x/imposer-states/default.state.md (glob)
 
 # Removing it exposes the previous file again
     $ rm vendor/x/imposer-states/default.state.md
-    $ __find_state x && echo "$REPLY"
+    $ (have_state x && echo "$REPLY")
     /*/vendor/./imposer-states/x.state.md (glob)
+
+# Found location is cached for current subshell
+    $ have_state x && echo "$REPLY"
+    /*/vendor/./imposer-states/x.state.md (glob)
+
+    $ touch vendor/x/imposer-states/default.state.md
+    $ have_state x && echo "$REPLY"
+    /*/vendor/./imposer-states/x.state.md (glob)
+
+# Or lack-of-location, if applicable:
+    $ have_state y && echo "$REPLY"
+    [1]
+
+    $ touch imposer/y.state.md
+    $ have_state y && echo "$REPLY"
+    [1]
 
 ````
 

@@ -192,7 +192,7 @@ require() {
 }
 
 __find_and_load() {
-    if __find_state "$1"; then
+    if have_state "$1"; then
         __load_state "$1" "$REPLY"
     else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
     fi
@@ -201,16 +201,21 @@ __find_and_load() {
 
 #### State File Lookup
 
-States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
+`have_state` looks up states in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof.  Truth is returned if successful, along with the state's full filename in `$REPLY`.  Otherwise, false is returned.  Either way, the result is cached to speed up future lookups.
 
 ```shell
-__find_state() {
+have_state() {
+    event encode "$1"; local v="imposer_state_path_$REPLY"
+    if [[ ${!v+_} ]]; then REPLY=${!v}; [[ $REPLY ]]; return; fi
     realpath.basename "$1"; local name=$REPLY
     realpath.dirname "$1"; local ns=$REPLY
     local patterns=("$1" "$1/default" "$1/imposer-states/default" "$ns/imposer-states/$name" )
     for REPLY in ${imposer_dirs[@]+"${imposer_dirs[@]}"}; do
-        if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then return; fi
+        if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then
+            printf -v $v %s "$REPLY"; return
+        fi
     done
+    printf -v $v %s ""
     false
 }
 ```

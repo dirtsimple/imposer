@@ -69,8 +69,13 @@ plugins:
 Of course, depending on the state we're defining, it might rely on other states.  We can add a `shell` block to do that:
 
 ```shell
-# Load these states before proceeding
-require "some/state" "foo/other" "this/that"
+# Load a required states before proceeding
+require "some/state"
+
+# Use `have_state` to test for availability
+if have_state "foo/other"; then
+    require "foo/other" "this/that"
+fi
 ```
 
 Now that we've done that, any YAML or JSON we include will *override* what the above states set, and any PHP code we include will run after the PHP code defined in those states.  (Since each state file is only loaded once during an `imposer` run, we can use `require` to enforce precedence between states.)
