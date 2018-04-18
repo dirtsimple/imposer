@@ -26,3 +26,9 @@ on boot require bashup.events github bashup/events    master bashup.events
 
 on build jqmd -R --out bin/imposer --compile imposer.md
 on build chmod +x bin/imposer
+
+bash32.bootstrap() {
+    # Install PHP for tests under bash 3.2
+    apk add --no-cache php5 php5-cli
+    ln -s /usr/bin/php5 /usr/local/bin/php
+}
