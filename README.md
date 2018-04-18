@@ -169,6 +169,7 @@ my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER
 
 event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
 event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
+event on "state_loaded_this/that"   my_plugin.message "State 'this/that' has been loaded"
 event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
 event on "all_states_loaded"        my_plugin.message "All states have finished loading."
 event on "before_apply"             my_plugin.handle_json
@@ -184,6 +185,13 @@ Imposer currently offers the following built-in events:
 * `after_state` -- fires when the *currently loading* state file (and all its dependencies) have finished loading.  (Note that the "currently loading" file is not necessarily the same as the file where a callback is being registered, which means that state files can define APIs that register callbacks to run when the *calling* state file is finished.)
 
 * `state_loaded` *statename sourcefile*-- emitted when *any* state has finished loading.  Callbacks can register to receive up to two arguments: the state's name and the path to the source file it was loaded from.
+
+* `state_loaded_`*statename* -- a [promise-like event](https://github.com/bashup/events/#promise-like-events) that's resolved when the named state is loaded.  If you register a callback before the state is loaded, it will be called if/when the state is loaded later.  But if you register a callback *after* the state is already loaded, the callback will run immediately.  This allows you to have "addon" code or configuration that's only included if some other state is loaded, e.g.:
+
+  ````sh
+  # If some other state loads "otherplugin/something", load our addon for it:
+  on state_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
+  ````
 
 * `persistent_states_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is a one-time asynchronous event: you can register for it even after it has already happened, and your callback will be invoked immediately.
 

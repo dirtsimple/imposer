@@ -236,6 +236,7 @@ __load_state() {
     fi
     event fire "after_state"
     event emit "state_loaded" "$1" "$2"
+    event resolve "state_loaded_$1" "$2"
 }
 ```
 #### State Tracking and File Listing

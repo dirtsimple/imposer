@@ -230,6 +230,8 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
     $ rm imposer/.cache/load-test
     $ IMPOSER_CACHE= __load_state load-test imposer/load-test.state.md
     loading load-test
+    event "state_loaded_load-test" already resolved
+    [70]
     $ cat imposer/.cache/load-test
     cat: *imposer/.cache/load-test*: No such file or directory (glob)
     [1]
@@ -277,6 +279,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 # JSON dump:
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
     hello from imposer-project.md!
+    State 'this/that' has been loaded
     The project configuration has been loaded.
     warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state file (dummy) is finished loading.
@@ -312,6 +315,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 # PHP dump (includes only state-supplied code, no core code:
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
     hello from imposer-project.md!
+    State 'this/that' has been loaded
     The project configuration has been loaded.
     warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state file (dummy) is finished loading.
@@ -340,6 +344,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy
     hello from imposer-project.md!
+    State 'this/that' has been loaded
     The project configuration has been loaded.
     warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state file (dummy) is finished loading.
@@ -365,6 +370,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     > EOF
     $ IMPOSER_PATH=imposer imposer-cmd apply
     hello from imposer-project.md!
+    State 'this/that' has been loaded
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     Just loaded a state called: imposer-project
