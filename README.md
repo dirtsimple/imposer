@@ -32,6 +32,7 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
     + [imposer json *[state...]*](#imposer-json-state)
     + [imposer php *[state...]*](#imposer-php-state)
     + [imposer sources *[state...]*](#imposer-sources-state)
+    + [imposer tweaks](#imposer-tweaks)
     + [imposer path](#imposer-path)
     + [imposer default-path](#imposer-default-path)
 - [Project Status](#project-status)
@@ -282,6 +283,10 @@ Like the `json` and `php` commands, except that a list of all source state files
 If the output is a tty and `$IMPOSER_PAGER` is available (`less -FRX` by default), the output is paged.
 
 The output includes all source files read (or cached), including any global config files and the `imposer-project.md`, if any.  If a state file reads non-state files as part of its operation, it should call the shell function `mark-read` with one or more file names.  The named files will then be output when this command is run.
+
+#### imposer tweaks
+
+Outputs the PHP that would be written to `imposer-tweaks.php` if `imposer apply` were run.  The output is colorized and paged -- if possible -- according to the same rules as for [`imposer php`](#imposer-php-state).
 
 #### imposer path
 

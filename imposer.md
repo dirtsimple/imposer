@@ -302,7 +302,7 @@ Code blocks designated `php tweaks` are concatenated to create a modular, plugin
 
 ```php tweaks_header
 # Plugin Name:  Imposer Tweaks
-# Plugin URI:   https://github.com/dirtsimple.org/imposer#adding-code-tweaks
+# Plugin URI:   https://github.com/dirtsimple/imposer#adding-code-tweaks
 # Description:  Automatically-generated from tweaks in imposer state files
 # Version:      0.0.0
 # Author:       Various
@@ -323,7 +323,8 @@ activate-tweaks() {
 }
 
 write-plugin() {
-    cat-php captured_tweaks >"${IMPOSER_PLUGINS=$(wpcon plugin path)}/imposer-tweaks.php"
+    mkdir -p "${IMPOSER_PLUGINS=$(wpcon plugin path)}"
+    cat-php captured_tweaks >"$IMPOSER_PLUGINS/imposer-tweaks.php"
 }
 
 capture-tweaks() {
@@ -336,5 +337,11 @@ event on "persistent_states_loaded" capture-tweaks
 event on "php_tweak" activate-tweaks
 
 mdsh-compile-php_tweak() { echo 'event emit php_tweak'; compile-php php_tweaks "$1" "$3"; }
+
+imposer.tweaks()  {
+    if (($#)); then echo '`imposer tweaks` does not accept arguments' >&2; exit 64; fi
+    run-states; CLEAR_FILTERS
+    tty pager colorize-php -- cat-php captured_tweaks
+}
 ```
 

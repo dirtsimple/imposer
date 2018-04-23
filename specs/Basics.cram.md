@@ -361,6 +361,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 ````sh
     $ unset -f wp
     $ ls plugins
+    $ rmdir plugins
 
     $ cat >>imposer-project.md <<'EOF'
     > ```shell
@@ -396,7 +397,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ cat plugins/imposer-tweaks.php
     <?php
     # Plugin Name:  Imposer Tweaks
-    # Plugin URI:   https://github.com/dirtsimple.org/imposer#adding-code-tweaks
+    # Plugin URI:   https://github.com/dirtsimple/imposer#adding-code-tweaks
     # Description:  Automatically-generated from tweaks in imposer state files
     # Version:      0.0.0
     # Author:       Various
@@ -404,4 +405,31 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     
     add_filter('made_up_example', '__return_true');
 
+    $ IMPOSER_PATH=imposer imposer-cmd tweaks
+    hello from imposer-project.md!
+    State 'this/that' has been loaded
+    The current state file (dummy) is finished loading.
+    Just loaded a state called: dummy
+    Just loaded a state called: imposer-project
+    The project configuration has been loaded.
+    All states have finished loading.
+    <?php
+    # Plugin Name:  Imposer Tweaks
+    # Plugin URI:   https://github.com/dirtsimple/imposer#adding-code-tweaks
+    # Description:  Automatically-generated from tweaks in imposer state files
+    # Version:      0.0.0
+    # Author:       Various
+    # License:      Unknown
+    
+    add_filter('made_up_example', '__return_true');
+
+    $ IMPOSER_PATH=imposer imposer-cmd tweaks testme
+    hello from imposer-project.md!
+    State 'this/that' has been loaded
+    The current state file (dummy) is finished loading.
+    Just loaded a state called: dummy
+    Just loaded a state called: imposer-project
+    The project configuration has been loaded.
+    `imposer tweaks` does not accept arguments
+    [64]
 ````
