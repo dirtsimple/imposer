@@ -648,7 +648,8 @@ activate-tweaks() {
 
 write-plugin() {
     mkdir -p "${IMPOSER_PLUGINS=$(wpcon plugin path)}"
-    cat-php captured_tweaks >"$IMPOSER_PLUGINS/imposer-tweaks.php"
+    cat-php captured_tweaks >"$IMPOSER_PLUGINS/imposer-tweaks.tmp"
+    mv "$IMPOSER_PLUGINS/imposer-tweaks.tmp" "$IMPOSER_PLUGINS/imposer-tweaks.php"
 }
 
 capture-tweaks() {
