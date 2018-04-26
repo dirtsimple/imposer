@@ -158,7 +158,7 @@ For plugins and PHP blocks within state files, imposer offers the following acti
 * Filter `imposer_state($state)` -- filter this to make any changes to the configuration map that span multiple keys: the individual keys will have already been modified by the preceding filters.
 * Actions `imposed_options($options)` and `imposed_plugins($plugins)` -- fired after imposer finishes applying the specified options or activating/deactivating the specified plugins, respectively.
 * Action `imposer_impose($state)` -- hook this to actually perform your state or plugin's configuration process.
-* Action `imposer_imposed($state)` -- this is run after  the previous hook, to allow for cleanup operations before the script exits.
+* Action `imposed_state($state)` -- this is run after the previous hook, to allow for cleanup operations before the script exits.
 
 ### Event Hooks
 
