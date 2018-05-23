@@ -229,12 +229,7 @@ __load_state() {
     realpath.dirname "$2"
     local __DIR__=$REPLY IMPOSER_STATE=$1 bashup_event_after__state=   # just for this file
     mark-read "$2"
-    if [[ ! "${IMPOSER_CACHE-_}" ]]; then
-        run-markdown "$2"  # don't cache if IMPOSER_CACHE is an empty string
-    else
-        mdsh-cache "${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}" "$2" "$1"
-        source "$REPLY"
-    fi
+    MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
     event fire "after_state"
     event emit "state_loaded" "$1" "$2"
     event resolve "state_loaded_$1" "$2"
