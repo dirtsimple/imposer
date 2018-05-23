@@ -217,19 +217,19 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 # Test cache generation
     $ cat >imposer/load-test.state.md <<'EOF'
     > ```shell
-    > echo "loading load-test"
+    > echo "loading load-test from $__DIR__"
     > EOF
 
     $ @require "test-this:load-test" __load_state load-test imposer/load-test.state.md
-    loading load-test
+    loading load-test from imposer
 
     $ cat imposer/.cache/load-test
-    echo "loading load-test"
+    echo "loading load-test from $__DIR__"
 
 # No caching if IMPOSER_CACHE is empty:
     $ rm imposer/.cache/load-test
     $ IMPOSER_CACHE= __load_state load-test imposer/load-test.state.md
-    loading load-test
+    loading load-test from imposer
     event "state_loaded_load-test" already resolved
     [70]
     $ cat imposer/.cache/load-test
