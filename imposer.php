@@ -4,26 +4,42 @@
 
 namespace dirtsimple;
 
+add_action('imposer_impose_options', 'dirtsimple\Imposer::impose_options', 10, 1);
+add_action('imposer_impose_plugins', 'dirtsimple\Imposer::impose_plugins', 10, 1);
+
 class Imposer {
 
+	/***** Public API *****/
+
 	static function impose_json($json) {
-		static::impose( json_decode($json, true) );
+		$cls = static::class;
+		return new $cls( json_decode($json, true) );
 	}
-		
-	static function impose($state) {
-		foreach ( $state as $key => $val ) {
-			$state[$key] = apply_filters( "imposer_state_$key", $val, $state );
+
+	function impose($keys) {
+		foreach (func_get_args() as $key) {
+			if ( is_array($key) ) {
+				call_user_func_array( array($this, 'impose'), $key );
+			} elseif ( ! did_action($action = "imposer_impose_$key") ) {
+				$data = isset($this->state[$key]) ? $this->state[$key] : null;
+				do_action($action, $data, $this->state, $this);
+			}
 		}
-
-		$state = apply_filters( 'imposer_state', $state );
-
-		static::impose_options( $state['options'] );
-		static::impose_plugins( $state['plugins'] );
-
-		do_action('imposer_impose', $state);
-		do_action('imposed_state', $state); 
 	}
-	
+
+	/***** Internals *****/
+
+	protected $state, $count=0;
+
+	function __construct($state) {
+		foreach ( $state as $key => $val ) {
+			$state[$key] = apply_filters( "imposer_state_$key", $val);
+		}
+		$this->state = apply_filters( 'imposer_state', $state );
+		$this->impose('options', 'plugins', array_keys($this->state));
+		do_action('imposed_state', $this->state);
+	}
+
 	static function impose_options($options) {
 		foreach ( $options as $opt => $new ) {
 			$old = get_option($opt);
@@ -32,9 +48,8 @@ class Imposer {
 				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
 			}
 		}
-		do_action('imposed_options', $options);
 	}
-	
+
 	static function impose_plugins($plugins) {
 		if ( ! empty( $plugins ) ) {
 			$fetcher = new \WP_CLI\Fetchers\Plugin;
@@ -55,6 +70,5 @@ class Imposer {
 			deactivate_plugins($deactivate);  # deactivate first, in case of conflicts
 			activate_plugins($activate);
 		}
-		do_action('imposed_plugins', $plugins);
 	}
 }

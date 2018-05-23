@@ -126,13 +126,12 @@ my_ecommerce_plugin:
 Your plugin would then follow this with some PHP code to read this data  and do something with it.  It's best to keep the actual code in the state file brief, just calling into your actual plugin to load the data like this:
 
 ```php
-function my_ecommerce_plugin_impose($state) {
-	$my_plugin_info = $state['my_ecommerce_plugin'];
-	MyPluginAPI::setup_products($my_plugin_info['products']);
-	MyPluginAPI::setup_categories($my_plugin_info['categories']);
+function my_ecommerce_plugin_impose($data) {
+	MyPluginAPI::setup_products($data['products']);
+	MyPluginAPI::setup_categories($data['categories']);
 }
 
-add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
+add_action('imposer_impose_my_ecommerce_plugin', 'my_ecommerce_plugin_impose', 10, 1);
 ```
 
 And then users who want to impose product definitions in their state files would `require` your state file before adding in their own YAML or JSON with product data.  Any PHP they defined after `require`-ing your state file would then run after your own PHP code, allowing others to further extend and build on what you did.
@@ -154,11 +153,19 @@ You can of course have state files besides a default: you can use them to provid
 
 For plugins and PHP blocks within state files, imposer offers the following actions and filters (listed in execution order):
 
-* Filter `imposer_state_(key)($value, $state)` -- each top-level key in the JSON configuration map is passed through a filter named `imposer_state_KEY`, where `KEY` is the key name.  So for example, if you want to alter the `options` or `plugins `imposer will apply, you can add filters to `imposer_state_options` and `imposer_state_plugins`.  The first argument is the value of the key, the second is the current contents of overall configuration map.
-* Filter `imposer_state($state)` -- filter this to make any changes to the configuration map that span multiple keys: the individual keys will have already been modified by the preceding filters.
-* Actions `imposed_options($options)` and `imposed_plugins($plugins)` -- fired after imposer finishes applying the specified options or activating/deactivating the specified plugins, respectively.
-* Action `imposer_impose($state)` -- hook this to actually perform your state or plugin's configuration process.
-* Action `imposed_state($state)` -- this is run after the previous hook, to allow for cleanup operations before the script exits.
+* `apply_filters("imposer_state_$key", $value, $state)` -- each top-level key in the JSON configuration map is passed through a filter named `imposer_state_KEY`, where `KEY` is the key name.  So for example, if you want to alter the `options` or `plugins` imposer will apply, you can add filters to `imposer_state_options` and `imposer_state_plugins`.  The first argument is the value of the key, the second is the current contents of the overall configuration map.
+
+* `apply_filters("imposer_state", $state)` -- add a filter to this hook to make any changes to the configuration map that span multiple keys: the individual keys will have already been modified by the preceding `imposer_state_KEY` filters.
+
+* `do_action("imposer_impose_$key", $value, $state, $imposer)` -- hook this to actually perform your state or plugin's configuration process.  Each top-level key in the JSON configuration map is passed exactly once to an action called `imposer_impose_KEY`, where `KEY` is the key name.
+
+  The first argument passed to this action is the value of the key, the second is the contents of the overall configuration map, and the third is a `dirtsimple\Imposer` object that you can call `$imposer->impose('key1', 'key2', ...)` on, to ensure that the other keys have been applied before you continue.)
+
+  For example, if you're writing an action that imports posts, it might `$imposer->impose('categories')` at the beginning to ensure that any needed categories are already set up.  (Assuming there was a top-level configuration key called `categories`, of course!)  `impose()` is a no-op for keys that have already been applied or are in the middle of being applied, so it's safe to call it from more than one place.
+
+* `do_action('imposed_state', $state)` -- this is run after all top-level keys have been imposed, to allow for cleanup operations before the script exits.
+
+Note that the ordering of key-specific hooks is not guaranteed.  They may run in JSON config order, but  `imposer_impose_KEY` actions will start with `options` and `plugins`, and the actions for other keys can request that other keys be imposed first (using `$imposer->impose('key', ...)`).  You can even register actions for `imposer_impose_options` or `imposer_impose_plugins` that force some *other* keys to be processed before these, so the exact order in which impose hooks runs will be determined by dependency resolution at runtime.
 
 ### Event Hooks
 
