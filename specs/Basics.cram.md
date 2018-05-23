@@ -322,13 +322,12 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     Just loaded a state called: dummy
     All states have finished loading.
     <?php
-    function my_ecommerce_plugin_impose($state) {
-    	$my_plugin_info = $state['my_ecommerce_plugin'];
-    	MyPluginAPI::setup_products($my_plugin_info['products']);
-    	MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    function my_ecommerce_plugin_impose($data) {
+    	MyPluginAPI::setup_products($data['products']);
+    	MyPluginAPI::setup_categories($data['categories']);
     }
     
-    add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
+    add_action('imposer_impose_my_ecommerce_plugin', 'my_ecommerce_plugin_impose', 10, 1);
 
 # Sources dump:
     $ IMPOSER_PATH=imposer imposer-cmd sources dummy
@@ -381,13 +380,12 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":true,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     --- PHP: ---
     <?php
-    function my_ecommerce_plugin_impose($state) {
-    	$my_plugin_info = $state['my_ecommerce_plugin'];
-    	MyPluginAPI::setup_products($my_plugin_info['products']);
-    	MyPluginAPI::setup_categories($my_plugin_info['categories']);
+    function my_ecommerce_plugin_impose($data) {
+    	MyPluginAPI::setup_products($data['products']);
+    	MyPluginAPI::setup_categories($data['categories']);
     }
     
-    add_action('imposer_impose', 'my_ecommerce_plugin_impose', 10, 1);
+    add_action('imposer_impose_my_ecommerce_plugin', 'my_ecommerce_plugin_impose', 10, 1);
     dirtsimple\Imposer::impose_json( $args[0] );
     All PHP code has been run.
 
