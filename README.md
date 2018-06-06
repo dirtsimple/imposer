@@ -230,9 +230,9 @@ Note: if your state file needs to run shell commands that will change the state 
 
 To set up the configuration in a state file, you need to know what option keys and values you need to set.  But since most users only configure Wordpress via the web UI, plugin developers rarely *document* the relevant keys and values.  So, to help you discover what keys and values to use, imposer provides tools that let you inspect and monitor option changes made through the Wordpress UI.
 
-The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in the database since your last review.
+The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in the database since your last review.  (Note: it's still up to you to edit your state file(s) to set anything you want set.  Approving a change is just a way to say, "I've seen this change and done whatever I need to do about it, so stop showing it to me".)
 
-To use it, just run `imposer options review`.  Either you'll be immediately presented with JSON patch chunks for review and approval (using the same UI as `git add --patch)`, or the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.
+To start a review, just run `imposer options review`.  Either you'll be immediately presented with any existing changes as JSON patch chunks (for review and approval via the `git add --patch` UI), or else the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.
 
 Once you've approved a change, it won't show up during future runs of the `review`, `diff`, or `watch` subcommands of `imposer options`.  This lets you filter out changes you already know how to map to a state file, and irrelevant "noise" changes (like changes to the `cron` option), while still observing changes to values you're still working on with `watch` or `diff`.
 
