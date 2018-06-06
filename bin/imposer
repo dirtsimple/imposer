@@ -454,15 +454,26 @@ jq() { if pager; then command jq -C "$@" | $REPLY; else command jq "$@"; fi; }
 
 pager() { tty-tool PAGER less -FRX; }
 
+pager.screenfull() { head -n $(( $(tput lines) - ${1-2} )); }
+pager.watch()      { clear; date; echo; pager.screenfull 4; }
+
+diffcolor() { tty-tool COLORDIFF colordiff || tty-tool COLORDIFF pygmentize -l diff; }
+
 tty-tool() {
 	isatty || return; set -- "${tty_prefix-DEVKIT_}$@"; REPLY=${!1-};
 	if [[ ! ${!1+_} ]] && command -v "$2" >/dev/null; then
-		event quote "${@:2}"
+		event quote command "${@:2}"
 	else [[ $REPLY ]];
 	fi
 }
 
-isatty() { local t=${tty_prefix-DEVKIT_}ISATTY; [[ ${!t-} || -t 1 ]]; }
+isatty() {
+	local t=${tty_prefix-DEVKIT_}ISATTY
+	if [[ ${!t+_} ]]; then
+		case "${!t-}" in 0|"") false ;; ?*) true ;; esac
+	else [[ -t 1 ]]
+	fi
+}
 
 tty() {
 	local pipe=
@@ -684,5 +695,90 @@ imposer.tweaks()  {
     if (($#)); then echo '`imposer tweaks` does not accept arguments' >&2; exit 64; fi
     run-states; CLEAR_FILTERS
     tty pager colorize-php -- cat-php captured_tweaks
+}
+options-repo:() { (($#==0)) || "options-repo::$@"; }
+
+options-repo::has-directory() {
+	# Default to .options-snapshot under IMPOSER_CACHE
+	REPLY=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}; REPLY=${REPLY+"$REPLY/.options-snapshot"}
+	[[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]]
+}
+
+options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
+
+options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
+
+options-repo::snapshot() {
+	imposer options get >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	options-repo: "$@"
+}
+
+options-repo::setup() {
+	[[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]] || loco_error "A snapshot directory name is required"
+	[[ -d "$IMPOSER_OPTIONS_SNAPSHOT" ]] || mkdir -p "$IMPOSER_OPTIONS_SNAPSHOT"
+	[[ -d "$IMPOSER_OPTIONS_SNAPSHOT/.git" ]] || options-repo: git init
+	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/options.json" ]] || {
+		options-repo: snapshot git add options.json
+	}
+	options-repo: "$@";
+}
+imposer.options() {
+	options-repo: has-directory || local IMPOSER_OPTIONS_SNAPSHOT=$REPLY
+	loco_subcommand "imposer options [--dir SNAPSHOT-DIR]" "imposer.options-" "$@"
+}
+
+imposer.options---dir() {
+	(($#>1)) || loco_error "Usage: imposer options --dir DIR COMMAND [ARGS...]"
+	local IMPOSER_OPTIONS_SNAPSHOT=$1
+	imposer options "${@:2}"
+}
+
+loco_subcommand() {
+	if fn-exists "${2}${3-}"; then "${2}${@:3}"
+	else
+		REPLY=($(compgen -A function "$2"))
+		printf -v REPLY '\n\t%s' "${REPLY[@]#$2}"
+		printf -v REPLY 'Usage: %s COMMMAND [ARGS...]\n\nCommands:%s' "$1" "$REPLY"
+		loco_error "$REPLY"
+    fi
+}
+imposer.options-get() {
+	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
+	jq 'map({key:.option_name, value:.option_value}) | from_entries'
+}
+
+imposer.options-diff() {
+	(($#==0)) || [[ $* == --no-pager ]] || {
+		loco_error "Usage: imposer options [--dir SNAPSHOTDIR] diff [--no-pager]"
+	}
+	options-repo: setup snapshot
+	tty pager diffcolor -- options-repo: git --no-pager diff
+}
+
+imposer.options-review() {
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOTDIR] review"
+	while ! options-repo: setup snapshot changed; do
+		(($#)) || { echo "Waiting for changes...  (^C to abort)"; set -- started; }
+		sleep 10
+	done
+	options-repo: git add --patch options.json
+}
+imposer.options-watch() {
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOTDIR] watch"
+	watch-continuous 10 imposer options diff
+}
+
+watch-continuous() {
+	local interval=$1 status oldint=$(trap -p SIGINT) oldwinch="$(trap -p SIGWINCH)"
+	shift; trap "continue" SIGWINCH; trap "break" SIGINT
+	while :; do watch-once "$@"; sleep $interval & wait $! || true;	done
+	${oldwinch:-trap -- SIGWINCH}; ${oldint:-trap -- SIGINT}
+}
+
+watch-once() {
+	local cols; cols=$(tput cols) 2>/dev/null || cols=80
+	REPLY="Every ${interval}s: $*"
+	clear; printf "%s%*s\n\n" "$REPLY" $((cols-${#REPLY})) "$(date "+%Y-%m-%d %H:%M:%S")"
+	IMPOSER_PAGER="pager.screenfull 3" "$@" || true
 }
 if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi

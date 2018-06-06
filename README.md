@@ -26,6 +26,7 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
   * [Extending The System](#extending-the-system)
   * [Actions and Filters](#actions-and-filters)
   * [Event Hooks](#event-hooks)
+  * [Identifying What Options To Set](#identifying-what-options-to-set)
 - [Installation, Requirements, and Use](#installation-requirements-and-use)
   * [Lookup and Processing Order](#lookup-and-processing-order)
     + [State File Lookup](#state-file-lookup)
@@ -35,6 +36,11 @@ The combined PHP code supplied by all the loaded states is then run via [`wp eva
   * [Imposer Subcommands](#imposer-subcommands)
     + [imposer apply *[state...]*](#imposer-apply-state)
     + [imposer json *[state...]*](#imposer-json-state)
+    + [imposer options](#imposer-options)
+      - [imposer options review](#imposer-options-review)
+      - [imposer options get *[list-options...]*](#imposer-options-get-list-options)
+      - [imposer options diff](#imposer-options-diff)
+      - [imposer options watch](#imposer-options-watch)
     + [imposer php *[state...]*](#imposer-php-state)
     + [imposer sources *[state...]*](#imposer-sources-state)
     + [imposer tweaks](#imposer-tweaks)
@@ -220,6 +226,18 @@ Of course, just like with Wordpress, you are not restricted to the built-in even
 
 Note: if your state file needs to run shell commands that will change the state of the system in some way, you must **only** run these commands during the `before_apply` or `after_apply` events, so that they are only run by the  `imposer apply` subcommand and not by diagnostic commands like `imposer json` or `imposer php`.
 
+### Identifying What Options To Set
+
+To set up the configuration in a state file, you need to know what option keys and values you need to set.  But since most users only configure Wordpress via the web UI, plugin developers rarely *document* the relevant keys and values.  So, to help you discover what keys and values to use, imposer provides tools that let you inspect and monitor option changes made through the Wordpress UI.
+
+The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in the database since your last review.
+
+To use it, just run `imposer options review`.  Either you'll be immediately presented with JSON patch chunks for review and approval (using the same UI as `git add --patch)`, or the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.
+
+Once you've approved a change, it won't show up during future runs of the `review`, `diff`, or `watch` subcommands of `imposer options`.  This lets you filter out changes you already know how to map to a state file, and irrelevant "noise" changes (like changes to the `cron` option), while still observing changes to values you're still working on with `watch` or `diff`.
+
+For more details on imposer's tools for monitoring and inspecting Wordpress options, see the [imposer options](#imposer-options) command reference, below.
+
 ## Installation, Requirements, and Use
 
 Imposer is packaged with composer, and is intended to be installed that way, i.e. via `composer require dirtsimple/imposer:dev-master` or `composer global require dirtsimple/imposer:dev-master`.  In either case, make sure that the appropriate `vendor/bin` directory is on your `PATH`, so that you can just run `imposer` without having to specify the exact location.
@@ -295,6 +313,38 @@ Load and execute the specified states, building a JSON configuration and accumul
 Just like `imposer apply`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  The `all_states_loaded` event will fire, but the `before_apply` and `after_apply` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
 
 If the output is a tty and `less` is available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`; an empty string disables paging.
+
+#### imposer options
+
+The `imposer options` subcommand provides various sub-subcommands for inspecting the contents of, and monitoring changes made to, the Wordpress options table.
+
+For the most part, you will only use these subcommands on a development instance of Wordpress, in order to discover and verify what options in the database match what parts of a plugin's configuration UI.  (So you can figure out what to put in your state files for production, or verify that your state files are setting things correctly.)
+
+By default, changes to options are monitored using a git repository in `$IMPOSER_CACHE/.options-snapshot`, but this location can be overridden by setting `IMPOSER_OPTIONS_SNAPSHOT `or by passing the `--dir` option to `imposer options`.  (For example, `imposer options --dir foo review` runs the `review` command against a git repository called `foo` under the current project root.)
+
+Note that although snapshot directories are managed using git, their contents should *not* be considered part of your project, and should not be committed or pushed to any remote servers, as they may contain security-sensitive data.  (Note, too, that you can safely *delete* a snapshot directory at any time, as nothing is lost except the knowledge of what options were changed since the last fully-approved `review`.)
+
+Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `colordiff` or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
+
+##### imposer options review
+
+Interactively revew and approve changes made to the JSON form of all non-transient Wordpress options since the last review, or the last time the snapshot directory was erased.  (If there are no changes pending, the command waits, taking snapshots of the options in the database every 10 seconds until a change is detected.)
+
+The review process has the same UI as `git add --patch`: any changes you approve will not show up on future reviews, allowing you to figuratively "sign off" on the changes that you understand, or which are irrelevant to your current goals (like changes to the `cron` option).  Once you've approved a change, it will not show up during future runs of `imposer options` subcommands such as `review`, `diff`, or `watch`.
+
+(Note: on Alpine linux, the default `git` package doesn't include the UI for `git add --patch`.  So, if you're working in an Alpine environment (e.g. in a docker container), you'll need to install the Alpine `git-perl` package to make `options review` work correctly.)
+
+##### imposer options get *[list-options...]*
+
+This command outputs a JSON map of all non-transient wordpress options, in the form they would need to appear under the `options` key in the imposer state.  (You can use the `wp option list` options `--search=`, `--exclude=`, and `--autoload=` to limit the output to a desired subset of options.)
+
+##### imposer options diff
+
+Compare the current output of `imposer options get` against the last approved snapshot, displaying the differences as a unified diff (possibly colorized and paged).
+
+##### imposer options watch
+
+Every 10 seconds, clear the screen and display the first screenful of output from `imposer options diff`.  (Use Control-C to exit.)
 
 #### imposer php *[state...]*
 

@@ -347,3 +347,117 @@ imposer.tweaks()  {
 }
 ```
 
+## Options Monitoring
+
+### The Options Repository
+
+`options-repo:` is a singleton object with methods to run git commands in the current repo, calculate the repo dir, initialize it, take snapshots, etc.
+
+```shell
+options-repo:() { (($#==0)) || "options-repo::$@"; }
+
+options-repo::has-directory() {
+	# Default to .options-snapshot under IMPOSER_CACHE
+	REPLY=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}; REPLY=${REPLY+"$REPLY/.options-snapshot"}
+	[[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]]
+}
+
+options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
+
+options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
+
+options-repo::snapshot() {
+	imposer options get >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	options-repo: "$@"
+}
+
+options-repo::setup() {
+	[[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]] || loco_error "A snapshot directory name is required"
+	[[ -d "$IMPOSER_OPTIONS_SNAPSHOT" ]] || mkdir -p "$IMPOSER_OPTIONS_SNAPSHOT"
+	[[ -d "$IMPOSER_OPTIONS_SNAPSHOT/.git" ]] || options-repo: git init
+	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/options.json" ]] || {
+		options-repo: snapshot git add options.json
+	}
+	options-repo: "$@";
+}
+```
+
+### imposer options
+
+The `imposer options` command runs subcommands, calculating the default repo path if needed.  The `--dir` option is implemented as a subcommand that overrides the current repo path.
+
+```shell
+imposer.options() {
+	options-repo: has-directory || local IMPOSER_OPTIONS_SNAPSHOT=$REPLY
+	loco_subcommand "imposer options [--dir SNAPSHOT-DIR]" "imposer.options-" "$@"
+}
+
+imposer.options---dir() {
+	(($#>1)) || loco_error "Usage: imposer options --dir DIR COMMAND [ARGS...]"
+	local IMPOSER_OPTIONS_SNAPSHOT=$1
+	imposer options "${@:2}"
+}
+
+loco_subcommand() {
+	if fn-exists "${2}${3-}"; then "${2}${@:3}"
+	else
+		REPLY=($(compgen -A function "$2"))
+		printf -v REPLY '\n\t%s' "${REPLY[@]#$2}"
+		printf -v REPLY 'Usage: %s COMMMAND [ARGS...]\n\nCommands:%s' "$1" "$REPLY"
+		loco_error "$REPLY"
+    fi
+}
+```
+
+#### get, diff, review
+
+`imposer options get` dumps all options in JSON form (w/paging and colorizing if output goes to a TTY.  Any extra arguments are passed on to `wp option list`.  `imposer options diff` diffs the current options against the named JSON file (again with paging and colorizing if possible).  `imposer options review`  waits for changes and then runs `git add --patch` on them.
+
+```shell
+imposer.options-get() {
+	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
+	jq 'map({key:.option_name, value:.option_value}) | from_entries'
+}
+
+imposer.options-diff() {
+	(($#==0)) || [[ $* == --no-pager ]] || {
+		loco_error "Usage: imposer options [--dir SNAPSHOTDIR] diff [--no-pager]"
+	}
+	options-repo: setup snapshot
+	tty pager diffcolor -- options-repo: git --no-pager diff
+}
+
+imposer.options-review() {
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOTDIR] review"
+	while ! options-repo: setup snapshot changed; do
+		(($#)) || { echo "Waiting for changes...  (^C to abort)"; set -- started; }
+		sleep 10
+	done
+	options-repo: git add --patch options.json
+}
+```
+
+#### watch
+
+`imposer options watch` runs  `imposer options diff --no-pager` every 15 seconds, with colorized output cut to fit the current screen size.  OS X doesn't have a native `watch` command, so we emulate it, adding support for terminal resizing by trapping SIGWINCH.
+
+```shell
+imposer.options-watch() {
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOTDIR] watch"
+	watch-continuous 10 imposer options diff
+}
+
+watch-continuous() {
+	local interval=$1 status oldint=$(trap -p SIGINT) oldwinch="$(trap -p SIGWINCH)"
+	shift; trap "continue" SIGWINCH; trap "break" SIGINT
+	while :; do watch-once "$@"; sleep $interval & wait $! || true;	done
+	${oldwinch:-trap -- SIGWINCH}; ${oldint:-trap -- SIGINT}
+}
+
+watch-once() {
+	local cols; cols=$(tput cols) 2>/dev/null || cols=80
+	REPLY="Every ${interval}s: $*"
+	clear; printf "%s%*s\n\n" "$REPLY" $((cols-${#REPLY})) "$(date "+%Y-%m-%d %H:%M:%S")"
+	IMPOSER_PAGER="pager.screenfull 3" "$@" || true
+}
+```
