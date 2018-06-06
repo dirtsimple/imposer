@@ -41,7 +41,7 @@ class Imposer {
 			$state[$key] = apply_filters( "imposer_state_$key", $val);
 		}
 		$this->state = apply_filters( 'imposer_state', $state );
-		$this->impose('options', 'plugins', array_keys($this->state));
+		$this->impose('plugins', 'options', array_keys($this->state));
 		do_action('imposed_state', $this->state);
 	}
 

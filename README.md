@@ -176,7 +176,7 @@ For plugins and PHP blocks within state files, imposer offers the following acti
 
 * `do_action('imposed_state', $state)` -- this is run after all top-level keys have been imposed, to allow for cleanup operations before the script exits.
 
-Note that the ordering of key-specific hooks is not guaranteed.  They may run in JSON config order, but  `imposer_impose_KEY` actions will start with `options` and `plugins`, and the actions for other keys can request that other keys be imposed first (using `$imposer->impose('key', ...)`).  You can even register actions for `imposer_impose_options` or `imposer_impose_plugins` that force some *other* keys to be processed before these, so the exact order in which impose hooks runs will be determined by dependency resolution at runtime.
+Note that the ordering of key-specific hooks is not guaranteed.  They may run in JSON config order, but  `imposer_impose_KEY` actions will start with `plugins` and `options`, and the actions for other keys can request that other keys be imposed first (using `$imposer->impose('key', ...)`).  You can even register actions for `imposer_impose_options` or `imposer_impose_plugins` that force some *other* keys to be processed before these, so the exact order in which impose hooks runs will be determined by dependency resolution at runtime.
 
 ### Event Hooks
 
