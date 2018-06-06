@@ -15,7 +15,7 @@ State files work a bit like "[migrations](https://en.wikipedia.org/wiki/Schema_m
 
 State files can be distributed as part of Wordpress plugins, themes, composer or wp-cli packages, or simply placed in any directory listed by an `IMPOSER_PATH` environment variable.  States can be applied on the command line, and those states can `require` other states.  YAML, JSON, shell and jq blocks are executed first, in source order, to create a jq program that builds a JSON configuration map of the desired states.
 
-The combined PHP code supplied by all the loaded states is then run via [`wp eval-file`](https://developer.wordpress.org/cli/commands/eval-file/), with the JSON configuration passed in as a command-line argument for it to operate on -- which means that you can extend the configuration format by adding PHP to a state file that reads that extended configuration data from a key in `$state`.  (More on this in the "[Extending The System](#extending-the-system)" section, below.)
+This JSON configuration map is then passed to various [actions and filters](#actions-and-filters) by way of a wp-cli command.  But first, all the PHP code supplied by all the loaded states is run, so that state files can register any needed action and filter callbacks.  This makes it easy to extend the configuration format in a state file, by adding JSON data to set up the configuration, and PHP callbacks to apply that configuration to the Wordpress database.  (For more details on how to do this, see "[Extending The System](#extending-the-system)", below.)
 
 ### Contents
 
@@ -104,7 +104,7 @@ For most things, though, it's both clearer and simpler to just use YAML and JSON
 
 Last, but not least, you can define PHP blocks.  Unlike the other types of blocks, PHP blocks are "saved up" and executed later, after imposer has finished executing all of the state files to create the complete JSON configuration map.  PHP blocks are individually syntax-checked, and can contain namespaced code as long as the entire block is either wrapped in  `namespace ... {  }` blocks, or does not use namespaces at all.
 
-All the PHP blocks defined by all the states are joined together in one giant PHP file that gets passed into `wp eval-file`, and then imposer's PHP hooks are run.  One of those hooks, `imposer_impose`, receives a `$state` parameter containing the JSON configuration map.  Your PHP blocks can register action callbacks to perform operations using this value.
+All the PHP blocks defined by all the states are joined together in one giant PHP file that gets loaded by wp-cli, just before imposer's [Wordpress hooks](#actions-and-filters) are invoked.  Most of those hooks receive a `$state` parameter containing the full JSON configuration map, so your PHP blocks can register callbacks to make database changes using this data.
 
 (Note: the configuration map in `$state` is built up from nothing on each imposer run, and only contains values put there by the state files loaded *during that imposer run*.  It does *not* contain any existing plugin or option settings, etc.  If you need to read the existing-in-Wordpress values of such things, you must use PHP code that invokes the Wordpress API.  Think of the configuration map as a to-do list or list of "things we'd like to ensure are this way in Wordpress as of this run".)
 
@@ -184,7 +184,7 @@ In additon to its PHP actions and filters, Imposer offers a system of event hook
 
 ```shell
 my_plugin.message() { echo "$@"; }
-my_plugin.handle_json() { echo "The JSON going to eval-file is:"; echo "$IMPOSER_JSON"; }
+my_plugin.handle_json() { echo "The JSON configuration is:"; echo "$IMPOSER_JSON"; }
 
 event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
 event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
@@ -220,7 +220,7 @@ Imposer currently offers the following built-in events:
 
 * `before_apply` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
 
-* `after_apply` -- fires after `wp eval-file` has been run, allowing you to run additional shell commands after all the PHP code has been run.
+* `after_apply` -- fires after imposer's [actions and filters](#actions-and-filters) have successfully completed their database updates, allowing you to run additional shell commands afterwards.
 
 Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit`, `event fire`, etc..  (See the [event API docs](https://github.com/bashup/events/#readme) for more info.)
 
@@ -286,11 +286,14 @@ This allows states to be distributed and installed in a variety of ways, while s
 
 While we're discussing precedence order, you may find it useful to have an explicit listing of the phases in which `imposer apply` executes:
 
-* First phase: load and execute state files by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `all_states_loaded` event fires at the end of this phase.)
-* Second phase: run `jq` using the accumulated jq code generated by the YAML, JSON, jq, etc. code blocks executed during the first phase, creating a new JSON configuration map.  (The `before_apply` event fires at the end of this phase.)
-* Third phase: run `wp eval-file` on the accumulated PHP code generated by the code blocks executed during the first phase, passing the JSON output by the second phase as a command-line argument.  All the PHP [actions and filters](#actions-and-filters) run during this phase, followed by the `after_apply` shell event (if the PHP completes without error).
+* First phase: **load and execute state files** by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `all_states_loaded` event fires at the end of this phase.)  During this phase, most non-shell code blocks are accumulated in memory for use by later phases.
+* Second phase: **generate a JSON configuration map** by running the `jq` command on the accumulated jq code generated by the YAML, JSON, jq, or shell code blocks processed during the first phase.
+* Third phase: **apply changes to Wordpress** by:
+  1. Firing the `before_apply` [shell event](#event-hooks) (which will also generate the `imposer-tweaks` plugin file for any accumulated [code tweaks](#adding-code-tweaks))
+  2. Running imposer's PHP code (via `wp eval`) to load the PHP code accumulated during the first phase, then running the imposer [actions and filters](#actions-and-filters) to actually update the Wordpress database.
+  3. If the previous steps finished without a fatal error, the `after_apply` shell event is then run.
 
-So, even though it looks like shell, PHP, and YAML/JSON/jq code execution are interleaved, in reality all the shell code is executed first: it's just that any code block *other* than shell code blocks are translated to shell code that accumulates either jq or PHP code for execution in the second or third phase.  This means that you can't (for example) have two YAML blocks reference the same environment variable and change it "in between them" using shell code, because whatever value the environment variable has at the end of phase one is what will be used when *both* blocks are executed during phase two.
+So, even though it looks like shell, PHP, and YAML/JSON/jq code execution are interleaved, in reality all the shell code is executed first: it's just that any code block *other* than shell code blocks are translated to shell code that accumulates either jq or PHP code for execution in the second or third phase.  This means that you can't (for example) have two YAML blocks reference the same environment variable and change its value "in between them" using shell code, because whatever value the environment variable has at the end of phase one is what will be used when *both* blocks are executed during phase two.
 
 #### Dependency Ordering
 
@@ -302,15 +305,15 @@ That is, in the event of a circular dependency, the state or key that completes 
 
 Note: imposer always operates on the nearest directory at or above the current directory that contains either an `imposer-project.md `, a `wp-cli.yml`, and/or a `composer.json`.  This directory is assumed to be your project root, and all relative paths are based there.
 
-(Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, even if `wp eval-file` successfully sends the resulting JSON and PHP for remote execution!)
+(Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, and cannot be executed remotely by wp-cli.  If you need to run a command remotely, use something like e.g. `ssh myserver bash -c 'cd /my/wp-instance; imposer apply'` instead.)
 
 #### imposer apply *[state...]*
 
-Load and execute the specified states, building a JSON configuration and accumulating PHP code, before handing them both off to `wp eval-file`.
+Load and execute the specified states, building a JSON configuration and accumulating PHP code, before handing them both off to `wp eval` to run the PHP code and invoke the imposer [actions and filters](#actions-and-filters).
 
 #### imposer json *[state...]*
 
-Just like `imposer apply`, except that instead of handing off the JSON and PHP to `wp eval-file`, the JSON is written to standard output for debugging.  The `all_states_loaded` event will fire, but the `before_apply` and `after_apply` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
+Just like `imposer apply`, except that instead of actually applying the changes, the JSON is written to standard output for debugging.  The `all_states_loaded` shell event will fire, but the `before_apply` and `after_apply` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
 
 If the output is a tty and `less` is available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`; an empty string disables paging.
 
@@ -348,7 +351,7 @@ Every 10 seconds, clear the screen and display the first screenful of output fro
 
 #### imposer php *[state...]*
 
-Just like `imposer json`, except that instead of dumping the JSON to stdout, the accumulated PHP code is dumped to stdout.  The `all_states_loaded` event will fire, but the `before_apply` and `after_apply` events will not.
+Just like `imposer apply`, except that instead of actually applying the changes, the accumulated PHP code is dumped to stdout instead.  The `all_states_loaded` shell event will fire, but the `before_apply` and `after_apply` events will not.
 
 If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
 
@@ -362,7 +365,7 @@ The output includes all source files read (or cached), including any global conf
 
 #### imposer tweaks
 
-Outputs the PHP that would be written to `imposer-tweaks.php` if `imposer apply` were run.  The output is colorized and paged -- if possible -- according to the same rules as for [`imposer php`](#imposer-php-state).
+Outputs the PHP that would be written to `imposer-tweaks.php` if `imposer apply` were run.  The output is colorized and paged (if possible) according to the same rules as for [`imposer php`](#imposer-php-state).
 
 #### imposer path
 

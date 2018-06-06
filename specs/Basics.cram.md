@@ -348,7 +348,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     The current state file (dummy) is finished loading.
     Just loaded a state called: dummy
     All states have finished loading.
-    The JSON going to eval-file is:
+    The JSON configuration is:
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":false,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     wp eval dirtsimple\Imposer::run("php://fd/7");
     All PHP code has been run.
