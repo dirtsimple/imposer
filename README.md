@@ -38,7 +38,7 @@ This JSON configuration map is then passed to various [actions and filters](#act
     + [imposer json *[state...]*](#imposer-json-state)
     + [imposer options](#imposer-options)
       - [imposer options review](#imposer-options-review)
-      - [imposer options get *[list-options...]*](#imposer-options-get-list-options)
+      - [imposer options list *[list-options...]*](#imposer-options-list-list-options)
       - [imposer options diff](#imposer-options-diff)
       - [imposer options watch](#imposer-options-watch)
     + [imposer php *[state...]*](#imposer-php-state)
@@ -212,9 +212,9 @@ Imposer currently offers the following built-in events:
   on state_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
   ````
 
-* `persistent_states_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is a one-time asynchronous event: you can register for it even after it has already happened, and your callback will be invoked immediately.
+* `persistent_states_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is another promise-like event: you can register for it even after it has already happened, and your callback will be invoked immediately.
 
-  The purpose of this event is to let you disable functionality that should only be available to persistent (i.e. project-defined) states, and not from states added to the command line.
+  The purpose of this event is to let you disable functionality that should only be available to persistent (i.e. project-defined) states, and not from states added on the command line.
 
 * `all_states_loaded` -- fires when all state files are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
 
@@ -337,13 +337,13 @@ The review process has the same UI as `git add --patch`: any changes you approve
 
 (Note: on Alpine linux, the default `git` package doesn't include the UI for `git add --patch`.  So, if you're working in an Alpine environment (e.g. in a docker container), you'll need to install the Alpine `git-perl` package to make `options review` work correctly.)
 
-##### imposer options get *[list-options...]*
+##### imposer options list *[list-options...]*
 
 This command outputs a JSON map of all non-transient wordpress options, in the form they would need to appear under the `options` key in the imposer state.  (You can use the `wp option list` options `--search=`, `--exclude=`, and `--autoload=` to limit the output to a desired subset of options.)
 
 ##### imposer options diff
 
-Compare the current output of `imposer options get` against the last approved snapshot, displaying the differences as a unified diff (possibly colorized and paged).
+Compare the current output of `imposer options list` against the last approved snapshot, displaying the differences as a unified diff (possibly colorized and paged).
 
 ##### imposer options watch
 

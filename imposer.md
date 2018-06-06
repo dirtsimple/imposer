@@ -366,7 +366,7 @@ options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
 options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
 
 options-repo::snapshot() {
-	imposer options get >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	imposer options list >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
 	options-repo: "$@"
 }
 
@@ -388,46 +388,51 @@ The `imposer options` command runs subcommands, calculating the default repo pat
 ```shell
 imposer.options() {
 	options-repo: has-directory || local IMPOSER_OPTIONS_SNAPSHOT=$REPLY
-	loco_subcommand "imposer options [--dir SNAPSHOT-DIR]" "imposer.options-" "$@"
+	loco_subcommand "imposer.options-" "imposer.options---help" "$@"
+}
+
+imposer.options---help() {
+	loco_subcommand_help "imposer.options-" "imposer options [--dir SNAPSHOT-DIR]"
 }
 
 imposer.options---dir() {
-	(($#>1)) || loco_error "Usage: imposer options --dir DIR COMMAND [ARGS...]"
+	(($#>1)) || imposer options --help
 	local IMPOSER_OPTIONS_SNAPSHOT=$1
 	imposer options "${@:2}"
 }
 
-loco_subcommand() {
-	if fn-exists "${2}${3-}"; then "${2}${@:3}"
-	else
-		REPLY=($(compgen -A function "$2"))
-		printf -v REPLY '\n\t%s' "${REPLY[@]#$2}"
-		printf -v REPLY 'Usage: %s COMMMAND [ARGS...]\n\nCommands:%s' "$1" "$REPLY"
-		loco_error "$REPLY"
-    fi
+# These bits should get promoted upstream
+loco_subcommand() { if fn-exists "${1}${3-}"; then "${1}${@:3}"; else "${@:2}"; fi; }
+
+loco_subcommand_help() {
+	REPLY=($(compgen -A function "$1"))
+	printf -v REPLY '\n    %s' "${REPLY[@]#$1}"
+	printf -v REPLY 'Usage: %s COMMMAND [ARGS...]\n\n%s'${3:+'\n\n'}'Commands:\n%s' \
+		"$2" "${3-}" "$REPLY"
+	loco_error "$REPLY"
 }
 ```
 
-#### get, diff, review
+#### list, diff, review
 
-`imposer options get` dumps all options in JSON form (w/paging and colorizing if output goes to a TTY.  Any extra arguments are passed on to `wp option list`.  `imposer options diff` diffs the current options against the named JSON file (again with paging and colorizing if possible).  `imposer options review`  waits for changes and then runs `git add --patch` on them.
+`imposer options list` dumps all options in JSON form (w/paging and colorizing if output goes to a TTY.  Any extra arguments are passed on to `wp option list`.  `imposer options diff` diffs the current options against the named JSON file (again with paging and colorizing if possible).  `imposer options review`  waits for changes and then runs `git add --patch` on them.
 
 ```shell
-imposer.options-get() {
+imposer.options-list() {
 	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
 	jq 'map({key:.option_name, value:.option_value}) | from_entries'
 }
 
 imposer.options-diff() {
 	(($#==0)) || [[ $* == --no-pager ]] || {
-		loco_error "Usage: imposer options [--dir SNAPSHOTDIR] diff [--no-pager]"
+		loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] diff [--no-pager]"
 	}
 	options-repo: setup snapshot
 	tty pager diffcolor -- options-repo: git --no-pager diff
 }
 
 imposer.options-review() {
-	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOTDIR] review"
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] review"
 	while ! options-repo: setup snapshot changed; do
 		(($#)) || { echo "Waiting for changes...  (^C to abort)"; set -- started; }
 		sleep 10
@@ -442,7 +447,7 @@ imposer.options-review() {
 
 ```shell
 imposer.options-watch() {
-	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOTDIR] watch"
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] watch"
 	watch-continuous 10 imposer options diff
 }
 
