@@ -11,6 +11,11 @@ class Imposer {
 
 	/***** Public API *****/
 
+	static function run($json_stream) {
+		eval( '?>' . file_get_contents('php://stdin') );
+		static::impose_json( file_get_contents($json_stream) );
+	}
+
 	static function impose_json($json) {
 		$cls = static::class;
 		return new $cls( json_decode($json, true) );

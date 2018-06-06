@@ -270,8 +270,7 @@ imposer.apply() {
         CALL_JQ -c -n || return
         declare -r IMPOSER_JSON="$REPLY"
         event fire "before_apply"
-        imposer_php[1]+=$'dirtsimple\Imposer::impose_json( $args[0] );\n'
-        cat-php imposer_php | wp eval-file - "$IMPOSER_JSON"
+        cat-php imposer_php | wp eval 'dirtsimple\Imposer::run("php://fd/7");' 7< <(echo "$IMPOSER_JSON")
         event fire "after_apply"
     fi
 }

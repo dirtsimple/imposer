@@ -5,8 +5,8 @@ case "${REPLY% --skip-plugins --skip-themes --skip-packages}" in
     "theme path") echo "themes";;
     "plugin path") echo "plugins";;
     "package path") echo "packages";;
-    "eval-file - "*)
-        echo "--- JSON: ---"; printf '%s\n' "${@:3}"
+    'eval dirtsimple\Imposer::run("php://fd/7");'*)
+        echo "--- JSON: ---"; cat <&7
         echo "--- PHP: ---"; cat
         ;;
     *) echo "unexpected wp $*" >&9; exit 64 ;;
