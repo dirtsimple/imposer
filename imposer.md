@@ -263,6 +263,8 @@ imposer.sources() {
 
 After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
 
+If the PHP process exits with error 75 (EX_TEMPFAIL), it is re-run, as that means a change was made to the set of active plugins, or critical settings such as the current theme.
+
 ```shell
 imposer.apply() {
     run-states "$@"
@@ -270,9 +272,14 @@ imposer.apply() {
         CALL_JQ -c -n || return
         declare -r IMPOSER_JSON="$REPLY"
         event fire "before_apply"
-        cat-php imposer_php | wp eval 'dirtsimple\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON"
+        while local s=; run-imposer-php || s=$?; [[ $s == 75 ]]; do :; done
+        ${s:+return $s}
         event fire "after_apply"
     fi
+}
+
+run-imposer-php() {
+	wp eval 'dirtsimple\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
 }
 ```
 

@@ -644,9 +644,14 @@ imposer.apply() {
         CALL_JQ -c -n || return
         declare -r IMPOSER_JSON="$REPLY"
         event fire "before_apply"
-        cat-php imposer_php | wp eval 'dirtsimple\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON"
+        while local s=; run-imposer-php || s=$?; [[ $s == 75 ]]; do :; done
+        ${s:+return $s}
         event fire "after_apply"
     fi
+}
+
+run-imposer-php() {
+	wp eval 'dirtsimple\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
 }
 imposer.json() { run-states "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
 
