@@ -274,10 +274,10 @@ For convenience, state names do not include the `.state.md` suffix, and can also
 The default `IMPOSER_PATH` is assembled from:
 
 * `./imposer` (i.e., the `imposer` subdirectory of the project root)
-* `$IMPOSER_THEMES`, defaulting to the Wordpress themes directory as provided by wp-cli (e.g. `wp-content/themes/`)
-* `$IMPOSER_PLUGINS`, defaulting to the Wordpress plugin directory as provided by wp-cli (e.g. `wp-content/plugins/`)
+* `$IMPOSER_THEMES`, defaulting to the Wordpress themes directory as provided by `wp theme path` (e.g. `wp-content/themes/`)
+* `$IMPOSER_PLUGINS`, defaulting to the Wordpress plugin directory as provided by `wp plugin path` (e.g. `wp-content/plugins/`)
 * `$IMPOSER_VENDOR`, defaulting to the `COMPOSER_VENDOR_DIR` (e.g. `vendor/`), if a `composer.json` is present
-* `$IMPOSER_PACKAGES`, defaulting to the wp-cli package path, as provided by wp-cli (typically `~/.wp-cli/packages`)
+* `$IMPOSER_PACKAGES`, defaulting to the `vendor/` subdirectory of the `wp package path` (typically `~/.wp-cli/packages/vendor`)
 * `$IMPOSER_GLOBALS`, defaulting to the global composer `vendor` directory, e.g. `${COMPOSER_HOME}/vendor`
 
 (You can remove any of the above directories from consideration for the default `IMPOSER_PATH` by setting the corresponding variable to an empty string.)

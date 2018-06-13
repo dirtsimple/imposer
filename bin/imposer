@@ -516,7 +516,7 @@ get_imposer_dirs() {
             "${IMPOSER_THEMES=$(wpcon theme path)}" \
             "${IMPOSER_PLUGINS=$(wpcon plugin path)}" \
             "${IMPOSER_VENDOR=$( [[ -f composer.json ]] && composer config --absolute vendor-dir)}" \
-            "${IMPOSER_PACKAGES=$(wpcon package path)}" \
+            "${IMPOSER_PACKAGES=$(wpcon package path)/vendor}" \
             "${IMPOSER_GLOBALS=$(composer global config --absolute vendor-dir)}"
     fi
     imposer_dirs=()

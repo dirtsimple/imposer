@@ -49,9 +49,9 @@ You can run `imposer path` and `imposer default-path` to get the current set of 
 ````sh
 # Default order is imposer, wp themes + plugins, composer local, wp packages, composer global:
     $ echo '{}' >composer.json
-    $ mkdir -p imposer themes plugins packages vendor COMPOSER_GLOBAL_VENDOR
+    $ mkdir -p imposer themes plugins packages/vendor vendor COMPOSER_GLOBAL_VENDOR
     $ (REPLY="$(imposer path)"; echo "${REPLY//"$PWD"/.}")
-    ./imposer:./themes:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
+    ./imposer:./themes:./plugins:./vendor:./packages/vendor:./COMPOSER_GLOBAL_VENDOR
 
 # But can be overrriden by IMPOSER_PATH
     $ IMPOSER_PATH=vendor:imposer
@@ -60,29 +60,29 @@ You can run `imposer path` and `imposer default-path` to get the current set of 
 
 # Unless you're looking at the default path (which ignores IMPOSER_PATH)
     $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
-    ./imposer:./themes:./plugins:./vendor:./packages:./COMPOSER_GLOBAL_VENDOR
+    ./imposer:./themes:./plugins:./vendor:./packages/vendor:./COMPOSER_GLOBAL_VENDOR
 
 # Only directories that exist are included, however:
     $ rmdir COMPOSER_GLOBAL_VENDOR themes
     $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
-    ./imposer:./plugins:./vendor:./packages
+    ./imposer:./plugins:./vendor:./packages/vendor
 
 # And vendor/ is only included if there's a `composer.json`:
     $ rm composer.json
     $ (REPLY="$(imposer default-path)"; echo "${REPLY//"$PWD"/.}")
-    ./imposer:./plugins:./packages
+    ./imposer:./plugins:./packages/vendor
     $ echo '{}' >composer.json
 
 # Once calculated, the internal path remains the same:
     $ IMPOSER_PATH=
     $ imposer path
-    */imposer:*/plugins:*/vendor:*/packages (glob)
+    */imposer:*/plugins:*/vendor:*/packages/vendor (glob)
 
 # even if IMPOSER_PATH changes, or a directory is removed:
     $ IMPOSER_PATH=vendor:imposer
-    $ rmdir packages
+    $ rmdir packages/vendor
     $ imposer path
-    */imposer:*/plugins:*/vendor:*/packages (glob)
+    */imposer:*/plugins:*/vendor:*/packages/vendor (glob)
 
 # But the default is still the default, and calculated "fresh":
     $ imposer default-path
