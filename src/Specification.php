@@ -6,7 +6,7 @@ use WP_CLI\Entity\RecursiveDataStructureTraverser;
 use WP_CLI\Entity\NonExistentKeyException;
 
 
-class State {
+class Specification {
 	protected static $traverser;
 
 	static function load($data) {

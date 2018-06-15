@@ -11,13 +11,13 @@ class Task {
 
 	// ===== Static API ==== //
 
-	protected static $state, $current, $queue=array(), $instances=array(), $restart_requested=false;
+	protected static $current, $queue=array(), $instances=array(), $restart_requested=false;
 
 	static function task($what)     { return Task::instance($what); }
 	static function resource($what) { return Resource::instance($what); }
 
-	static function __run_all($state) {
-		State::load($state);
+	static function __run_all($spec) {
+		Specification::load($spec);
 		while ($tasks = self::$queue) {
 			self::$queue = array();
 			$progress = 0;
@@ -62,7 +62,7 @@ class Task {
 		return $this;
 	}
 
-	// ===== State Management API ===== //
+	// ===== Specification Management API ===== //
 
 	function error($msg) { WP_CLI::error("$this: $msg"); }
 
@@ -97,7 +97,7 @@ class Task {
 
 	function needed() {
 		if ( ! $this->reads ) return true;
-		foreach ( $this->reads as $key ) if ( State::has($key) ) return true;
+		foreach ( $this->reads as $key ) if ( Specification::has($key) ) return true;
 		return false;
 	}
 
@@ -132,7 +132,7 @@ class Task {
 	protected function run_next_callback() {
 		try {
 			self::$current = $this;
-			$this->steps[0](...array_map(array(State::class,'get'), $this->reads));
+			$this->steps[0](...array_map(array(Specification::class,'get'), $this->reads));
 			array_shift($this->steps);
 			self::$current = null;
 			return true;

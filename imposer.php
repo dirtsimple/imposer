@@ -13,20 +13,20 @@ class Imposer {
 	static function blockOn($res, $msg)    { static::$bootstrapped ? Task::blockOn($res, $msg) : \WP_CLI::error($msg); }
 	static function request_restart()      { return Task::request_restart(); }
 
-	static function has_state($key)            { return State::has($key); }
-	static function state($key, $default=null) { return State::get($key, $default); }
+	static function spec_has($key)            { return Specification::has($key); }
+	static function spec($key, $default=null) { return Specification::get($key, $default); }
 
 	static function run($json_stream) {
 		Imposer::bootstrap();
-		eval( '?>' . file_get_contents('php://stdin') );
-		$state = json_decode( file_get_contents($json_stream), true );
-		foreach ( $state as $key => $val ) {
-			$state[$key] = apply_filters( "imposer_state_$key", $val, $state);
-		}
-		$state = apply_filters( 'imposer_state', $state );
 		do_action("imposer_tasks");
+		eval( '?>' . file_get_contents('php://stdin') );
+		$spec = json_decode( file_get_contents($json_stream), true );
+		foreach ( $spec as $key => $val ) {
+			$spec[$key] = apply_filters( "imposer_spec_$key", $val, $spec);
+		}
+		$state = apply_filters( 'imposer_spec', $spec );
 		# XXX validate that readers exist for all keys?
-		Task::__run_all($state);
+		Task::__run_all($spec);
 	}
 
 	/***** Internals *****/
