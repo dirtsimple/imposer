@@ -40,9 +40,9 @@ loco_user_config() { mark-read "$1"; run-markdown "$1"; }
 loco_loadproject() {
 	cd "$LOCO_ROOT"
 	if [[ $LOCO_PROJECT == *.md ]]; then
-		@require "imposer:project" __load_state imposer-project "$LOCO_PROJECT"
+		@require "imposer:project" __load_module imposer-project "$LOCO_PROJECT"
 	fi
-	event resolve persistent_states_loaded
+	event resolve persistent_modules_loaded
 }
 ```
 
@@ -172,7 +172,7 @@ if [[ $0 == "${BASH_SOURCE-}" ]]; then
 fi
 ```
 
-The default state map begins with an empty options and plugins map (with imposer-tweaks disabled, to handle the case where one has removed all previous tweaks from an installation):
+The default specification begins with an empty options and plugins map (with imposer-tweaks disabled, to handle the case where one has removed all previous tweaks from an installation):
 
 ```yaml
 options: {}
@@ -181,31 +181,31 @@ plugins: {imposer-tweaks: false}
 
 which is then processed from PHP to modify wordpress options and plugins.
 
-### Imposing Named States
+### Imposing State Moduless
 
-States are imposed by sourcing the compiled form of their `.state.md` file, at most once.  States can require other states by calling `require` with one or more state names.
+State modules are imposed by sourcing the compiled form of their `.state.md` file, at most once.  State modules can require other modules by calling `require` with one or more module names.
 
 ```shell
 require() {
     get_imposer_dirs
-    while (($#)); do @require "imposer-state:$1" __find_and_load "$1"; shift; done
+    while (($#)); do @require "imposer-module:$1" __find_and_load "$1"; shift; done
 }
 
 __find_and_load() {
-    if have_state "$1"; then
-        __load_state "$1" "$REPLY"
-    else loco_error "Could not find state $1 in ${imposer_dirs[*]}"
+    if have_module "$1"; then
+        __load_module "$1" "$REPLY"
+    else loco_error "Could not find module $1 in ${imposer_dirs[*]}"
     fi
 }
 ```
 
 #### State File Lookup
 
-`have_state` looks up states in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof.  Truth is returned if successful, along with the state's full filename in `$REPLY`.  Otherwise, false is returned.  Either way, the result is cached to speed up future lookups.
+`have_module` looks up state modules in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof.  Truth is returned if successful, along with the module's full filename in `$REPLY`.  Otherwise, false is returned.  Either way, the result is cached to speed up future lookups.
 
 ```shell
-have_state() {
-    event encode "$1"; local v="imposer_state_path_$REPLY"
+have_module() {
+    event encode "$1"; local v="imposer_module_path_$REPLY"
     if [[ ${!v+_} ]]; then REPLY=${!v}; [[ $REPLY ]]; return; fi
     realpath.basename "$1"; local name=$REPLY
     realpath.dirname "$1"; local ns=$REPLY
@@ -225,14 +225,14 @@ have_state() {
 And then loaded by compiling the markdown source, optionally caching in the  `$IMPOSER_CACHE` directory (unless `IMPOSER_CACHE` is set to an empty string)
 
 ```shell
-__load_state() {
+__load_module() {
     realpath.dirname "$2"
-    local __DIR__=$REPLY IMPOSER_STATE=$1 bashup_event_after__state=   # just for this file
+    local __DIR__=$REPLY IMPOSER_MODULE=$1 bashup_event_after__module=   # just for this file
     mark-read "$2"
     MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
-    event fire "after_state"
-    event emit "state_loaded" "$1" "$2"
-    event resolve "state_loaded_$1" "$2"
+    event fire "after_module"
+    event emit "module_loaded" "$1" "$2"
+    event resolve "module_loaded_$1" "$2"
 }
 ```
 #### State Tracking and File Listing
@@ -243,7 +243,7 @@ We track which state files are loaded, to allow for things like watching and re-
 files_used=()
 mark-read() { files_used+=("$@"); }
 
-run-states() { require "$@"; event fire "all_states_loaded"; }
+run-modules() { require "$@"; event fire "all_modules_loaded"; }
 
 files-read() {
 	for REPLY in ${files_used[@]+"${files_used[@]}"}; do
@@ -252,7 +252,7 @@ files-read() {
 }
 
 imposer.sources() {
-	run-states "$@" >/dev/null; CLEAR_FILTERS
+	run-modules "$@" >/dev/null; CLEAR_FILTERS
 	tty pager -- files-read
 }
 ```
@@ -261,13 +261,13 @@ imposer.sources() {
 
 ### Processing JSON and PHP
 
-After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
+After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON specification.  All of the PHP code defined by the state modules are then run, with the JSON configuration piped in.
 
 If the PHP process exits with error 75 (EX_TEMPFAIL), it is re-run, as that means a change was made to the set of active plugins, or critical settings such as the current theme.
 
 ```shell
 imposer.apply() {
-    run-states "$@"
+    run-modules "$@"
     if HAVE_FILTERS; then
         CALL_JQ -c -n || return
         declare -r IMPOSER_JSON="$REPLY"
@@ -285,15 +285,15 @@ run-imposer-php() {
 
 #### Dumping JSON or PHP
 
-The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
+The `imposer json` and `imposer php` commands process state modules and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the modules is still executed, however.)
 
 ```shell
-imposer.json() { run-states "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
+imposer.json() { run-modules "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
 
 colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l php; }
 
 imposer.php()  {
-    run-states "$@"; CLEAR_FILTERS
+    run-modules "$@"; CLEAR_FILTERS
     tty pager colorize-php -- cat-php imposer_php
 }
 ```
@@ -305,7 +305,7 @@ Code blocks designated `php tweaks` are concatenated to create a modular, plugin
 ```php tweaks_header
 # Plugin Name:  Imposer Tweaks
 # Plugin URI:   https://github.com/dirtsimple/imposer#adding-code-tweaks
-# Description:  Automatically-generated from tweaks in imposer state files
+# Description:  Automatically-generated from tweaks in imposer state modules
 # Version:      0.0.0
 # Author:       Various
 # License:      Unknown
@@ -314,7 +314,7 @@ Code blocks designated `php tweaks` are concatenated to create a modular, plugin
 
 ```shell
 warn-unloaded-tweaks() {
-    echo "warning: state $IMPOSER_STATE contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration." >&2
+    echo "warning: module '$IMPOSER_MODULE' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration." >&2
 }
 
 activate-tweaks() {
@@ -338,17 +338,17 @@ write-plugin() {
 capture-tweaks() {
     captured_tweaks=("${php_tweaks-}" "${php_tweaks[1]-}"); unset php_tweaks[@]
     event off "php_tweak" activate-tweaks
-    event on  "php_tweak" event on "after_state" warn-unloaded-tweaks
+    event on  "php_tweak" event on "after_module" warn-unloaded-tweaks
 }
 
-event on "persistent_states_loaded" capture-tweaks
+event on "persistent_modules_loaded" capture-tweaks
 event on "php_tweak" activate-tweaks
 
 mdsh-compile-php_tweak() { echo 'event emit php_tweak'; compile-php php_tweaks "$1" "$3"; }
 
 imposer.tweaks()  {
     if (($#)); then echo '`imposer tweaks` does not accept arguments' >&2; exit 64; fi
-    run-states; CLEAR_FILTERS
+    run-modules; CLEAR_FILTERS
     tty pager colorize-php -- cat-php captured_tweaks
 }
 ```

@@ -118,8 +118,8 @@ And speaking of loading other state modules, here's how you can do that, using a
 # Find and load a module, a bit like php's `require_once`
 require "some/state"
 
-# Use `have_state` to test for availability
-if have_state "foo/other"; then
+# Use `have_module` to test for availability
+if have_module "foo/other"; then
     require "foo/other" "this/that"
 fi
 ```
@@ -395,7 +395,7 @@ This allows states to be distributed and installed in a variety of ways, while s
 
 While we're discussing precedence order, you may find it useful to have an explicit listing of the phases in which `imposer apply` executes:
 
-* First phase: **load and execute state modules** by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `all_states_loaded` event fires at the end of this phase.)  During this phase, shell blocks are executed, and most non-shell code blocks are accumulated in memory for use by later phases.  YAML and JSON blocks are converted to `FILTER` commands that generate a jq filter pipeline.
+* First phase: **load and execute state modules** by converting them to (timestamp-cached) shell scripts that are then `source`d by imposer.  (The `all_modules_loaded` event fires at the end of this phase.)  During this phase, shell blocks are executed, and most non-shell code blocks are accumulated in memory for use by later phases.  YAML and JSON blocks are converted to `FILTER` commands that generate a jq filter pipeline.
 * Second phase: **generate a JSON specification object** by running the `jq` command on the jq filter pipeline code generated during the previous phase.
 * Third phase: **apply changes to Wordpress** by:
   1. Firing the `before_apply` [shell event](#event-hooks) (which will also generate the `imposer-tweaks` plugin file for any accumulated [code tweaks](#adding-code-tweaks))
@@ -464,13 +464,13 @@ Every 10 seconds, clear the screen and display the first screenful of output fro
 
 #### imposer json *[module...]*
 
-Just like `imposer apply`, except that instead of actually applying the changes, the JSON specification is written to standard output for debugging.  The `all_states_loaded` shell event will fire, but the `before_apply` and `after_apply` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
+Just like `imposer apply`, except that instead of actually applying the changes, the JSON specification is written to standard output for debugging.  The `all_modules_loaded` shell event will fire, but the `before_apply` and `after_apply` events will not.  (Any jq and shell code in the states will still execute, since that's how the JSON is created in the first place.)
 
 If the output is a tty and `less` is available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`; an empty string disables paging.
 
 #### imposer php *[module...]*
 
-Just like `imposer apply`, except that instead of actually applying the changes, the accumulated PHP code is dumped to stdout instead.  The `all_states_loaded` shell event will fire, but the `before_apply` and `after_apply` events will not.
+Just like `imposer apply`, except that instead of actually applying the changes, the accumulated PHP code is dumped to stdout instead.  The `all_modules_loaded` shell event will fire, but the `before_apply` and `after_apply` events will not.
 
 If the output is a tty and `pygmentize` and `less` are available, the output is colorized and paged.  `IMPOSER_PAGER` can be set to override the default of `less -FRX`, and `IMPOSER_PHP_COLOR` can be set to override the default of `pygmentize -f 256 -O style=igor -l php`; setting them to empty strings disables them.
 
@@ -514,37 +514,37 @@ In additon to its PHP actions and filters, Imposer offers a system of event hook
 my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON configuration is:"; echo "$IMPOSER_JSON"; }
 
-event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
-event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
-event on "state_loaded_this/that"   my_plugin.message "State 'this/that' has been loaded"
-event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
-event on "all_states_loaded"        my_plugin.message "All states have finished loading."
-event on "before_apply"             my_plugin.handle_json
-event on "after_apply"              my_plugin.message "All PHP code has been run."
+event on "after_module"              my_plugin.message "The current state module ($IMPOSER_MODULE) is finished loading."
+event on "module_loaded" @1          my_plugin.message "Just loaded a module called:"
+event on "module_loaded_this/that"   my_plugin.message "Module 'this/that' has been loaded"
+event on "persistent_modules_loaded" my_plugin.message "The project configuration has been loaded."
+event on "all_modules_loaded"        my_plugin.message "All modules have finished loading."
+event on "before_apply"              my_plugin.handle_json
+event on "after_apply"               my_plugin.message "All PHP code has been run."
 ```
 
-The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `state_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a state called:"`, which in this case will be the name of the state loaded.)
+The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `module_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a module called:"`, which in this case will be the name of the state module loaded.)
 
 Also, you can put arguments after the name of your function, and any arguments supplied by the event will be added after those. Duplicate registrations have no effect, but you can register the same function multiple times for the same event if it has different arguments or a different argument count.
 
 Imposer currently offers the following built-in events:
 
-* `after_state` -- fires when the *currently loading* state file (and all its dependencies) have finished loading.  (Note that the "currently loading" file is not necessarily the same as the file where a callback is being registered, which means that state files can define APIs that register callbacks to run when the *calling* state file is finished.)
+* `after_module` -- fires when the *currently loading* state module (and all its dependencies) have finished loading.  (Note that the "currently loading" module is not necessarily the same as the module where a callback is being registered, which means that state module can define APIs that register callbacks to run when the *calling* state module is finished loading.)
 
-* `state_loaded` *statename sourcefile*-- emitted when *any* state has finished loading.  Callbacks can register to receive up to two arguments: the state's name and the path to the source file it was loaded from.
+* `module_loaded` *modulename sourcefile*-- emitted when *any* module has finished loading.  Callbacks can register to receive up to two arguments: the module's name and the path to the source file it was loaded from.
 
-* `state_loaded_`*statename* -- a [promise-like event](https://github.com/bashup/events/#promise-like-events) that's resolved when the named state is loaded.  If you register a callback before the state is loaded, it will be called if/when the state is loaded later.  But if you register a callback *after* the state is already loaded, the callback will run immediately.  This allows you to have "addon" code or configuration that's only included if some other state is loaded, e.g.:
+* `module_loaded_`*modulename* -- a [promise-like event](https://github.com/bashup/events/#promise-like-events) that's resolved when the named state is loaded.  If you register a callback before the module is loaded, it will be called if/when the module is loaded later.  But if you register a callback *after* the module is already loaded, the callback will run immediately.  This allows you to have "addon" code or configuration that's only included if some other module is loaded, e.g.:
 
   ```shell
   # If some other state loads "otherplugin/something", load our addon for it:
-  on state_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
+  on module_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
   ```
 
-* `persistent_states_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is another promise-like event: you can register for it even after it has already happened, and your callback will be invoked immediately.
+* `persistent_modules_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is another promise-like event: you can register for it even after it has already happened, and your callback will be invoked immediately.
 
   The purpose of this event is to let you disable functionality that should only be available to persistent (i.e. project-defined) states, and not from states added on the command line.
 
-* `all_states_loaded` -- fires when all state files are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
+* `all_modules_loaded` -- fires when all state modules are finished loading, but before jq is run to produce the configuration JSON.  You can hook this to add additional data or jq code that will postprocess your configuration in some fashion.
 
 * `before_apply` -- fires after jq has been run, with the JSON configuration in the read-only variable `$IMPOSER_JSON`.  You can hook this event to run shell operations before any PHP code is run.
 

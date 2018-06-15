@@ -7,5 +7,11 @@ class Resource extends Task {
 	protected static $instances=array();
 
 	function steps() { $this->error("Resources can't have steps"); }
-	function reads() { $this->error("Resources don't read state data"); }
+	function reads() { $this->error("Resources don't read specification data"); }
+
+	function isProducedBy() {
+		foreach ( func_get_args() as $what ) $this->dependsOn[] = $this->task($what);
+		return $this;
+	}
+
 }

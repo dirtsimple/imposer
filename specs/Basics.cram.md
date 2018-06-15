@@ -44,7 +44,7 @@ State files are searched for in `IMPOSER_PATH` -- a `:`-separated string of dire
 
 #### `path` and `default-path`
 
-You can run `imposer path` and `imposer default-path` to get the current set of state directories or the default set of directories, respectively:
+You can run `imposer path` and `imposer default-path` to get the current set of module directories or the default set of directories, respectively:
 
 ````sh
 # Default order is imposer, wp themes + plugins, composer local, wp packages, composer global:
@@ -99,36 +99,36 @@ You can run `imposer path` and `imposer default-path` to get the current set of 
 
 ### Imposing State Modules
 
-State modules are imposed by sourcing the compiled form of their `.state.md` file, at most once.  Modules can require other modules by calling `require` with one or more state names.
+State modules are imposed by sourcing the compiled form of their `.state.md` file, at most once.  Modules can require other modules by calling `require` with one or more module names.
 
 ````sh
-# Mock have_state and __load_state
-    $ old_states="$(declare -f have_state __load_state)"
-    $ __load_state() { echo "load state:" "$@"; }
-    $ have_state() { REPLY="found/$1"; echo "find state:" "$@"; }
+# Mock have_module and __load_module
+    $ old_module_funcs="$(declare -f have_module __load_module)"
+    $ __load_module() { echo "load module:" "$@"; }
+    $ have_module() { REPLY="found/$1"; echo "find module:" "$@"; }
 
-# require loads the named state only once
+# require loads the named module only once
     $ require fizz/buzz
-    find state: fizz/buzz
-    load state: fizz/buzz found/fizz/buzz
+    find module: fizz/buzz
+    load module: fizz/buzz found/fizz/buzz
     $ require fizz/buzz
 
 # infinite recursion is prevented
-    $ __load_state() { echo "loading: $1"; require whiz/bang; }
+    $ __load_module() { echo "loading: $1"; require whiz/bang; }
     $ require ping/pong
-    find state: ping/pong
+    find module: ping/pong
     loading: ping/pong
-    find state: whiz/bang
+    find module: whiz/bang
     loading: whiz/bang
 
 # failure to find a state produces an error
-    $ have_state() { false; }
+    $ have_module() { false; }
     $ (require cant/find)
-    Could not find state cant/find in /*/imposer /*/plugins /*/vendor (glob)
+    Could not find module cant/find in /*/imposer /*/plugins /*/vendor (glob)
     [64]
 
-# Restore have_state and __load_state
-    $ eval "$old_states"
+# Restore have_module and __load_module
+    $ eval "$old_module_funcs"
 ````
 
 #### Module Lookup
@@ -149,19 +149,19 @@ Modules are looked up in each directory on the imposer path, checking for files 
     */imposer:*/plugins:*/vendor (glob)
 
 # Paths for an unprefixed name:
-    $ have_state baz
+    $ have_module baz
     ./imposer baz baz/default baz/imposer-states/default ./imposer-states/baz
     ./plugins baz baz/default baz/imposer-states/default ./imposer-states/baz
     ./vendor baz baz/default baz/imposer-states/default ./imposer-states/baz
     [1]
 
-    $ have_state bar/baz
+    $ have_module bar/baz
     ./imposer bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     ./plugins bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     ./vendor bar/baz bar/baz/default bar/baz/imposer-states/default bar/imposer-states/baz
     [1]
 
-    $ have_state foo/bar/baz
+    $ have_module foo/bar/baz
     ./imposer foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
     ./plugins foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
     ./vendor foo/bar/baz foo/bar/baz/default foo/bar/baz/imposer-states/default foo/bar/imposer-states/baz
@@ -170,41 +170,41 @@ Modules are looked up in each directory on the imposer path, checking for files 
 # Un-mock reply_if_exists
     $ eval "$old_rie"
 
-# Non-existent state, return false:
-    $ (have_state x)
+# Non-existent module, return false:
+    $ (have_module x)
     [1]
 
 # In last directory, name as file under imposer
     $ mkdir -p vendor/imposer-states
     $ touch vendor/imposer-states/x.state.md
-    $ (have_state x && echo "$REPLY")
+    $ (have_module x && echo "$REPLY")
     /*/vendor/./imposer-states/x.state.md (glob)
 
 # Override w/directory:
     $ mkdir -p vendor/x/imposer-states/
     $ touch vendor/x/imposer-states/default.state.md
-    $ (have_state x && echo "$REPLY")
+    $ (have_module x && echo "$REPLY")
     /*/vendor/x/imposer-states/default.state.md (glob)
 
 # Removing it exposes the previous file again
     $ rm vendor/x/imposer-states/default.state.md
-    $ (have_state x && echo "$REPLY")
+    $ (have_module x && echo "$REPLY")
     /*/vendor/./imposer-states/x.state.md (glob)
 
 # Found location is cached for current subshell
-    $ have_state x && echo "$REPLY"
+    $ have_module x && echo "$REPLY"
     /*/vendor/./imposer-states/x.state.md (glob)
 
     $ touch vendor/x/imposer-states/default.state.md
-    $ have_state x && echo "$REPLY"
+    $ have_module x && echo "$REPLY"
     /*/vendor/./imposer-states/x.state.md (glob)
 
 # Or lack-of-location, if applicable:
-    $ have_state y && echo "$REPLY"
+    $ have_module y && echo "$REPLY"
     [1]
 
     $ touch imposer/y.state.md
-    $ have_state y && echo "$REPLY"
+    $ have_module y && echo "$REPLY"
     [1]
 
 ````
@@ -220,7 +220,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
     > echo "loading load-test from $__DIR__"
     > EOF
 
-    $ @require "test-this:load-test" __load_state load-test imposer/load-test.state.md
+    $ @require "test-this:load-test" __load_module load-test imposer/load-test.state.md
     loading load-test from imposer
 
     $ cat imposer/.cache/load-test
@@ -228,9 +228,9 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 
 # No caching if IMPOSER_CACHE is empty:
     $ rm imposer/.cache/load-test
-    $ IMPOSER_CACHE= __load_state load-test imposer/load-test.state.md
+    $ IMPOSER_CACHE= __load_module load-test imposer/load-test.state.md
     loading load-test from imposer
-    event "state_loaded_load-test" already resolved
+    event "module_loaded_load-test" already resolved
     [70]
     $ cat imposer/.cache/load-test
     cat: *imposer/.cache/load-test*: No such file or directory (glob)
@@ -239,15 +239,15 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 
 ### Processing JSON and PHP
 
-After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON specification object.  All of the PHP code defined by this file and the state modules is then run, with the JSON specification piped in for processing.
+After all required state modules have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON specification object.  All of the PHP code defined by this file and the state modules is then run, with the JSON specification piped in for processing.
 
 ````sh
 # Running `imposer apply` calls `wp eval-file` with the accumulated JSON and PHP:
-    $ event on "all_states_loaded" echo "EVENT: all_states_loaded"
+    $ event on "all_modules_loaded" echo "EVENT: all_modules_loaded"
     $ event on "before_apply" echo "EVENT: before_apply"
     $ event on "after_apply" echo "EVENT: after_apply"
     $ imposer apply
-    EVENT: all_states_loaded
+    EVENT: all_modules_loaded
     EVENT: before_apply
     --- JSON: ---
     {"options":{},"plugins":{"imposer-tweaks":false}}
@@ -278,7 +278,7 @@ plugins:
   wp_mail_smtp:      # if a value is omitted or true, the plugin is activated
   disable_me: false  # if the value is explicitly `false`, deactivate the plugin
 my_ecommerce_plugin:
-  products: {}   # empty maps for other state files to insert configuration into
+  products: {}   # empty maps for other state modules to insert configuration into
   categories: {}
 ```
 ##### jq
@@ -304,28 +304,28 @@ add_filter('made_up_example', '__return_true');
 ##### Shell
 
 ```shell
-# Load a required states before proceeding
+# Load a required modules before proceeding
 require "some/state"
 
-# Use `have_state` to test for availability
-if have_state "foo/other"; then
+# Use `have_module` to test for availability
+if have_module "foo/other"; then
     require "foo/other" "this/that"
 fi
 
 my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON configuration is:"; echo "$IMPOSER_JSON"; }
 
-event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
-event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
-event on "state_loaded_this/that"   my_plugin.message "State 'this/that' has been loaded"
-event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
-event on "all_states_loaded"        my_plugin.message "All states have finished loading."
-event on "before_apply"             my_plugin.handle_json
-event on "after_apply"              my_plugin.message "All PHP code has been run."
+event on "after_module"              my_plugin.message "The current state module ($IMPOSER_MODULE) is finished loading."
+event on "module_loaded" @1          my_plugin.message "Just loaded a module called:"
+event on "module_loaded_this/that"   my_plugin.message "Module 'this/that' has been loaded"
+event on "persistent_modules_loaded" my_plugin.message "The project configuration has been loaded."
+event on "all_modules_loaded"        my_plugin.message "All modules have finished loading."
+event on "before_apply"              my_plugin.handle_json
+event on "after_apply"               my_plugin.message "All PHP code has been run."
 ```
 #### Dumping JSON or PHP
 
-The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
+The `imposer json` and `imposer php` commands process state modules and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the modules is still executed, however.)
 
 ````sh
 # Set up to run fixtures from this file:
@@ -342,12 +342,12 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 # JSON dump:
     $ IMPOSER_PATH=imposer imposer-cmd json dummy
     hello from imposer-project.md!
-    State 'this/that' has been loaded
+    Module 'this/that' has been loaded
     The project configuration has been loaded.
-    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
-    The current state file (dummy) is finished loading.
-    Just loaded a state called: dummy
-    All states have finished loading.
+    warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
+    The current state module (dummy) is finished loading.
+    Just loaded a module called: dummy
+    All modules have finished loading.
     {
       "options": {
         "wp_mail_smtp": {
@@ -375,15 +375,15 @@ The `imposer json` and `imposer php` commands process state files and then outpu
       }
     }
 
-# PHP dump (includes only state-supplied code, no core code:
+# PHP dump:
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
     hello from imposer-project.md!
-    State 'this/that' has been loaded
+    Module 'this/that' has been loaded
     The project configuration has been loaded.
-    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
-    The current state file (dummy) is finished loading.
-    Just loaded a state called: dummy
-    All states have finished loading.
+    warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
+    The current state module (dummy) is finished loading.
+    Just loaded a module called: dummy
+    All modules have finished loading.
     <?php
     function my_ecommerce_plugin_impose($data) {
     	MyPluginAPI::setup_products($data['products']);
@@ -395,7 +395,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 # Sources dump:
     $ IMPOSER_PATH=imposer imposer-cmd sources dummy
     hello from imposer-project.md!
-    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
+    warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     imposer-project.md
     imposer/dummy.state.md
     imposer/some/state.state.md
@@ -406,12 +406,12 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
     $ IMPOSER_PATH=imposer imposer-cmd apply dummy
     hello from imposer-project.md!
-    State 'this/that' has been loaded
+    Module 'this/that' has been loaded
     The project configuration has been loaded.
-    warning: state dummy contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
-    The current state file (dummy) is finished loading.
-    Just loaded a state called: dummy
-    All states have finished loading.
+    warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
+    The current state module (dummy) is finished loading.
+    Just loaded a module called: dummy
+    All modules have finished loading.
     The JSON configuration is:
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":false,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     wp eval dirtsimple\imposer\Imposer::run("php://fd/7");
@@ -433,12 +433,12 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     > EOF
     $ IMPOSER_PATH=imposer imposer-cmd apply
     hello from imposer-project.md!
-    State 'this/that' has been loaded
-    The current state file (dummy) is finished loading.
-    Just loaded a state called: dummy
-    Just loaded a state called: imposer-project
+    Module 'this/that' has been loaded
+    The current state module (dummy) is finished loading.
+    Just loaded a module called: dummy
+    Just loaded a module called: imposer-project
     The project configuration has been loaded.
-    All states have finished loading.
+    All modules have finished loading.
     --- JSON: ---
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":true,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
     --- PHP: ---
@@ -458,7 +458,7 @@ The `imposer json` and `imposer php` commands process state files and then outpu
     <?php
     # Plugin Name:  Imposer Tweaks
     # Plugin URI:   https://github.com/dirtsimple/imposer#adding-code-tweaks
-    # Description:  Automatically-generated from tweaks in imposer state files
+    # Description:  Automatically-generated from tweaks in imposer state modules
     # Version:      0.0.0
     # Author:       Various
     # License:      Unknown
@@ -467,16 +467,16 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 
     $ IMPOSER_PATH=imposer imposer-cmd tweaks
     hello from imposer-project.md!
-    State 'this/that' has been loaded
-    The current state file (dummy) is finished loading.
-    Just loaded a state called: dummy
-    Just loaded a state called: imposer-project
+    Module 'this/that' has been loaded
+    The current state module (dummy) is finished loading.
+    Just loaded a module called: dummy
+    Just loaded a module called: imposer-project
     The project configuration has been loaded.
-    All states have finished loading.
+    All modules have finished loading.
     <?php
     # Plugin Name:  Imposer Tweaks
     # Plugin URI:   https://github.com/dirtsimple/imposer#adding-code-tweaks
-    # Description:  Automatically-generated from tweaks in imposer state files
+    # Description:  Automatically-generated from tweaks in imposer state modules
     # Version:      0.0.0
     # Author:       Various
     # License:      Unknown
@@ -485,10 +485,10 @@ The `imposer json` and `imposer php` commands process state files and then outpu
 
     $ IMPOSER_PATH=imposer imposer-cmd tweaks testme
     hello from imposer-project.md!
-    State 'this/that' has been loaded
-    The current state file (dummy) is finished loading.
-    Just loaded a state called: dummy
-    Just loaded a state called: imposer-project
+    Module 'this/that' has been loaded
+    The current state module (dummy) is finished loading.
+    Just loaded a module called: dummy
+    Just loaded a module called: imposer-project
     The project configuration has been loaded.
     `imposer tweaks` does not accept arguments
     [64]

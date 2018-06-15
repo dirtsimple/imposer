@@ -22,7 +22,7 @@ class Imposer {
 		foreach ( $spec as $key => $val ) {
 			$spec[$key] = apply_filters( "imposer_spec_$key", $val, $spec);
 		}
-		$state = apply_filters( 'imposer_spec', $spec );
+		$spec = apply_filters( 'imposer_spec', $spec );
 		# XXX validate that readers exist for all keys?
 		Task::__run_all($spec);
 	}

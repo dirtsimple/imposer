@@ -42,7 +42,7 @@ class Task {
 	// ===== Task Declaration API ===== //
 
 	function produces() {
-		foreach ( func_get_args() as $what ) $this->resource($what)->dependsOn($this);
+		foreach ( func_get_args() as $what ) $this->resource($what)->isProducedBy($this);
 		return $this;
 	}
 
@@ -57,10 +57,8 @@ class Task {
 		foreach ( func_get_args() as $cb ) $this->steps[] = $cb; return $this->schedule();
 	}
 
-	function dependsOn() {
-		foreach ( func_get_args() as $what ) $this->dependsOn[] = $this->task($what);
-		return $this;
-	}
+
+
 
 	// ===== Specification Management API ===== //
 
@@ -78,6 +76,8 @@ class Task {
 			throw new __TaskBlockingException;
 		}
 	}
+
+
 
 
 	// ===== Task Status API ===== //
@@ -159,5 +159,6 @@ class Task {
 }
 
 Imposer::bootstrap();
+
 
 
