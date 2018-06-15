@@ -41,7 +41,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
 
 - [User's Guide](#users-guide)
   * [How State Modules Work](#how-state-modules-work)
-    + [Options, Plugins, and Dependencies](#options-plugins-and-dependencies)
+    + [Options, Theme, Plugins, and Dependencies](#options-theme-plugins-and-dependencies)
     + [Scripting The Specification](#scripting-the-specification)
     + [Identifying What Options To Set](#identifying-what-options-to-set)
     + [PHP Blocks](#php-blocks)
@@ -79,7 +79,7 @@ Blocks in jq, YAML, and JSON are used to incrementaly build up the specification
 
 Using Markdown as the file format for state modules offers many advantages besides the obvious one of including multiple languages in the same file.  Markdown files can include documentation as well as code, and can be automatically converted to nice-looking web pages with syntax highlighting (as in the case of this README).  And since mdsh ignores code blocks that aren't triple-backquoted, you can even "comment out" selected code blocks as documentation/usage examples by using indented blocks, tilde blocks, or more than three backquotes.
 
-### Options, Plugins, and Dependencies
+### Options, Theme, Plugins, and Dependencies
 
 If this document were a state module, it might contain some YAML like this, to set options for the wp_mail_smtp plugin:
 
@@ -100,9 +100,11 @@ This is already sufficient to be a valid and useful state module.  Modules are p
 
 A module can include multiple YAML or JSON blocks (unindented and fenced with triple-backquotes), and their contents are recursively merged, with later values for the same key at any level overriding earlier ones (or appending to them, in the case of lists).
 
-This isn't just for options, either.  We can also indicate that a particular plugin should be activated or deactivated:
+This isn't just for options, either.  We can also select a theme, or indicate that a particular plugin should be activated or deactivated:
 
 ```yaml
+theme: twentyseventeen
+
 plugins:
   wp_mail_smtp:      # if a value is omitted or true, the plugin is activated
   disable_me: false  # if the value is explicitly `false`, ensure the plugin is deactivated

@@ -39,6 +39,10 @@ class Imposer {
 		static::$bootstrapped = true;
 		$cls = static::class;
 
+		Imposer::task('Theme Selection')
+			-> reads('theme')
+			-> steps("$cls::impose_theme");
+
 		Imposer::task('Plugin Selection')
 			-> reads('plugins')
 			-> steps("$cls::impose_plugins");
@@ -56,6 +60,15 @@ class Imposer {
 				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
 				if ($opt === 'template' || $opt === 'stylesheet') Imposer::request_restart();
 			}
+		}
+	}
+
+	static function impose_theme($key) {
+		$theme = wp_get_theme($key);
+		if ( $theme->get_stylesheet_directory() != get_stylesheet_directory() ) {
+			$cmd = new \Theme_Command;   # from WP_CLI
+			$cmd->activate(array($key));
+			Imposer::request_restart();
 		}
 	}
 
