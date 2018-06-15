@@ -97,9 +97,9 @@ You can run `imposer path` and `imposer default-path` to get the current set of 
 
 ### JSON and YAML
 
-### Imposing Named States
+### Imposing State Modules
 
-States are imposed by sourcing the compiled form of their `.state.md` file, at most once.  States can require other states by calling `require` with one or more state names.
+State modules are imposed by sourcing the compiled form of their `.state.md` file, at most once.  Modules can require other modules by calling `require` with one or more state names.
 
 ````sh
 # Mock have_state and __load_state
@@ -131,9 +131,9 @@ States are imposed by sourcing the compiled form of their `.state.md` file, at m
     $ eval "$old_states"
 ````
 
-#### State File Lookup
+#### Module Lookup
 
-States are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
+Modules are looked up in each directory on the imposer path, checking for files in the exact directory  or specific sub-locations thereof:
 
 ````sh
 # Mock file search function to output dir and files searched
@@ -239,7 +239,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 
 ### Processing JSON and PHP
 
-After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON configuration.  All of the PHP code defined by this file and the state files is then run, with the JSON configuration as the `$state` variable.
+After all required state files have been sourced, the accumulated YAML, JSON, and jq code they supplied is executed, to produce a JSON specification object.  All of the PHP code defined by this file and the state modules is then run, with the JSON specification piped in for processing.
 
 ````sh
 # Running `imposer apply` calls `wp eval-file` with the accumulated JSON and PHP:
@@ -259,13 +259,77 @@ After all required state files have been sourced, the accumulated YAML, JSON, an
     $ imposer apply
 ````
 
+#### Test Fixtures
+
+##### YAML
+
+```yaml
+options:
+  wp_mail_smtp:
+    mail:
+      from_email: \(env.WP_FROM_EMAIL)
+      from_name: \(env.WP_FROM_NAME)
+      mailer: mailgun
+      return_path: true
+    mailgun:
+      api_key: \(env.MAILGUN_API_KEY)
+      domain: \(env.MAILGUN_API_DOMAIN)
+plugins:
+  wp_mail_smtp:      # if a value is omitted or true, the plugin is activated
+  disable_me: false  # if the value is explicitly `false`, deactivate the plugin
+my_ecommerce_plugin:
+  products: {}   # empty maps for other state files to insert configuration into
+  categories: {}
+```
+##### jq
+
+```jq
+.plugins."some-plugin" = true  # activate `some-plugin`
+```
+##### PHP
+
+```php
+function my_ecommerce_plugin_impose($data) {
+	MyPluginAPI::setup_products($data['products']);
+	MyPluginAPI::setup_categories($data['categories']);
+}
+
+add_action('imposer_impose_my_ecommerce_plugin', 'my_ecommerce_plugin_impose', 10, 1);
+```
+##### PHP Tweaks
+
+```php tweak
+add_filter('made_up_example', '__return_true');
+```
+##### Shell
+
+```shell
+# Load a required states before proceeding
+require "some/state"
+
+# Use `have_state` to test for availability
+if have_state "foo/other"; then
+    require "foo/other" "this/that"
+fi
+
+my_plugin.message() { echo "$@"; }
+my_plugin.handle_json() { echo "The JSON configuration is:"; echo "$IMPOSER_JSON"; }
+
+event on "after_state"              my_plugin.message "The current state file ($IMPOSER_STATE) is finished loading."
+event on "state_loaded" @1          my_plugin.message "Just loaded a state called:"
+event on "state_loaded_this/that"   my_plugin.message "State 'this/that' has been loaded"
+event on "persistent_states_loaded" my_plugin.message "The project configuration has been loaded."
+event on "all_states_loaded"        my_plugin.message "All states have finished loading."
+event on "before_apply"             my_plugin.handle_json
+event on "after_apply"              my_plugin.message "All PHP code has been run."
+```
 #### Dumping JSON or PHP
 
 The `imposer json` and `imposer php` commands process state files and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the states is still executed, however.)
 
 ````sh
-# Set up to run examples from README:
-    $ cp $TESTDIR/../README.md imposer/dummy.state.md
+# Set up to run fixtures from this file:
+    $ cp $TESTDIR/$TESTFILE imposer/dummy.state.md
     $ mkdir imposer/some; touch imposer/some/state.state.md
     $ mkdir imposer/foo; touch imposer/foo/other.state.md
     $ mkdir imposer/this; touch imposer/this/that.state.md
