@@ -11,16 +11,14 @@ class Menu {
 		foreach ($menus as $name => $data) {
 			$old = aget($oldMenus, $name, null);
 			// If the menu is just a list, treat it as items w/no desc or loc
-			if ( is_array($data) && array_key_exists(0, $data) ) {
-				$data = array('items'=>$data);
-			}
+			if ( is_array($data) ) $data = (object) array('items'=>$data);
 
 			$menu = new Menu(
 				get($old->term_id, 0), $name,
-				aget($data, 'description', get($old->description, '')),
-				aget($data, 'items', null)
+				get($data->description, get($old->description, '')),
+				get($data->items, null)
 			);
-			$menu->sync($old, aget($data, 'location', null));
+			$menu->sync($old, get($data->location, null));
 		}
 	}
 
@@ -73,7 +71,7 @@ class Menu {
 	function remove_me($menu_id) { return $menu_id == $this->term_id ? 0 : $menu_id; }
 
 	function parse_locations($locations, $default_theme) {
-		if ( is_array($locations) ) {
+		if ( is_array($locations) || is_object($locations) ) {
 			foreach ( $locations as $theme => $location) {
 				# if sequential, set location for default theme, otherwise use named theme
 				$this->parse_locations($location, is_numeric($theme) ? $default_theme : $theme);

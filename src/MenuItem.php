@@ -59,8 +59,8 @@ class MenuItem {
 	}
 
 	protected function term($terminfo, $item) {
-		if ( ! is_array($terminfo) || count($terminfo) != 1 ) {
-			WP_CLI::error("Menu item 'term' must be a single-item array mapping a taxonomy to a term");
+		if ( ! is_object($terminfo) || count((array)$terminfo) != 1 ) {
+			WP_CLI::error("Menu item's `term` property must be a single-property object mapping a taxonomy to a term");
 		}
 		foreach ($terminfo as $tax => $term) {
 			$this->type = 'taxonomy';

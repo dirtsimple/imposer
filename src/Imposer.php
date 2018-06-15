@@ -26,9 +26,9 @@ class Imposer {
 		Imposer::bootstrap();
 		do_action("imposer_tasks");
 		eval( '?>' . file_get_contents('php://stdin') );
-		$spec = json_decode( file_get_contents($json_stream), true );
+		$spec = json_decode( file_get_contents($json_stream) );
 		foreach ( $spec as $key => $val ) {
-			$spec[$key] = apply_filters( "imposer_spec_$key", $val, $spec);
+			$spec->{$key} = apply_filters( "imposer_spec_$key", $val, $spec);
 		}
 		$spec = apply_filters( 'imposer_spec', $spec );
 		# XXX validate that readers exist for all keys?
@@ -66,7 +66,11 @@ class Imposer {
 	static function impose_options($options) {
 		foreach ( $options as $opt => $new ) {
 			$old = get_option($opt);
-			if ( is_array($old) && is_array($new) ) $new = array_replace_recursive($old, $new);
+			if ( is_array($old) && is_object($new) ) {
+				$new = array_replace_recursive(
+					$old, json_decode(json_encode($new), true)
+				);
+			}
 			if ($new !== $old) {
 				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
 				if ($opt === 'template' || $opt === 'stylesheet') Imposer::request_restart();
@@ -84,6 +88,7 @@ class Imposer {
 	}
 
 	static function impose_plugins($plugins) {
+		$plugins = (array) $plugins;
 		if ( ! empty( $plugins ) ) {
 			$fetcher = new \WP_CLI\Fetchers\Plugin;
 			$plugin_files = array_column( $fetcher->get_many(array_keys($plugins)), 'file', 'name' );

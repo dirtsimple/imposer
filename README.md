@@ -237,7 +237,7 @@ Imposer::task("Parameterized Greetings")
     -> steps(function ($what, $who) { WP_CLI::line("$what, $who!"); });
 ```
 
-As you can see, you can pass multiple arguments to `reads()`, and they will all be forwarded to your step functions, as long as at least *one* of the keys exists.  (Or else the task won't be run.)  Also, if an argument name is an array, then it is a path of keys to be traversed in the specification.
+As you can see, you can pass multiple arguments to `reads()`, and they will all be forwarded to your step functions, as long as at least *one* of the keys exists.  (Or else the task won't be run.)  Also, if an argument name is an array, then it is a path of property names to be traversed from the root of the specification object.
 
 Thus, the step function here receives the `greeting` and `recipient` sub-keys of `hello-world` as its `$what` and `$who` parameters.  If only one of the keys is present, the task will still run, but the other parameter passed to each step will be `null`.
 
