@@ -27,7 +27,9 @@ Whenever you run `imposer apply`, the selected modules collectively create a JSO
 
 (A specification doesn't have to define your entire database, though!  Even if you have multiple sites that need a common menu, that doesn't mean you have to specify *all* of those sites' menus via imposer.  Options, plugins, menus, posts, etc. that *aren't* part of the specification on a given run are generally not touched by imposer.)
 
-A specification also doesn't define *how* its contents are mapped to the Wordpress database.  That's done by Imposer **tasks**.  Imposer supplies built-in tasks for plugin activation, option patching, menu/item definition and menu location assignment, but your modules can include PHP code to add other kinds of tasks.  (And any Wordpress plugins or wp-cli packages can do so, too.  For example, the [postmark wp-cli package](https://github.com/dirtsimple/postmark) provides a module that registers tasks for importing posts, pages, and custom post types from Markdown files in directories listed by the specification.)
+A specification also doesn't define *how* its contents are mapped to the Wordpress database.  That's done by Imposer **tasks**.  Imposer supplies built-in tasks for [theme switching](#theme-switching), [plugin activation](#plugin-activation), [option patching](#option-patching), [menu/item definition](#menus-and-locations)  and [menu location assignment](#menu-locations), but your modules can include PHP code to add other kinds of tasks as well.
+
+(And any Wordpress plugins or wp-cli packages can do so, too!  For example, the [postmark wp-cli package](https://github.com/dirtsimple/postmark) provides [a state module that registers tasks](https://github.com/dirtsimple/postmark/blob/master/default.state.md) for importing posts, pages, and custom post types from Markdown files in directories listed by the specification.)
 
 This separation of specification (content) and tasks (process) means that instead of writing a different wp-cli script for every site, you can write a generic task for configuring, say, a particular plugin's products or forms, and then reuse that task to apply different specifications on different sites... and even distribute it as part of a wp-cli package, Wordpress plugin, or theme!
 
@@ -493,6 +495,126 @@ Output a `:`-separated list of absolute paths that imposer will currently look f
 #### imposer default-path
 
 Like `imposer path`, except that the current value of `IMPOSER_PATH` is ignored.  This is useful for computing what value you might want to put into `IMPOSER_PATH` to speed up start times.
+
+## Specification Schema
+
+### Theme, Plugins, and Options
+
+#### Theme Switching
+
+The `theme` property of the specification object specifies the slug of the theme to use for the site.  If it is different from the current theme in the database, imposer switches the theme and then restarts the current PHP process and all tasks, so that the correct functions, filters, caches, etc. are in memory for all remaining tasks.
+
+```yaml
+theme: some-theme
+```
+
+#### Plugin Activation
+
+The `plugins` property of the specification object is an object mapping plugin names to their desired activation state.  A JSON  `true` or `null` means "activate"; `false` means "deactivate".  If any plugins have a different activation state in the database than in the specification, imposer activates or deactivates the relevant plugins and then restarts the current PHP process and all tasks, so that the correct functions, filters, caches, etc. are in memory for all remaining tasks.
+
+```yaml
+plugins:
+   # Plugins with null or boolean `true` values will be activated
+   this-plugin-will-be-activated: true
+   so-will-this-one: yes
+   me-too:
+
+   # Plugins with boolean false value will be deactivated
+   another-plugin: false
+```
+
+#### Option Patching
+
+The `options` property of the specification is an object mapping Wordpress option names to their desired contents.  If an option is an object in the specification, and a PHP array in the database, the option value in the database is updated using `array_replace_recursive()`, so that the specification need not include *all* of a complex option value's contents.
+
+```yaml
+options:
+  blogname: My Blog
+  blogdescription: Just another (Imposer-powered) WordPress site
+  timezone_string: "\\(env.TZ)"
+  gmt_offset: ""
+  start_of_week: 0
+```
+
+(Note: if any part of a given option in the specification is a JSON (sequential) array, and the existing option value contains an array in the same place that has more items than are in the specification, those extra items will remain in the database.  This is a side-effect of using `array_replace_recursive()`; a future version of Imposer will likely make sequential arrays simply replace their corresponding contents in the database, rather than merging them.)
+
+### Menus and Locations
+
+Menus are located under the top-level specification property `menus`, as a map from menu names, to menu objects or menu item arrays.  If a menu is an object, it can have `description` , `location`, and `items` properties.  If a menu is an array, it is treated as if it were an object with only an `items` property.
+
+Menus are synced as whole objects: any existing menu items in the database for a menu that are *not* listed in the specification will be deleted.  Similarly, if you specify *any* locations for a menu, the menu will be removed from any menu slots that are not listed in the specification (for the corresponding theme).
+
+```yaml
+menus:
+  "Simple Menu, no Location":  # A menu w/five items: about, contact, posts, recipes, twitter
+    - page: /about
+    - page: /contact
+    - archive: post
+    - category: Recipes
+    - url: https://twitter.com/pjeby  # custom link with title and _target
+      title: Twitter
+      target: _blank
+
+ Menu with Properties:
+   description: "Nothing really uses this, it's just an example"
+   items:
+     - page: /shop     # page with sub-items
+       items:
+         - page: /cart
+         - page: /checkout
+         - page: /my-account
+     - page: /terms-and-conditions
+       classes: popup
+```
+
+#### Menu Item Destinations
+
+Each menu item is an object that has at most one of the following property sets, defining the item's type and destination:
+
+* "Custom" menu items have a `url` property and a `title`.  The resulting menu item will simply be a link to the given URL.
+* "Page/Post" menu items have a `page` property with the URL of the desired page.  The resulting menu item will take its default title from the named page or post.  The page or post is looked up using `url_to_postid()`, and must exist.  If it does not, menu importing blocks until all tasks producing `@wp-posts` resources have complete.)
+* "Archive" menu items have an `archive` property that's a string naming a custom post type (using its Wordpress internal type name).  The resulting menu item will be a link to the archives for that post type.
+* "Term" menu items can be created in one of three ways:
+  * An item with a `term: {some_taxonomy: term_slug}` property will link to the term `term_slug` in `some_taxonomy`
+  * An item with a `tag: tagname` property will link to the named tag in the `post_tag` taxonomy
+  * An item with a `category: categoryname` property will link to the named category.
+
+#### Menu Item Data
+
+Menu items can also have any or all of the following optional properties:
+
+* `items` -- An array of menu item objects, which will become children of the current item
+* `title` -- The title to be displayed for the menu item.  For a "Custom" menu item, this must be non-empty or else the menu item will be virtually invisible.  (For all other menu item types, Wordpress will generate a default title based on the destination.)
+* `attr_title` -- the value of the `title` attribute for the menu link (what browsers will usually show as a tooltip on hover)
+* `description` -- a more detailed description; some themes may display this somewhere for certain menu locations
+* `classes` -- a space-separated list of HTML classes to add to the menu item.
+* `xfn` -- the XFN link relationship for the link destination
+* `target` -- the `target` HTML attribute for the link, e.g. use `_blank` to make the menu item open in a new window.
+* `id` -- an identifier for sync purposes, that should be unique within the specific menu.  If none is given, a default one is generated based on the menu item's link destination.  (The `id` is only used to minimize the need to create and delete menu items when menu items are moved around
+
+
+#### Menu Locations
+
+A menu's `location` property, if present, will be used to assign the menu to one or more locations on your site.  If the location is a string, the menu will be assigned to the location of that name in the current theme, and removed from all other locations.  If the location is an object, its property names are treated as theme names, and the values can be strings (naming a specific location in the named theme) or arrays (naming multiple locations in that theme).   If the location is an array, each element can be a string, object, or array in the same manner.
+
+```yaml
+menus:
+  Simple Location, Current Theme:
+    location: footer-menu   # Just one location, in whatever the current theme is
+
+  Simple Location, Specific Theme:
+    location: { someTheme: primary-menu }   # one location, specific theme
+
+  Lots of Locations:
+    location:
+      - primary-menu              # location in the currently-active theme
+      - aTheme: secondary-menu    # another location, in a specific theme
+      - otherTheme:               # multiple locations in a third theme
+        - slot-a
+        - footer-right
+```
+
+When a menu specifies a location for a specific theme (whether explicitly named or not), it is also **removed** from all other locations in that theme, to prevent duplication when you move a menu to a new location.  (Remember: multiple modules or YAML/JSON blocks can contribute properties to the same specification object, so you can always define a menu in one module, and add its location from another.)
 
 ## API
 

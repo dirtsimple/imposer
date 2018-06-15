@@ -2,6 +2,14 @@
 
 namespace dirtsimple\imposer;
 
+function get(&$var, $default=false) {
+	return isset($var) ? $var : $default;
+}
+
+function aget(&$var, $key, $default=false) {
+	return (!empty($var) && array_key_exists($key, $var)) ? $var[$key] : $default;
+}
+
 class Imposer {
 
 	/***** Public API *****/
@@ -48,6 +56,11 @@ class Imposer {
 		Imposer::task('Wordpress Options')
 			-> reads('options')
 			-> steps("$cls::impose_options");
+
+		Imposer::task('Wordpress Menus')
+			-> produces('@wp-menus', '@wp-menuitems')
+			-> reads('menus')
+			-> steps('dirtsimple\imposer\Menu::build_menus');
 	}
 
 	static function impose_options($options) {
