@@ -28,7 +28,6 @@
         "wp-cli/entity-command": "^1.3"
     },
     "autoload": {
-        "classmap": ["imposer.php"],
         "psr-4": {
             "dirtsimple\\imposer\\": "src/"
         }

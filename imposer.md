@@ -279,7 +279,7 @@ imposer.apply() {
 }
 
 run-imposer-php() {
-	wp eval 'dirtsimple\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
+	wp eval 'dirtsimple\imposer\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
 }
 ```
 

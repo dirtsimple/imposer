@@ -1,8 +1,6 @@
 <?php
 
-namespace dirtsimple;
-
-use dirtsimple\imposer\Task;
+namespace dirtsimple\imposer;
 
 class Imposer {
 
@@ -98,5 +96,4 @@ class Imposer {
 	}
 }
 
-class_alias(Imposer::class, 'dirtsimple\imposer\Imposer');
 class_exists('Imposer') || class_alias(Imposer::class, 'Imposer');

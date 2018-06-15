@@ -1,8 +1,8 @@
 <?php
 namespace dirtsimple\imposer;
 
-use dirtsimple\Imposer;
 use WP_CLI;
+
 
 class __TaskBlockingException extends \Exception {}  # private!
 

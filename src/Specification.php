@@ -1,6 +1,6 @@
 <?php
 
-namespace dirtsimple\Imposer;
+namespace dirtsimple\imposer;
 
 use WP_CLI\Entity\RecursiveDataStructureTraverser;
 use WP_CLI\Entity\NonExistentKeyException;
