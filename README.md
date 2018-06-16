@@ -183,6 +183,12 @@ PHP blocks are individually syntax-checked when a state file is compiled, and ca
 
 There are two main types of PHP blocks: extensions and tweaks.  Extensions are blocks labeled `php` , and their code is used to define tasks, steps, and resources that imposer will use to turn your JSON specification object into Wordpress database objects.  Tweaks, on the other hand, are labeled `php tweak`, and get combined into a dynamically-generated Wordpress plugin.
 
+#### Using `use` and Namespaces
+
+Regardless of the type of PHP block, each state module's PHP blocks are *syntactically isolated* from those of the same type in other modules.  That is, even if you don't use `namespace {...}` anywhere in your module, the contents of all the PHP blocks of a given type in your module may be combined into one or more `namespace {...}` blocks anyway, to ensure that other modules' `use` statements don't bleed into yours (or vice versa).
+
+Note, however, that this means if you `use` something in one PHP block, then `require` other module(s) that have PHP blocks of the same type, and then have another PHP block of that type in your module, you may need to redeclare your `use` statements, because the two blocks will be in different `namespace {...}` wrappers.  To avoid this, you can move your `require` commands to the beginning or end of your module, combine your PHP blocks, or explicitly use `namespace {...}` and declare your `use` statements in each block that needs them.
+
 #### Adding Code Tweaks
 
 A lot of Wordpress plugins require you to add code to your theme's `functions.php` in order to get them to work the way you want.  But it can be a hassle to manage those bits of code, especially when switching themes, or when you need a tweak to be applied consistently across multiple sites.  To address this issue, state files can also include "tweaks" -- triple-backquote fenced code blocks tagged as `php tweak`, like this one:

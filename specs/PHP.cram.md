@@ -30,6 +30,7 @@
 # compile-php writes code to save PHP under a given variable name:
 
     $ compile-php myvar $'// some code\n'
+    maybe-compact-php myvar myvar[1] myvar[2]
     myvar[1]+=$'// some code\n'
 
     $ compile-php myvar $'namespace foo { }\n'
@@ -93,5 +94,48 @@
     # still more code
     }
 
+# Except when they cross file boundaries:
+
+    $ eval "$(
+    > echo __FILE__=foo
+    > compile-php crossfile $'use foo\\bar;\n'
+    > compile-php tweaky $'# tweak from foo\n'
+    > compile-php crossfile $'use baz\\spam;\n'
+    > echo __FILE__=bar
+    > compile-php crossfile $'use ping\\foo\\bar;\n'
+    > compile-php tweaky $'# tweak from bar\n'
+    > compile-php tweaky $'# tweak 2 from bar\n'
+    > compile-php crossfile $'use spam\\widget\\spam;\n'
+    > echo __FILE__=foo
+    > compile-php crossfile $'# actually do something\n'
+    > compile-php tweaky $'# another tweak from foo\n'
+    > )"
+
+    $ cat-php tweaky
+    <?php
+    namespace {
+    # tweak from foo
+    }
+    namespace {
+    # tweak from bar
+    # tweak 2 from bar
+    }
+    namespace {
+    # another tweak from foo
+    }
+
+    $ cat-php crossfile
+    <?php
+    namespace {
+    use foo\bar;
+    use baz\spam;
+    }
+    namespace {
+    use ping\foo\bar;
+    use spam\widget\spam;
+    }
+    namespace {
+    # actually do something
+    }
 ````
 

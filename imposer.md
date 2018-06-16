@@ -106,9 +106,7 @@ imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
 
 PHP blocks are syntax-checked at compile time (so that the check is cached).  PHP blocks can be assembled in any array variable; element 0 contains namespaced code, and element 1 contains non-namespaced code that hasn't yet been wrapped in a namespace.  Namespace wrapping is lazy: as many non-namespaced blocks as possible are wrapped in a single large `namespace { }` block, instead of wrapping each block as it comes.
 
-The following functions need to be available to both compile-time building of imposer, *and* at runtime, since both include PHP code:
-
-```shell ! echo "$1"; eval "$1"
+```shell
 compile-php() {
     if REPLY="$(echo "<?php $2" | php -l 2>&1)"; local s=$?; ((s)); then
         php-error "$REPLY" $s "${3-}"; return
@@ -118,6 +116,7 @@ compile-php() {
         fi
         printf 'compact-php %s %s[1] force\n' "$1" "$1"
     else
+        printf 'maybe-compact-php %s %s[1] %s[2]\n' "$1" "$1" "$1"
         set -- "$1[1]" "$2"
     fi
     printf '%s+=%q\n' "$1" "$2"
@@ -125,6 +124,13 @@ compile-php() {
 
 php-error() {
     echo "In PHP block ${3:+at line ${3-} }of ${MDSH_SOURCE--}:"$'\n'"$1" >&2; return $2
+}
+
+maybe-compact-php() {
+    if [[ "${!3-}" && "${!3-}" != "${__FILE__-}" ]]; then
+        compact-php "$1" "$2" force
+    fi
+    printf -v "$3" %s "${__FILE__-}"
 }
 
 compact-php() {
@@ -227,7 +233,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 ```shell
 __load_module() {
     realpath.dirname "$2"
-    local __DIR__=$REPLY IMPOSER_MODULE=$1 bashup_event_after__module=   # just for this file
+    local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after__module=
     mark-read "$2"
     MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
     event fire "after_module"

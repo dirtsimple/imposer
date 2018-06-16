@@ -542,6 +542,7 @@ compile-php() {
         fi
         printf 'compact-php %s %s[1] force\n' "$1" "$1"
     else
+        printf 'maybe-compact-php %s %s[1] %s[2]\n' "$1" "$1" "$1"
         set -- "$1[1]" "$2"
     fi
     printf '%s+=%q\n' "$1" "$2"
@@ -549,6 +550,13 @@ compile-php() {
 
 php-error() {
     echo "In PHP block ${3:+at line ${3-} }of ${MDSH_SOURCE--}:"$'\n'"$1" >&2; return $2
+}
+
+maybe-compact-php() {
+    if [[ "${!3-}" && "${!3-}" != "${__FILE__-}" ]]; then
+        compact-php "$1" "$2" force
+    fi
+    printf -v "$3" %s "${__FILE__-}"
 }
 
 compact-php() {
@@ -580,7 +588,6 @@ cat-php() {
     done
     printf "<?php\n%s" "${php-}${php[1]-}"
 }
-
 if [[ $0 == "${BASH_SOURCE-}" ]]; then
     realpath.dirname "$0"
     realpath.absolute "$REPLY" yaml2json.php
@@ -616,7 +623,7 @@ have_module() {
 }
 __load_module() {
     realpath.dirname "$2"
-    local __DIR__=$REPLY IMPOSER_MODULE=$1 bashup_event_after__module=   # just for this file
+    local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after__module=
     mark-read "$2"
     MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
     event fire "after_module"
