@@ -243,7 +243,11 @@ We track which state files are loaded, to allow for things like watching and re-
 files_used=()
 mark-read() { files_used+=("$@"); }
 
-run-modules() { require "$@"; event fire "all_modules_loaded"; }
+run-modules() {
+    # Only require up to the first '--' option
+    while (($#)) && [[ "$1" != --* ]]; do require "$1"; shift; done
+    event fire "all_modules_loaded"
+}
 
 files-read() {
 	for REPLY in ${files_used[@]+"${files_used[@]}"}; do
@@ -272,14 +276,17 @@ imposer.apply() {
         CALL_JQ -c -n || return
         declare -r IMPOSER_JSON="$REPLY"
         event fire "before_apply"
-        while local s=; run-imposer-php || s=$?; [[ $s == 75 ]]; do :; done
+        while local s=; run-imposer-php "$@" || s=$?; [[ $s == 75 ]]; do :; done
         ${s:+return $s}
         event fire "after_apply"
     fi
 }
 
 run-imposer-php() {
-	wp eval 'dirtsimple\imposer\Imposer::run("php://fd/7");' 7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
+    # skip non-option arguments
+    while (($#)) && [[ "$1" != --* ]]; do shift; done
+    wp eval 'dirtsimple\imposer\Imposer::run("php://fd/7");' "$@" \
+        7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
 }
 ```
 

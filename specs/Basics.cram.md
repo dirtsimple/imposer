@@ -246,9 +246,12 @@ After all required state modules have been sourced, the accumulated YAML, JSON, 
     $ event on "all_modules_loaded" echo "EVENT: all_modules_loaded"
     $ event on "before_apply" echo "EVENT: before_apply"
     $ event on "after_apply" echo "EVENT: after_apply"
-    $ imposer apply
+    $ imposer apply --quiet --debug=imposer-tasks
     EVENT: all_modules_loaded
     EVENT: before_apply
+    --- Options: ---
+    --quiet
+    --debug=imposer-tasks
     --- JSON: ---
     {"options":{},"plugins":{"imposer-tweaks":false}}
     --- PHP: ---
@@ -340,7 +343,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ imposer-cmd() { jqmd -R "$TESTDIR/../imposer.md" "$@"; }
 
 # JSON dump:
-    $ IMPOSER_PATH=imposer imposer-cmd json dummy
+    $ IMPOSER_PATH=imposer imposer-cmd json dummy --require=foo.php
     hello from imposer-project.md!
     Module 'this/that' has been loaded
     The project configuration has been loaded.
@@ -403,8 +406,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
     imposer/this/that.state.md
 
 # And just for the heck of it, show all the events:
-    $ wp() { echo wp "${@:1:2}"; cat >/dev/null; }; export -f wp
-    $ IMPOSER_PATH=imposer imposer-cmd apply dummy
+    $ wp() { echo wp "$@"; cat >/dev/null; }; export -f wp
+    $ IMPOSER_PATH=imposer imposer-cmd apply dummy --color
     hello from imposer-project.md!
     Module 'this/that' has been loaded
     The project configuration has been loaded.
@@ -414,7 +417,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     All modules have finished loading.
     The JSON configuration is:
     {"options":{"wp_mail_smtp":{"mail":{"from_email":"foo@bar.com","from_name":"Me","mailer":"mailgun","return_path":true},"mailgun":{"api_key":"madeup\"key","domain":"madeup.domain"}}},"plugins":{"imposer-tweaks":false,"disable_me":false,"wp_mail_smtp":null,"some-plugin":true},"my_ecommerce_plugin":{"categories":{},"products":{}}}
-    wp eval dirtsimple\imposer\Imposer::run("php://fd/7");
+    wp eval dirtsimple\imposer\Imposer::run("php://fd/7"); --color
     All PHP code has been run.
 
 ````

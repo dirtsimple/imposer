@@ -58,9 +58,12 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
     + [Processing Phases for `imposer apply`](#processing-phases-for-imposer-apply)
     + [State and Task Execution Order](#state-and-task-execution-order)
   * [Command-Line Interface](#command-line-interface)
-    + [imposer apply *[module...]*](#imposer-apply-module)
+    + [imposer apply *[module...] \[wp-cli option...]*](#imposer-apply-module-wp-cli-option)
     + [imposer options](#imposer-options)
     + [Diagnostic Commands](#diagnostic-commands)
+  * [Specification Schema](#specification-schema)
+    + [Theme, Plugins, and Options](#theme-plugins-and-options)
+    + [Menus and Locations](#menus-and-locations)
   * [API](#api)
     + [Actions and Filters](#actions-and-filters)
     + [Event Hooks](#event-hooks)
@@ -425,9 +428,11 @@ Note: imposer always operates on the nearest directory at or above the current d
 
 (Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, and cannot be executed remotely by wp-cli.  If you need to run a command remotely, use something like e.g. `ssh myserver bash -c 'cd /my/wp-instance; imposer apply'` instead.)
 
-### imposer apply *[module...]*
+### imposer apply *[module...] \[wp-cli option...]*
 
 Load and execute the specified state modules, building a JSON configuration and accumulating PHP code, before handing them both off to `wp eval` to run the PHP code, invoke the imposer [actions and filters](#actions-and-filters), and execute the defined tasks, firing the shell-level [event hooks ](#event-hooks) along the way.  Output is whatever the tasks output using the WP_CLI interface.
+
+The first argument that begins with `--` is assumed to be a wp-cli global option, and all arguments from that point on are passed through to wp-cli without further interpretation.  (Potentially useful options include `--[no-]color`, `--quiet`, `--debug[=<group>]`, `--user=<id|login|email>`, and `--require=<path>`.)
 
 ### imposer options
 
@@ -462,6 +467,8 @@ Compare the current output of `imposer options list` against the last approved s
 Every 10 seconds, clear the screen and display the first screenful of output from `imposer options diff`.  (Use Control-C to exit.)
 
 ### Diagnostic Commands
+
+Note: since these diagnostic commands do not actually invoke wp-cli, any `--`-prefixed options will be ignored.  As with `imposer apply`, however, the first argument beginning with `--` still terminates the list of modules.  (This is so that you can easily edit a complex command line to change from `apply` to `json` or `php`, etc. with the same arguments.)
 
 #### imposer json *[module...]*
 

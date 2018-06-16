@@ -6,6 +6,10 @@ case "${REPLY% --skip-plugins --skip-themes --skip-packages}" in
     "plugin path") echo "plugins";;
     "package path") echo "packages";;
     'eval dirtsimple\imposer\Imposer::run("php://fd/7");'*)
+        if (($#>2)); then
+            echo "--- Options: ---";
+            for REPLY in "${@:3}"; do echo "$REPLY"; done
+        fi
         echo "--- JSON: ---"; cat <&7
         echo "--- PHP: ---"; cat
         ;;
