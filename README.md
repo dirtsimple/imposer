@@ -100,13 +100,12 @@ options:
 
 This is already sufficient to be a valid and useful state module.  Modules are parsed using [jqmd](https://github.com/bashup/jqmd), so strings in YAML blocks can contain [jq](http://stedolan.github.io/jq/) interpolation expressions like ``\(env.MAILGUN_API_KEY)`` to get values from environment variables.  (JSON blocks can do that too, and use plain jq expressions as well as string interpolation.)
 
-A module can include multiple YAML or JSON blocks (unindented and fenced with triple-backquotes), and their contents are recursively merged, with later values for the same key at any level overriding earlier ones (or appending to them, in the case of lists).
+A module can include multiple YAML or JSON blocks (unindented and fenced with triple-backquotes), and their contents are recursively merged, with later values for the same key at any level overriding earlier ones (or appending to them, in the case of lists).  This merging takes place across modules, too, which means that you can (for example) define a menu in one module, and assign its location in another, while still another module adds on some extra items to the same menu.  Each module's YAML or JSON blocks need only specify the portion of the state that they want to impose themselves.
 
-This isn't just for options, either.  We can also select a theme, or indicate that a particular plugin should be activated or deactivated:
+And this isn't just for options.  We can also select a theme, or indicate that a particular plugin should be activated or deactivated, or do anything else for which import tasks have been defined:
 
 ```yaml
 theme: twentyseventeen
-
 plugins:
   wp_mail_smtp:      # if a value is omitted or true, the plugin is activated
   disable_me: false  # if the value is explicitly `false`, ensure the plugin is deactivated
@@ -525,7 +524,7 @@ plugins:
 
 #### Option Patching
 
-The `options` property of the specification is an object mapping Wordpress option names to their desired contents.  If an option is an object in the specification, and a PHP array in the database, the option value in the database is updated using `array_replace_recursive()`, so that the specification need not include *all* of a complex option value's contents.
+The `options` property of the specification is an object mapping Wordpress option names to their desired contents.  If an option is an object in the specification, and a PHP array or object in the database, the option value in the database is recursively merged, so that the specification need not include *all* of a complex option value's contents.
 
 ```yaml
 options:
@@ -536,7 +535,7 @@ options:
   start_of_week: 0
 ```
 
-(Note: if any part of a given option in the specification is a JSON (sequential) array, and the existing option value contains an array in the same place that has more items than are in the specification, those extra items will remain in the database.  This is a side-effect of using `array_replace_recursive()`; a future version of Imposer will likely make sequential arrays simply replace their corresponding contents in the database, rather than merging them.)
+The merge algorithm used maps JSON object properties to PHP array keys or object properties within existing options.  Option values or sub-values that are not JSON objects are not merged, however: they are overwritten.  This means that if an option value or sub-value is an array in the specification, it *must* be specified fully in order to produce the correct option value in the database.
 
 ### Menus and Locations
 

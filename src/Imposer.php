@@ -10,6 +10,20 @@ function aget(&$var, $key, $default=false) {
 	return (!empty($var) && array_key_exists($key, $var)) ? $var[$key] : $default;
 }
 
+function array_patch_recursive($array, $object) {
+	if ( ! is_array($object) ) {
+		if ( ! is_object($object) ) return $object;
+		if ( is_object($array) ) {
+			foreach ($object as $k=>$v) $array->$k = array_patch_recursive( get($array->$k, null), $v );
+			return $array;
+		} elseif ( is_array($array) ) {
+			foreach ($object as $k=>$v) $array[$k] = array_patch_recursive( aget($array, $k, null), $v );
+			return $array;
+		}
+	}
+	return json_decode(json_encode($object), true);
+}
+
 class Imposer {
 
 	/***** Public API *****/
@@ -66,11 +80,7 @@ class Imposer {
 	static function impose_options($options) {
 		foreach ( $options as $opt => $new ) {
 			$old = get_option($opt);
-			if ( is_array($old) && is_object($new) ) {
-				$new = array_replace_recursive(
-					$old, json_decode(json_encode($new), true)
-				);
-			}
+			$new = array_patch_recursive($old, $new);
 			if ($new !== $old) {
 				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
 				if ($opt === 'template' || $opt === 'stylesheet') Imposer::request_restart();
