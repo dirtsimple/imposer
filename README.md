@@ -442,15 +442,17 @@ For the most part, you will only use these subcommands on a development instance
 
 By default, changes to options are monitored using a git repository in `$IMPOSER_CACHE/.options-snapshot`, but this location can be overridden by setting `IMPOSER_OPTIONS_SNAPSHOT `or by passing the `--dir` option to `imposer options`.  (For example, `imposer options --dir foo review` runs the `review` command against a git repository called `foo` under the current project root.)
 
-Note that although snapshot directories are managed using git, their contents should *not* be considered part of your project, and should not be committed or pushed to any remote servers, as they may contain security-sensitive data.  (Note, too, that you can safely *delete* a snapshot directory at any time, as nothing is lost except the knowledge of what options were changed since the last fully-approved `review`.)
+Note that although snapshot directories are managed using git, their contents should *not* be considered part of your project, and should not be committed or pushed to any remote servers, as they may contain security-sensitive data.  (Note, too, that you can safely *delete* (or `imposer options reset`) a snapshot directory at any time, as nothing is lost except the knowledge of what options were changed since the last fully-approved `review`.)
 
 Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `colordiff` or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
+
+Finally, note that to minimize the "noise" in diffs and reviews, the `review`, `watch`, and `diff` subcommands all exclude the Wordpress `cron` option from their output.  (`list`, however, will still include it, unless you filter it out.)
 
 #### imposer options review
 
 Interactively revew and approve changes made to the JSON form of all non-transient Wordpress options since the last review, or the last time the snapshot directory was erased.  (If there are no changes pending, the command waits, taking snapshots of the options in the database every 10 seconds until a change is detected.)
 
-The review process has the same UI as `git add --patch`: any changes you approve will not show up on future reviews, allowing you to figuratively "sign off" on the changes that you understand, or which are irrelevant to your current goals (like changes to the `cron` option).  Once you've approved a change, it will not show up during future runs of `imposer options` subcommands such as `review`, `diff`, or `watch`.
+The review process has the same UI as `git add --patch`: any changes you approve will not show up on future reviews, allowing you to figuratively "sign off" on the changes that you understand, or which are irrelevant to your current goals.  Once you've approved a change, it will not show up during future runs of `imposer options` subcommands such as `review`, `diff`, or `watch`.
 
 (Note: on Alpine linux, the default `git` package doesn't include the UI for `git add --patch`.  So, if you're working in an Alpine environment (e.g. in a docker container), you'll need to install the Alpine `git-perl` package to make `options review` work correctly.)
 

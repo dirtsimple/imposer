@@ -380,7 +380,7 @@ options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
 options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
 
 options-repo::snapshot() {
-	imposer options list >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	imposer options list --exclude=cron >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
 	options-repo: "$@"
 }
 
