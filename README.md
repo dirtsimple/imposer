@@ -454,6 +454,10 @@ The review process has the same UI as `git add --patch`: any changes you approve
 
 (Note: on Alpine linux, the default `git` package doesn't include the UI for `git add --patch`.  So, if you're working in an Alpine environment (e.g. in a docker container), you'll need to install the Alpine `git-perl` package to make `options review` work correctly.)
 
+#### imposer options reset
+
+Reset the current snapshot, implicitly approving all current changes.  This command is equivalent to running a review and approving all currently-pending changes.
+
 #### imposer options list *[list-options...]*
 
 This command outputs a JSON map of all non-transient wordpress options, in the form they would need to appear under the `options` key in the imposer state.  (You can use the `wp option list` options `--search=`, `--exclude=`, and `--autoload=` to limit the output to a desired subset of options.)

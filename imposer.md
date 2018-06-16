@@ -427,7 +427,7 @@ loco_subcommand_help() {
 }
 ```
 
-#### list, diff, review
+#### list, diff, review, reset
 
 `imposer options list` dumps all options in JSON form (w/paging and colorizing if output goes to a TTY.  Any extra arguments are passed on to `wp option list`.  `imposer options diff` diffs the current options against the named JSON file (again with paging and colorizing if possible).  `imposer options review`  waits for changes and then runs `git add --patch` on them.
 
@@ -452,6 +452,11 @@ imposer.options-review() {
 		sleep 10
 	done
 	options-repo: git add --patch options.json
+}
+
+imposer.options-reset() {
+	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] reset"
+	options-repo: setup snapshot git add options.json
 }
 ```
 
