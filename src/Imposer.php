@@ -1,6 +1,7 @@
 <?php
 
 namespace dirtsimple\imposer;
+use WP_CLI;
 
 function get(&$var, $default=false) {
 	return isset($var) ? $var : $default;
@@ -77,12 +78,23 @@ class Imposer {
 			-> steps('dirtsimple\imposer\Menu::build_menus');
 	}
 
+	static function sanitize_option($option, $value) {
+		global $wp_settings_errors;
+		$ret = sanitize_option($option, $value);
+		foreach ( (array) $wp_settings_errors as $error ) {
+			WP_CLI::error($error['setting'] . ": " . $error['message']);
+		}
+		return $ret;
+	}
+
 	static function impose_options($options) {
 		foreach ( $options as $opt => $new ) {
-			$old = get_option($opt);
-			$new = array_patch_recursive($old, $new);
+			WP_CLI::debug("Imposing option $opt", 'imposer-options');
+			$old = static::sanitize_option($opt, get_option($opt));
+			$new = static::sanitize_option($opt, array_patch_recursive($old, $new));
 			if ($new !== $old) {
 				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
+				WP_CLI::success("Updated option $opt");
 				if ($opt === 'template' || $opt === 'stylesheet') Imposer::request_restart();
 			}
 		}
