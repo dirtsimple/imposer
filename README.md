@@ -608,7 +608,7 @@ Menu items can also have any or all of the following optional properties:
 * `classes` -- a space-separated list of HTML classes to add to the menu item.
 * `xfn` -- the XFN link relationship for the link destination
 * `target` -- the `target` HTML attribute for the link, e.g. use `_blank` to make the menu item open in a new window.
-* `id` -- an identifier for sync purposes, that should be unique within the specific menu.  If none is given, a default one is generated based on the menu item's link destination.  (The `id` is only used to minimize the need to create and delete menu items when menu items are moved around
+* `id` -- an identifier for sync purposes, that should be unique within the specific menu.  If none is given, a default one is generated based on the menu item's link destination.  (The `id` is only used to minimize the need to create and delete menu items when menu items are moved around.)
 
 
 #### Menu Locations
@@ -696,7 +696,7 @@ Note: if your state file needs to run shell commands that will change the state 
 
 ## Project Status
 
-Currently, this project is in very early development, as it doesn't have 100% documentation or test coverage yet, nor does it provide a built-in schema for any configuration other than Wordpress options and plugin activation.  (But the configuration schema can be extended using tasks, actions, and filters, as described above in [Extending Imposer](#extending-imposer).)
+Currently, this project is in very early development, as it doesn't have 100% documentation or test coverage yet, nor does it yet provide a built-in schema for terms, widgets, or sidebars.  (But the configuration schema can be extended using tasks, actions, and filters, as described above in [Extending Imposer](#extending-imposer).)
 
 There is, however, [a roadmap for version 1.0](https://github.com/dirtsimple/imposer/projects/1).
 
