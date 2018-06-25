@@ -102,9 +102,13 @@ class Imposer {
 			$old = static::sanitize_option($opt, get_option($opt));
 			$new = static::sanitize_option($opt, array_patch_recursive($old, $new));
 			if ($new !== $old) {
-				if ($old === false) add_option($opt, $new); else update_option($opt, $new);
-				WP_CLI::success("Updated option $opt");
-				if ($opt === 'template' || $opt === 'stylesheet') Imposer::request_restart();
+				update_option($opt, $new);
+				if (($saved = get_option($opt)) !== $new) {
+					WP_CLI::error("Option $opt was set to " . json_encode($new) . " but new value is " . json_encode($saved));
+				} else {
+					WP_CLI::success("Updated option $opt");
+					Imposer::request_restart();   # Avoid theme/plugin cache issues
+				}
 			}
 		}
 	}
