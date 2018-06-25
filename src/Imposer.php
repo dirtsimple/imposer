@@ -29,50 +29,59 @@ class Imposer {
 
 	/***** Public API *****/
 
-	static function task($taskOrName=null) { return $taskOrName ? Task::task($taskOrName) : Task::current(); }
-	static function resource($resOrName)   { return Task::resource($resOrName); }
-	static function blockOn($res, $msg)    { static::$bootstrapped ? Task::blockOn($res, $msg) : \WP_CLI::error($msg); }
-	static function request_restart()      { return Task::request_restart(); }
-
-	static function spec_has($key)            { return Specification::has($key); }
-	static function spec($key, $default=null) { return Specification::get($key, $default); }
-
 	static function run($json_stream) {
-		Imposer::bootstrap();
-		do_action("imposer_tasks");
-		eval( '?>' . file_get_contents('php://stdin') );
 		$spec = json_decode( file_get_contents($json_stream) );
+		static::instance()->run_with( file_get_contents('php://stdin'), $spec );
+	}
+
+	function run_with($php, $spec) {
+		do_action("imposer_tasks");
+		eval( "?>$php" );
 		foreach ( $spec as $key => $val ) {
 			$spec->{$key} = apply_filters( "imposer_spec_$key", $val, $spec);
 		}
 		$spec = apply_filters( 'imposer_spec', $spec );
 		# XXX validate that readers exist for all keys?
-		Task::__run_all($spec);
+		return $this->scheduler->run($spec);
 	}
 
 	/***** Internals *****/
 
-	protected static $bootstrapped=false;
+	protected static $instance;
 
-	static function bootstrap() {
-		if ( static::$bootstrapped ) return;
+	static function instance() {
+		return static::$instance ?: static::$instance = new Imposer();
+	}
 
-		static::$bootstrapped = true;
+	static function __callStatic($name, $args) {
+		# Delegate unknown static methods to instance
+		return call_user_func_array(array(static::instance(), $name), $args);
+	}
+
+	function __call($name, $args) {
+		# Delegate unknown instance methods to scheduler
+		return call_user_func_array(array($this->scheduler, $name), $args);
+	}
+
+	protected $scheduler;
+
+	function __construct() {
 		$cls = static::class;
+		$this->scheduler = new Scheduler(Task::class, Resource::class);
 
-		Imposer::task('Theme Selection')
+		$this -> task('Theme Selection')
 			-> reads('theme')
 			-> steps("$cls::impose_theme");
 
-		Imposer::task('Plugin Selection')
+		$this -> task('Plugin Selection')
 			-> reads('plugins')
 			-> steps("$cls::impose_plugins");
 
-		Imposer::task('Wordpress Options')
+		$this -> task('Wordpress Options')
 			-> reads('options')
 			-> steps("$cls::impose_options");
 
-		Imposer::task('Wordpress Menus')
+		$this -> task('Wordpress Menus')
 			-> produces('@wp-menus', '@wp-menuitems')
 			-> reads('menus')
 			-> steps('dirtsimple\imposer\Menu::build_menus');
