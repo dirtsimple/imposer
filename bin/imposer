@@ -447,7 +447,7 @@ jq() { if pager; then command jq -C "$@" | $REPLY; else command jq "$@"; fi; }
 
 pager() { tty-tool PAGER less -FRX; }
 
-pager.screenfull() { head -n $(( $(tput lines) - ${1-2} )); }
+pager.screenfull() { require-any tput; head -n $(( $(tput lines) - ${1-2} )); }
 pager.watch()      { clear; date; echo; pager.screenfull 4; }
 
 diffcolor() { tty-tool COLORDIFF colordiff || tty-tool COLORDIFF pygmentize -l diff; }
@@ -731,6 +731,11 @@ options-repo::setup() {
 	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/options.json" ]] || {
 		options-repo: snapshot git add options.json
 	}
+	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/.gitattributes" ]] || {
+		echo "*.json diff=json" > "$IMPOSER_OPTIONS_SNAPSHOT/.gitattributes"
+	}
+	options-repo: git config --local --get diff.json.xfuncname >/dev/null ||
+		options-repo: git config --local diff.json.xfuncname '^  (".*)'
 	options-repo: "$@";
 }
 imposer.options() {

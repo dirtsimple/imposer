@@ -397,6 +397,11 @@ options-repo::setup() {
 	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/options.json" ]] || {
 		options-repo: snapshot git add options.json
 	}
+	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/.gitattributes" ]] || {
+		echo "*.json diff=json" > "$IMPOSER_OPTIONS_SNAPSHOT/.gitattributes"
+	}
+	options-repo: git config --local --get diff.json.xfuncname >/dev/null ||
+		options-repo: git config --local diff.json.xfuncname '^  (".*)'
 	options-repo: "$@";
 }
 ```
