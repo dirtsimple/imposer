@@ -138,9 +138,16 @@ class Imposer {
 					$deactivate[] = $plugin_files[$plugin];
 				}
 			}
-			deactivate_plugins($deactivate);  # deactivate first, in case of conflicts
-			activate_plugins($activate);
-			if ($activate || $deactivate) Imposer::request_restart();
+			if ( $deactivate ) {
+				WP_CLI::debug("deactivating plugins: " . implode(' ', $deactivate), 'imposer');
+				deactivate_plugins($deactivate);  # deactivate first, in case of conflicts
+				Imposer::request_restart();
+			}
+			if ( $activate ) {
+				WP_CLI::debug("activating plugins: " . implode(' ', $activate), 'imposer');
+				activate_plugins($activate);
+				Imposer::request_restart();
+			}
 		}
 	}
 }
