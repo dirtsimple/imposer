@@ -1,7 +1,10 @@
 <?php
 
 namespace dirtsimple\imposer;
-use \WP_CLI;
+
+use WP_CLI;
+use WP_CLI\Entity\RecursiveDataStructureTraverser;
+use WP_CLI\Entity\NonExistentKeyException;
 
 class Scheduler {
 
@@ -14,11 +17,13 @@ class Scheduler {
 	}
 
 	function spec_has($key) {
-		return Specification::has($key);
+		try { $this->data->get($key); return true; }
+		catch (NonExistentKeyException $e) { return false; }
 	}
 
 	function spec($key, $default=null) {
-		return Specification::get($key, $default);
+		try { return $this->data->get($key); }
+		catch (NonExistentKeyException $e) { return $default; }
 	}
 
 	function request_restart() {
@@ -35,7 +40,7 @@ class Scheduler {
 	}
 
 	function run($spec=null) {
-		Specification::load($spec);
+		$this->data->set_value($spec);
 		while ($tasks = $this->queue) {
 			$this->queue = array();
 			$progress = 0;
@@ -53,12 +58,13 @@ class Scheduler {
 		return true;
 	}
 
-	protected $current, $tasks, $resources, $restart_requested=false;
+	protected $current, $tasks, $resources, $data, $restart_requested=false;
 	public $queue=array();
 
-	function __construct() {
+	function __construct($data=null) {
 		$this->tasks     = new Pool(Task::class,     array($this, '_new') );
 		$this->resources = new Pool(Resource::class, array($this, '_new') );
+		$this->data      = new RecursiveDataStructureTraverser($data);
 	}
 
 	function enqueue($task) {
