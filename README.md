@@ -573,16 +573,16 @@ menus:
       title: Twitter
       target: _blank
 
- Menu with Properties:
-   description: "Nothing really uses this, it's just an example"
-   items:
-     - page: /shop     # page with sub-items
-       items:
-         - page: /cart
-         - page: /checkout
-         - page: /my-account
-     - page: /terms-and-conditions
-       classes: popup
+  Menu with Properties:
+    description: "Nothing really uses this, it's just an example"
+    items:
+      - page: /shop     # page with sub-items
+        items:
+          - page: /cart
+          - page: /checkout
+          - page: /my-account
+      - page: /terms-and-conditions
+        classes: popup
 ```
 
 #### Menu Item Destinations
