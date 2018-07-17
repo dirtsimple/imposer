@@ -45,6 +45,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
   * [How State Modules Work](#how-state-modules-work)
     + [Options, Theme, Plugins, and Dependencies](#options-theme-plugins-and-dependencies)
     + [Scripting The Specification](#scripting-the-specification)
+    + [Processing Other Markdown Blocks](#processing-other-markdown-blocks)
     + [Identifying What Options To Set](#identifying-what-options-to-set)
     + [PHP Blocks](#php-blocks)
   * [Extending Imposer](#extending-imposer)
@@ -161,9 +162,73 @@ Once defined by a loaded module, shell functions are then available in all other
 
 If you need to pass data types other than strings into jq expressions, you can insert numbers, constants, or properly quoted/escaped JSON values directly into the `FILTER` expression, or you can use jqmd's `ARGJSON` function to create a named JSON variable that can be directly referenced by jq or JSON blocks or `FILTER` expressions.  (For more on that and other things you can do with `jq` blocks and shell scripting, see the [jqmd docs](https://github.com/bashup/jqmd).)
 
+### Processing Other Markdown Blocks
+
+While imposer by default only understands a few types of markdown blocks, you can use jqmd and mdsh's extension features to add new types of blocks, or interpret individual blocks in a particular way.  For example, if you wanted to combine CSS blocks from your state module to configure the [Simple CSS plugin](https://wordpress.org/plugins/simple-css/), you could write markdown like this:
+
+~~~markdown
+```css +FILTER '.options.simple_css.css += %s'
+/* Here's some CSS */
+```
+~~~
+
+The `+`  after the language in the block tells jqmd that the remainder of the line is a shell script snippet that should be passed the block contents as an extra argument.  So the above markdown is equivalent to writing the following `shell` block:
+
+```shell
+FILTER '.options.simple_css.css += %s' $'/* Here\'s some CSS */\n'
+```
+
+This means that you can simplify the process and eliminate duplication by defining a shell function, e.g.:
+
+~~~markdown
+```shell
+simple-css() { FILTER '.options.simple_css.css += %s' "$1"; }
+```
+
+```css +simple-css
+/* Here's some CSS */
+```
+
+```css +simple-css
+/* Here's some more */
+```
+~~~
+
+Of course, these blocks don't have to be in the same file.  You could define the `simple-css` function in a state module that also activates the Simple CSS plugin, and then `require` that module from any modules that want to add `css` blocks.
+
+That is, you could put the following in say, `simple-css.state.md`:
+
+~~~markdown
+```shell
+# Activate the plugin
+FILTER '.plugins["simple-css"] = true'
+
+# Define a function other modules can use to append CSS
+simple-css() { FILTER '.options.simple_css.css += %s' "$1"; }
+```
+~~~
+
+And then have other state modules do this:
+
+~~~markdown
+```shell
+require simple-css
+```
+
+```css +simple-css
+/* Here's some CSS */
+```
+~~~
+
+Notice, too, that this `simple-css` function can also be used programmatically, to e.g. insert some CSS from an environment variable or the like, by putting something like `simple-css "$SOME_VAR"` in a `shell` block.
+
 ### Identifying What Options To Set
 
-To set up the configuration in a state file, you need to know what option keys and values control the settings you want to impose.  But since most users only configure Wordpress via the web UI, plugin developers rarely *document* their plugins' options at the database level.  So, to help you discover what keys and values to use, imposer provides tools that let you inspect and monitor option changes made through the Wordpress UI.
+In our last example, we set some options for the Simple CSS plugin.  To do that, we had to know what Wordpress option key(s) the plugin used in the Wordpress database.  But since most users only configure Wordpress via the web UI, plugin developers rarely *document* their plugins' options at the database level.
+
+Of course, for a sufficiently small plugin, you can find out its options by reading the source and looking for `get_option()` calls.  But what if the plugin is something huge, like an ecommerce shop or an LMS?
+
+To help you decipher such plugins' configuration format, imposer provides tools to inspect and monitor option changes made through the Wordpress UI.  That way, you can configure a plugin via the Wordpress UI, and observe the changes it makes to the options in the database.
 
 The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in your development site's database since your last review.  
 
@@ -275,7 +340,7 @@ if ( ! $page = url_to_postid($url) ) {
 
 If there are no pending tasks that produce `@wp-posts`, then this code sample works the same as the preceding one, because there is no possible way for the missing page to get imported later, and therefore the specification is erroneous.
 
-However, if there *are* unfinished tasks the produce `@wp-posts`, then there's still a chance for the missing page to be imported.  So the current task step is **aborted with an exception**, and will be tried again later, after those other tasks have had a chance to run.  If necessary, the step will be retried multiple times until all `@wp-posts`-producing tasks have run to completion, or until the step finds all the references it has been waiting for.
+However, if there *are* unfinished tasks that produce `@wp-posts`, then there's still a chance for the missing page to be imported.  So the current task step is **aborted with an exception**, and will be tried again later, after those other tasks have had a chance to run.  If necessary, the step will be retried multiple times until all `@wp-posts`-producing tasks have run to completion, or until the step finds all the references it has been waiting for.
 
 The first parameter to `blockOn()` is a *resource name*.  (By convention, resource names begin with `@`, and this may be enforced in future.)  You can define what resources a task creates by using the `produces()` method, e.g.:
 
