@@ -63,7 +63,7 @@ imposer_dirs=()
 wpcon() { wp "$@" --skip-plugins --skip-themes --skip-packages; }
 
 get_imposer_dirs() {
-    if [[ ${imposer_dirs[@]+_} ]]; then
+    if [[ ${imposer_dirs+_} ]]; then
         return
     elif (($#)); then
         true
@@ -94,7 +94,7 @@ You can run `imposer path` and `imposer default-path` to get the current set of 
 ```shell
 imposer.path() {
     get_imposer_dirs;
-    if [[ ${imposer_dirs[@]+_} ]]; then IFS=: eval 'echo "${imposer_dirs[*]}"'; fi
+    if [[ ${imposer_dirs+_} ]]; then IFS=: eval 'echo "${imposer_dirs[*]}"'; fi
 }
 
 imposer.default-path() { local imposer_dirs=() IMPOSER_PATH=; imposer path; }
@@ -111,7 +111,7 @@ compile-php() {
     if REPLY="$(echo "<?php $2" | php -l 2>&1)"; local s=$?; ((s)); then
         php-error "$REPLY" $s "${3-}"; return
     elif php-uses-namespace "$2"; then
-        if [[ $REPLY != { ]]; then
+        if [[ $REPLY != '{' ]]; then
             php-error "Namespaces in PHP blocks must be {}-enclosed" 255 "${3-}"; return
         fi
         printf 'compact-php %s %s[1] force\n' "$1" "$1"
@@ -123,7 +123,7 @@ compile-php() {
 }
 
 php-error() {
-    echo "In PHP block ${3:+at line ${3-} }of ${MDSH_SOURCE--}:"$'\n'"$1" >&2; return $2
+    echo "In PHP block ${3:+at line ${3-} }of ${MDSH_SOURCE--}:"$'\n'"$1" >&2; return "$2"
 }
 
 maybe-compact-php() {
@@ -135,7 +135,7 @@ maybe-compact-php() {
 
 compact-php() {
     if [[ "${!1-}${3-}" && "${!2-}" ]]; then
-        printf -v $1 '%snamespace {\n%s}\n' "${!1-}" "${!2}"; unset $2
+        printf -v "$1" '%snamespace {\n%s}\n' "${!1-}" "${!2}"; unset "$2"
     fi
 }
 
@@ -151,16 +151,16 @@ mdsh-compile-php() { compile-php imposer_php "$1" "$3"; }
 cat-php() {
     local v1 v2 t php=()
     while (($#)); do
-        v1=$1 v2=$1[1]; compact-php $v1 $v2; t=${!v1-}${!v2-}
+        v1=$1 v2="$1[1]"; compact-php "$v1" "$v2"; t=${!v1-}${!v2-}
         if php-uses-namespace "$t"; then
             compact-php php php[1] force
-            php+="$t"
+            php[0]+="$t"
         else
             php[1]+="$t"
         fi
         shift
     done
-    printf "<?php\n%s" "${php-}${php[1]-}"
+    printf '<?php\n%s' "${php-}${php[1]-}"
 }
 ```
 
@@ -218,10 +218,10 @@ have_module() {
     local patterns=("$1" "$1/default" "$1/imposer-states/default" "$ns/imposer-states/$name" )
     for REPLY in ${imposer_dirs[@]+"${imposer_dirs[@]}"}; do
         if reply_if_exists "$REPLY" "${patterns[@]/%/.state.md}"; then
-            printf -v $v %s "$REPLY"; return
+            printf -v "$v" %s "$REPLY"; return
         fi
     done
-    printf -v $v %s ""
+    printf -v "$v" %s ""
     false
 }
 ```
@@ -233,6 +233,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 ```shell
 __load_module() {
     realpath.dirname "$2"
+    # shellcheck disable=SC2034  # vars for users + event var
     local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after__module=
     mark-read "$2"
     MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
@@ -349,7 +350,8 @@ write-plugin() {
 }
 
 capture-tweaks() {
-    captured_tweaks=("${php_tweaks-}" "${php_tweaks[1]-}"); unset php_tweaks[@]
+    # shellcheck disable=SC2034  # captured_tweaks is used in previous function above
+    captured_tweaks=("${php_tweaks-}" "${php_tweaks[1]-}"); unset "php_tweaks[@]"
     event off "php_tweak" activate-tweaks
     event on  "php_tweak" event on "after_module" warn-unloaded-tweaks
 }
@@ -360,7 +362,7 @@ event on "php_tweak" activate-tweaks
 mdsh-compile-php_tweak() { echo 'event emit php_tweak'; compile-php php_tweaks "$1" "$3"; }
 
 imposer.tweaks()  {
-    if (($#)); then echo '`imposer tweaks` does not accept arguments' >&2; exit 64; fi
+    if (($#)); then echo $'`imposer tweaks` does not accept arguments' >&2; exit 64; fi
     run-modules; CLEAR_FILTERS
     tty pager colorize-php -- cat-php captured_tweaks
 }
@@ -430,7 +432,7 @@ imposer.options---dir() {
 loco_subcommand() { if fn-exists "${1}${3-}"; then "${1}${@:3}"; else "${@:2}"; fi; }
 
 loco_subcommand_help() {
-	REPLY=($(compgen -A function "$1"))
+	REPLY=$(compgen -A function "$1") && mdsh-splitwords "$REPLY"
 	printf -v REPLY '\n    %s' "${REPLY[@]#$1}"
 	printf -v REPLY 'Usage: %s COMMMAND [ARGS...]\n\n%s'${3:+'\n\n'}'Commands:\n%s' \
 		"$2" "${3-}" "$REPLY"
@@ -482,16 +484,16 @@ imposer.options-watch() {
 }
 
 watch-continuous() {
-	local interval=$1 status oldint=$(trap -p SIGINT) oldwinch="$(trap -p SIGWINCH)"
+	local interval=$1 oldint oldwinch; oldint=$(trap -p SIGINT); oldwinch="$(trap -p SIGWINCH)"
 	shift; trap "continue" SIGWINCH; trap "break" SIGINT
-	while :; do watch-once "$@"; sleep $interval & wait $! || true;	done
+	while :; do watch-once "$@"; sleep "$interval" & wait $! || true;	done
 	${oldwinch:-trap -- SIGWINCH}; ${oldint:-trap -- SIGINT}
 }
 
 watch-once() {
 	local cols; cols=$(tput cols) 2>/dev/null || cols=80
 	REPLY="Every ${interval}s: $*"
-	clear; printf "%s%*s\n\n" "$REPLY" $((cols-${#REPLY})) "$(date "+%Y-%m-%d %H:%M:%S")"
+	clear; printf '%s%*s\n\n' "$REPLY" $((cols-${#REPLY})) "$(date "+%Y-%m-%d %H:%M:%S")"
 	IMPOSER_PAGER="pager.screenfull 3" "$@" || true
 }
 ```

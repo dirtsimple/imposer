@@ -14,8 +14,16 @@ dk use: entr-watch        # watch files and re-run tests or other commands
 dk use: shell-console     # make the "console" command enter a subshell
 dk use: composer          # utilities for accessing composer-based dev tools
 dk use: bash32            # enable doing tests/console/etc. in bash3.2 w/docker
+dk use: shellcheck        # support running shellcheck (via docker if not installed)
 
 # Define overrides, new commands, functions, etc. here:
+
+# SC1090 = dynamic 'source' command
+# SC2016 = expressions in single quotes
+# SC2128 = array/string mixing
+# SC2145 = prefix or suffix on "$@" or other array
+# SC2178 = array/string mixing
+SHELLCHECK_OPTS='-e SC1090,SC2016,SC2128,SC2145,SC2178'
 
 for REPLY in mdsh jqmd loco; do
     on boot require $REPLY github bashup/$REPLY master bin/$REPLY
@@ -28,6 +36,7 @@ on boot require bashup.events github bashup/events    master bashup.events
 
 on build jqmd -R --out bin/imposer --compile imposer.md
 on build chmod +x bin/imposer
+on test  eval 'dk shellcheck /dev/stdin < <(jqmd -R --compile imposer.md)'
 
 on "test_files" eval 'ls src/*.php'
 
