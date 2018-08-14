@@ -234,7 +234,7 @@ And then loaded by compiling the markdown source, optionally caching in the  `$I
 __load_module() {
     realpath.dirname "$2"
     # shellcheck disable=SC2034  # vars for users + event var
-    local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after__module=
+    local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after_5fmodule=
     mark-read "$2"
     MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
     event fire "after_module"
