@@ -304,7 +304,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
 ```shell
 imposer.json() { run-modules "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
 
-colorize-php() { tty-tool IMPOSER_PHP_COLOR pygmentize -f 256 -O style=igor -l php; }
+colorize-php() { tty-tool PHP_COLOR pygmentize -f 256 -O style=igor -l php; }
 
 imposer.php()  {
     run-modules "$@"; CLEAR_FILTERS
