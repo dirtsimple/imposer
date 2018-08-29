@@ -302,9 +302,7 @@ run-imposer-php() {
 The `imposer json` and `imposer php` commands process state modules and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the modules is still executed, however.)
 
 ```shell
-imposer.json() { run-modules "$@"; ! HAVE_FILTERS || RUN_JQ -n; }
-
-colorize-php() { tty-tool PHP_COLOR pygmentize -f 256 -O style=igor -l php; }
+imposer.json() { run-modules "$@"; ! HAVE_FILTERS || JQ_CMD=jq-tty RUN_JQ -n; }
 
 imposer.php()  {
     run-modules "$@"; CLEAR_FILTERS
@@ -447,7 +445,7 @@ loco_subcommand_help() {
 ```shell
 imposer.options-list() {
 	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
-	jq 'map({key:.option_name, value:.option_value}) | from_entries'
+	jq-tty 'map({key:.option_name, value:.option_value}) | from_entries'
 }
 
 imposer.options-diff() {
