@@ -27,9 +27,9 @@ function array_patch_recursive($array, $object) {
 
 class Imposer {
 
-	/***** Public API *****/
+	/***** CLI *****/
 
-	static function run($json_stream) {
+	static function run_stream($json_stream) {
 		$spec = json_decode( file_get_contents($json_stream) );
 		static::instance()->run_with( file_get_contents('php://stdin'), $spec );
 	}
@@ -42,7 +42,7 @@ class Imposer {
 		}
 		$spec = apply_filters( 'imposer_spec', $spec );
 		# XXX validate that readers exist for all keys?
-		return $this->scheduler->run($spec);
+		return $this->run($spec);
 	}
 
 	/***** Internals *****/

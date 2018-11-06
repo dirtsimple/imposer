@@ -292,7 +292,7 @@ imposer.apply() {
 run-imposer-php() {
     # skip non-option arguments
     while (($#)) && [[ "$1" != --* ]]; do shift; done
-    wp eval 'dirtsimple\imposer\Imposer::run("php://fd/7");' "$@" \
+    wp eval 'dirtsimple\imposer\Imposer::run_stream("php://fd/7");' "$@" \
         7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
 }
 ```
