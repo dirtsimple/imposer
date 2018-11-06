@@ -59,7 +59,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
     + [Processing Phases for `imposer apply`](#processing-phases-for-imposer-apply)
     + [State and Task Execution Order](#state-and-task-execution-order)
   * [Command-Line Interface](#command-line-interface)
-    + [imposer apply *[module...] \[wp-cli option...]*](#imposer-apply-module-wp-cli-option)
+    + [imposer apply *\[module...\] \[wp-cli option...\]*](#imposer-apply-module-wp-cli-option)
     + [imposer options](#imposer-options)
     + [Diagnostic Commands](#diagnostic-commands)
   * [Specification Schema](#specification-schema)
@@ -499,7 +499,7 @@ Note: imposer always operates on the nearest directory at or above the current d
 
 (Note also that imposer does not currently support operating on remote sites: state files are always read and run on the *local* machine, and cannot be executed remotely by wp-cli.  If you need to run a command remotely, use something like e.g. `ssh myserver bash -c 'cd /my/wp-instance; imposer apply'` instead.)
 
-### imposer apply *[module...] \[wp-cli option...]*
+### imposer apply *\[module...\] \[wp-cli option...\]*
 
 Load and execute the specified state modules, building a JSON configuration and accumulating PHP code, before handing them both off to `wp eval` to run the PHP code, invoke the imposer [actions and filters](#actions-and-filters), and execute the defined tasks, firing the shell-level [event hooks ](#event-hooks) along the way.  Output is whatever the tasks output using the WP_CLI interface.
 
