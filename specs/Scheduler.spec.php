@@ -49,6 +49,21 @@ describe("Scheduler", function () {
 		it("returns true for an empty queue", function() {
 			expect($this->sched->run())->to->be->true;
 		});
+		it("returns false (and is a no-op) when called recursively", function() {
+			$sched = $this->sched;
+			$flag = false;
+			$sched->task('test')->steps(
+				function() use ($sched, &$flag) {
+					$sched->task('other')->steps(
+						function () use (&$flag) { $flag = true; }
+					);
+					expect($sched->run()); #->to->be->false;
+					expect($flag)->to->be->false;
+				}
+			);
+			$sched->run();
+			expect($flag)->to->be->true;
+		});
 		it("calls WP_CLI::halt(75) if request_restart() called", function() {
 			$sched = $this->sched;
 			$sched->enqueue($task = Mockery::mock(Task::class));

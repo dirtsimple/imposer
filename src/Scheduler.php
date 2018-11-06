@@ -40,6 +40,7 @@ class Scheduler {
 	}
 
 	function run($spec=null) {
+		if ( ! empty($this->current) ) return false;
 		$this->data->set_value($spec);
 		while ($tasks = $this->queue) {
 			$this->queue = array();
