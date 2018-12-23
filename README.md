@@ -87,7 +87,7 @@ Using Markdown as the file format for state modules offers many advantages besid
 
 ### Options, Theme, Plugins, and Dependencies
 
-If this document were a state module, it might contain some YAML like this, to set options for the wp_mail_smtp plugin:
+If this document were a state module, it might contain some YAML like this, to set options for the [wp-mail-smtp](https://wordpress.org/plugins/wp-mail-smtp/) plugin:
 
 ```yaml
 options:
@@ -111,7 +111,7 @@ And this isn't just for options.  We can also select a theme, or indicate that a
 ```yaml
 theme: twentyseventeen
 plugins:
-  wp_mail_smtp:      # if a value is omitted or true, the plugin is activated
+  wp-mail-smtp:      # if a value is omitted or true, the plugin is activated
   disable_me: false  # if the value is explicitly `false`, ensure the plugin is deactivated
 ```
 
