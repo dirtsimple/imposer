@@ -366,6 +366,17 @@ imposer.tweaks()  {
 }
 ```
 
+### Block Events
+
+When a block of an unrecognized language is found, it's compiled to emit an event, `block of X`, where `X` is the full original language tag of the block.  The event receives four arguments: the block text, the module name, source file name, and line number where the block was found.
+
+```shell
+mdsh-misc(){
+	printf 'event emit "block of "%q %q %q %q %q\n' "$1" "$2" \
+		"$IMPOSER_MODULE" "$MDSH_SOURCE" "${block_start-}"
+}
+```
+
 ## Options Monitoring
 
 ### The Options Repository

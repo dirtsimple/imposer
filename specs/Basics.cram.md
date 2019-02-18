@@ -325,7 +325,14 @@ event on "persistent_modules_loaded" my_plugin.message "The project configuratio
 event on "all_modules_loaded"        my_plugin.message "All modules have finished loading."
 event on "before_apply"              my_plugin.handle_json
 event on "after_apply"               my_plugin.message "All PHP code has been run."
+event on "block of css for mytheme"  @_ my_plugin.message "Got CSS for mytheme:"
 ```
+##### Misc.
+
+```css for mytheme
+/* CSS for mytheme */
+```
+
 #### Dumping JSON or PHP
 
 The `imposer json` and `imposer php` commands process state modules and then output the resulting JSON or PHP without running the PHP.  (Any shell code in the modules is still executed, however.)
@@ -340,13 +347,15 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ export MAILGUN_API_KEY=madeup\"key MAILGUN_API_DOMAIN=madeup.domain
 
 # Run the version of imposer under test:
-    $ imposer-cmd() { jqmd -R "$TESTDIR/../imposer.md" "$@"; }
+    $ imposer-cmd() { command imposer "$@"; }
 
 # JSON dump:
     $ IMPOSER_PATH=imposer imposer-cmd json dummy --require=foo.php
     hello from imposer-project.md!
     Module 'this/that' has been loaded
     The project configuration has been loaded.
+    Got CSS for mytheme: /* CSS for mytheme */
+     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
     warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
@@ -383,6 +392,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
     hello from imposer-project.md!
     Module 'this/that' has been loaded
     The project configuration has been loaded.
+    Got CSS for mytheme: /* CSS for mytheme */
+     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
     warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
@@ -411,6 +422,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
     hello from imposer-project.md!
     Module 'this/that' has been loaded
     The project configuration has been loaded.
+    Got CSS for mytheme: /* CSS for mytheme */
+     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
     warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
@@ -437,6 +450,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ IMPOSER_PATH=imposer imposer-cmd apply
     hello from imposer-project.md!
     Module 'this/that' has been loaded
+    Got CSS for mytheme: /* CSS for mytheme */
+     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
     Just loaded a module called: imposer-project
@@ -471,6 +486,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ IMPOSER_PATH=imposer imposer-cmd tweaks
     hello from imposer-project.md!
     Module 'this/that' has been loaded
+    Got CSS for mytheme: /* CSS for mytheme */
+     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
     Just loaded a module called: imposer-project
@@ -489,6 +506,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ IMPOSER_PATH=imposer imposer-cmd tweaks testme
     hello from imposer-project.md!
     Module 'this/that' has been loaded
+    Got CSS for mytheme: /* CSS for mytheme */
+     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
     Just loaded a module called: imposer-project

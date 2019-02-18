@@ -34,8 +34,11 @@ on boot require bashup.events github bashup/events    master bashup.events
 
 [[ -f composer.lock ]] || on boot composer install
 
-on build jqmd -R --out bin/imposer --compile imposer.md
-on build chmod +x bin/imposer
+build-imposer() { jqmd -R --out "$1" --compile imposer.md && chmod +x "$1"; }
+
+on build build-imposer bin/imposer
+
+before test build-imposer "$BASHER_INSTALL_BIN"/imposer
 on test  eval 'dk shellcheck /dev/stdin < <(jqmd -R --compile imposer.md)'
 
 on "test_files" eval 'ls src/*.php'

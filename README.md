@@ -222,9 +222,73 @@ require simple-css
 
 Notice, too, that this `simple-css` function can also be used programmatically, to e.g. insert some CSS from an environment variable or the like, by putting something like `simple-css "$SOME_VAR"` in a `shell` block.
 
+#### Block Events
+
+Our previous example works nicely on a small scale, but it makes *every* state module depend on the `simple-css` module in order to output CSS.  What if we could just make it so that *any* `css` block in *any* state module would automatically be sent to the simple-css plugin, or perhaps some other plugin?
+
+This is what imposer *block events* are for.  Whenever imposer compiles a markdown file, any "miscellaneous" code blocks are converted to shell code that emits a [shell event](https://github.com/bashup/events) of the form `block of X`, where `X` is the language of the block.  So if we changed our `simple-css.state.md` file to look like this:
+
+~~~markdown
+```shell
+# Activate the plugin
+FILTER '.plugins["simple-css"] = true'
+
+# Define a function other modules can use to append CSS
+simple-css() { FILTER '.options.simple_css.css += %s' "$1"; }
+
+# When a block of css is seen, pass it as an argument to simple-css
+event off "block of css"                 # disable any previous handlers
+event on  "block of css" @1 simple-css   # pass one arg from the event to `simple-css` function
+```
+~~~
+
+...then it would no longer be necessary to include the `+simple-css` at the start of blocks.  You could simply do:
+
+~~~markdown
+```css
+/* Here's some CSS */
+```
+~~~
+
+In this way, at the project level you could `require simple-css` before any CSS blocks occur, and then every CSS block in *every state module* loaded after that point would be sent to the simple-css module.
+
+And, since the CSS blocks don't specify *how* the CSS is to be included, you can change to a different CSS plugin or even use a theme setting or some other specification element: just use a different event handler at the project level.
+
+But what if you have some theme-specific or plugin-specific CSS?  Block events include the *entire* opening line of a markdown block, which means you can do things like this:
+
+~~~markdown
+# in imposer-project.md:
+
+```shell
+require simple-css mytheme
+```
+
+```css for mytheme
+/* Here's some CSS for mytheme */
+```
+
+# in mytheme.state.md:
+
+```yaml
+theme: mytheme
+```
+
+```shell
+event on "block of css for mytheme" @_ event emit "block of css"
+```
+~~~
+
+In this example, the `mytheme` state module registers a handler for `block of css for mytheme` that emits a `block of css` event with the same arguments as the original event.  This means that any `css for mytheme` blocks will add CSS to the project *if and only if* the `mytheme` module is included in the project!  (If `mytheme` isn't included, then the `block of css for mytheme` event will be ignored, as it has no handler.)
+
+In this way, you can actually create state modules that include CSS customizations for multiple themes or plugins, using an appropriate convention for how you name the blocks.
+
+Of course, you're not limited to CSS: you can do Javascript blocks, or really anything else you can imagine.  The use of events lets you loosely couple your state modules, by giving modules the ability to provide specification data in a way that isn't dependent on implementation details like which plugin(s) you're using.
+
+For more on how shell events like these work in imposer, see the section below on [Event Hooks](#event-hooks).
+
 ### Identifying What Options To Set
 
-In our last example, we set some options for the Simple CSS plugin.  To do that, we had to know what Wordpress option key(s) the plugin used in the Wordpress database.  But since most users only configure Wordpress via the web UI, plugin developers rarely *document* their plugins' options at the database level.
+In our last examples, we set an option for the Simple CSS plugin.  To do that, we had to know what Wordpress option key(s) the plugin used in the Wordpress database.  But since most users only configure Wordpress via the web UI, plugin developers rarely *document* their plugins' options at the database level.
 
 Of course, for a sufficiently small plugin, you can find out its options by reading the source and looking for `get_option()` calls.  But what if the plugin is something huge, like an ecommerce shop or an LMS?
 
@@ -434,7 +498,7 @@ To use Imposer, you must have at least *one* of the following files in the root 
 * `composer.json`, or
 *  `wp-cli.yml`.
 
-Imposer will search the current directory and its parent directories until it finds one of the three files, and all relative paths (e.g. those in `IMPOSER_PATH`) will be interpreted relative to that directory.  (And all code in state module files is executed with that directory as the current directory.)  If you have an `imposer-project.md`, it will be loaded as though it were the state file for a module called `imposer-project`.
+Imposer will search the current directory and its parent directories until it finds one of the three files, and all relative paths (e.g. those in `IMPOSER_PATH`) will be interpreted relative to that directory.  (And all code in state module files is executed with that directory as the current directory.)  If you have an `imposer-project.md`, it will be loaded as though it were the state file for a module called `imposer:project`.
 
 Basic usage is `imposer apply` *[modulename...]*, where each argument designates a state module to be loaded.  Modules are loaded in the order specified, unless an earlier one `require`s a later one, forcing it to be loaded earlier than its position in the list.  (You don't have to list any modules if everything you want to apply as a specification is already in your `imposer-project.md`, or in modules `require`d by it.)
 
@@ -719,13 +783,14 @@ In additon to its PHP actions and filters, Imposer offers a system of event hook
 my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON configuration is:"; echo "$IMPOSER_JSON"; }
 
-event on "after_module"              my_plugin.message "The current state module ($IMPOSER_MODULE) is finished loading."
-event on "module_loaded" @1          my_plugin.message "Just loaded a module called:"
-event on "module_loaded_this/that"   my_plugin.message "Module 'this/that' has been loaded"
-event on "persistent_modules_loaded" my_plugin.message "The project configuration has been loaded."
-event on "all_modules_loaded"        my_plugin.message "All modules have finished loading."
-event on "before_apply"              my_plugin.handle_json
-event on "after_apply"               my_plugin.message "All PHP code has been run."
+event on "after_module"                my_plugin.message "The current state module ($IMPOSER_MODULE) is finished loading."
+event on "module_loaded" @1            my_plugin.message "Just loaded a module called:"
+event on "module_loaded_this/that"     my_plugin.message "Module 'this/that' has been loaded"
+event on "persistent_modules_loaded"   my_plugin.message "The project configuration has been loaded."
+event on "all_modules_loaded"          my_plugin.message "All modules have finished loading."
+event on "before_apply"                my_plugin.handle_json
+event on "after_apply"                 my_plugin.message "All PHP code has been run."
+event on "block of css for mytheme" @4 my_plugin.message "Got CSS for mytheme:"
 ```
 
 The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `module_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a module called:"`, which in this case will be the name of the state module loaded.)
@@ -733,6 +798,8 @@ The system is very similar to Wordpress actions, except there is no priority sys
 Also, you can put arguments after the name of your function, and any arguments supplied by the event will be added after those. Duplicate registrations have no effect, but you can register the same function multiple times for the same event if it has different arguments or a different argument count.
 
 Imposer currently offers the following built-in events:
+
+* `block of `*language-tag* -- emitted when a state module executes a markdown block whose language is not one that imposer natively supports (e.g. json, yaml, etc.).  So a `css` block will emit a `block of css` event that can be hooked by other state modules to update the specification with the supplied data.  The event is passed four arguments: the block contents, the module where the block was found, the module's filename (as of compilation time) and the block's line number within that file.
 
 * `after_module` -- fires when the *currently loading* state module (and all its dependencies) have finished loading.  (Note that the "currently loading" module is not necessarily the same as the module where a callback is being registered, which means that state module can define APIs that register callbacks to run when the *calling* state module is finished loading.)
 
@@ -742,7 +809,7 @@ Imposer currently offers the following built-in events:
 
   ```shell
   # If some other state loads "otherplugin/something", load our addon for it:
-  on module_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
+  event on module_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
   ```
 
 * `persistent_modules_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is another promise-like event: you can register for it even after it has already happened, and your callback will be invoked immediately.
