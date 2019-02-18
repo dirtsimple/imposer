@@ -93,8 +93,8 @@ If this document were a state module, it might contain some YAML like this, to s
 options:
   wp_mail_smtp:
     mail:
-      from_email: \(env.WP_FROM_EMAIL)
-      from_name: \(env.WP_FROM_NAME)
+      from_email: \(env.WP_FROM_EMAIL // _)
+      from_name:  \(env.WP_FROM_NAME  // _)
       mailer: mailgun
       return_path: true
     mailgun:
@@ -103,6 +103,8 @@ options:
 ```
 
 This is already sufficient to be a valid and useful state module.  Modules are parsed using [jqmd](https://github.com/bashup/jqmd), so strings in YAML blocks can contain [jq](http://stedolan.github.io/jq/) interpolation expressions like ``\(env.MAILGUN_API_KEY)`` to get values from environment variables.  (JSON blocks can do that too, and use plain jq expressions as well as string interpolation.)
+
+(Note: jq's `env` returns `null` for non-existent environment variables, so the above code uses the jq default operator (`//`, similar to PHP's `?:`) to replace it with an empty string so a missing variable won't put the word `"null"` in the result.  The `_` is an imposer-supplied jq function returning `""` for convenient use in YAML blocks interpolation, which cannot contain quoted strings.)
 
 A module can include multiple YAML or JSON blocks (unindented and fenced with triple-backquotes), and their contents are recursively merged, with later values for the same key at any level overriding earlier ones (or appending to them, in the case of lists).  This merging takes place across modules, too, which means that you can (for example) define a menu in one module, and assign its location in another, while still another module adds on some extra items to the same menu.  Each module's YAML or JSON blocks need only specify the portion of the state that they want to impose themselves.
 

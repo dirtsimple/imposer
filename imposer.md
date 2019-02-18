@@ -187,6 +187,12 @@ plugins: {imposer-tweaks: false}
 
 which is then processed from PHP to modify wordpress options and plugins.
 
+To make environment variable interpolation easier for YAML blocks, a `_` function is defined in jq that returns a null string:
+
+```jq defs
+def _: "";
+```
+
 ### Imposing State Moduless
 
 State modules are imposed by sourcing the compiled form of their `.state.md` file, at most once.  State modules can require other modules by calling `require` with one or more module names.

@@ -648,6 +648,7 @@ if [[ $0 == "${BASH_SOURCE-}" ]]; then
     fi
 fi
 FILTER $'jqmd_data({"options":{},"plugins":{"imposer-tweaks":false}})\n'
+DEFINE $'def _: "";\n\n'
 require() {
     get_imposer_dirs
     while (($#)); do @require "imposer-module:$1" __find_and_load "$1"; shift; done

@@ -270,8 +270,8 @@ After all required state modules have been sourced, the accumulated YAML, JSON, 
 options:
   wp_mail_smtp:
     mail:
-      from_email: \(env.WP_FROM_EMAIL)
-      from_name: \(env.WP_FROM_NAME)
+      from_email: \(env.WP_FROM_EMAIL // _)
+      from_name:  \(env.WP_FROM_NAME // _)
       mailer: mailgun
       return_path: true
     mailgun:
@@ -343,7 +343,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ mkdir imposer/some; touch imposer/some/state.state.md
     $ mkdir imposer/foo; touch imposer/foo/other.state.md
     $ mkdir imposer/this; touch imposer/this/that.state.md
-    $ export WP_FROM_EMAIL=foo@bar.com WP_FROM_NAME="Me"
+    $ export WP_FROM_EMAIL=foo@bar.com
     $ export MAILGUN_API_KEY=madeup\"key MAILGUN_API_DOMAIN=madeup.domain
 
 # Run the version of imposer under test:
@@ -365,7 +365,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
         "wp_mail_smtp": {
           "mail": {
             "from_email": "foo@bar.com",
-            "from_name": "Me",
+            "from_name": "",
             "mailer": "mailgun",
             "return_path": true
           },
@@ -386,6 +386,8 @@ The `imposer json` and `imposer php` commands process state modules and then out
         "products": {}
       }
     }
+
+    $ export WP_FROM_NAME="Me"
 
 # PHP dump:
     $ IMPOSER_PATH=imposer imposer-cmd php dummy
