@@ -385,6 +385,25 @@ mdsh-misc(){
 
 ## Options Monitoring
 
+### Option Filtering
+
+Many Wordpress options are not really "options", but scratch storage for plugins.  These options add useless noise to the option monitoring tools and may need to be filtered out.  So we add `filter-options` and `exclude-options` to generate jq code to filter them during list, diff, etc.
+
+```shell
+exclude-options() { printf -v REPLY '.%s, ' "$@"; filter-options "del(${REPLY%, })"; }
+filter-options()  { event on "filter options" FILTER "$1"; }
+
+exclude-options cron elementor_remote_info_library
+
+imposer-filtered-options() {
+	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
+	(
+		CLEAR_FILTERS; FILTER 'map({key:.option_name, value:.option_value}) | from_entries'
+		event emit "filter options"; eval 'JQ_CMD=(jq-tty)'; RUN_JQ
+	)
+}
+```
+
 ### The Options Repository
 
 `options-repo:` is a singleton object with methods to run git commands in the current repo, calculate the repo dir, initialize it, take snapshots, etc.
@@ -403,7 +422,7 @@ options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
 options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
 
 options-repo::snapshot() {
-	imposer options list --exclude=cron >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	imposer options list >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
 	options-repo: "$@"
 }
 
@@ -460,10 +479,7 @@ loco_subcommand_help() {
 `imposer options list` dumps all options in JSON form (w/paging and colorizing if output goes to a TTY.  Any extra arguments are passed on to `wp option list`.  `imposer options diff` diffs the current options against the named JSON file (again with paging and colorizing if possible).  `imposer options review`  waits for changes and then runs `git add --patch` on them.
 
 ```shell
-imposer.options-list() {
-	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
-	jq-tty 'map({key:.option_name, value:.option_value}) | from_entries'
-}
+imposer.options-list() { imposer-filtered-options "$@"; }
 
 imposer.options-diff() {
 	(($#==0)) || [[ $* == --no-pager ]] || {

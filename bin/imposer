@@ -771,6 +771,18 @@ mdsh-misc(){
 	printf 'event emit "block of "%q %q %q %q %q\n' "$1" "$2" \
 		"$IMPOSER_MODULE" "$MDSH_SOURCE" "${block_start-}"
 }
+exclude-options() { printf -v REPLY '.%s, ' "$@"; filter-options "del(${REPLY%, })"; }
+filter-options()  { event on "filter options" FILTER "$1"; }
+
+exclude-options cron elementor_remote_info_library
+
+imposer-filtered-options() {
+	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
+	(
+		CLEAR_FILTERS; FILTER 'map({key:.option_name, value:.option_value}) | from_entries'
+		event emit "filter options"; eval 'JQ_CMD=(jq-tty)'; RUN_JQ
+	)
+}
 options-repo:() { (($#==0)) || "options-repo::$@"; }
 
 options-repo::has-directory() {
@@ -784,7 +796,7 @@ options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
 options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
 
 options-repo::snapshot() {
-	imposer options list --exclude=cron >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	imposer options list >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
 	options-repo: "$@"
 }
 
@@ -827,10 +839,7 @@ loco_subcommand_help() {
 		"$2" "${3-}" "$REPLY"
 	loco_error "$REPLY"
 }
-imposer.options-list() {
-	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
-	jq-tty 'map({key:.option_name, value:.option_value}) | from_entries'
-}
+imposer.options-list() { imposer-filtered-options "$@"; }
 
 imposer.options-diff() {
 	(($#==0)) || [[ $* == --no-pager ]] || {

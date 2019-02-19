@@ -68,6 +68,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
   * [API](#api)
     + [Actions and Filters](#actions-and-filters)
     + [Event Hooks](#event-hooks)
+    + [Option Filtering](#option-filtering)
   * [Project Status](#project-status)
     + [Performance Notes](#performance-notes)
 
@@ -583,7 +584,7 @@ Note that although snapshot directories are managed using git, their contents sh
 
 Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `colordiff` or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
 
-Finally, note that to minimize the "noise" in diffs and reviews, the `review`, `watch`, and `diff` subcommands all exclude the Wordpress `cron` option from their output.  (`list`, however, will still include it, unless you filter it out.)
+Because many plugins and themes store frequently-changing state information in their options (such as timestamps, counters, undo logs, etc.), this may produce "noise" in your option lists, diffs, and reviews.  In order to filter these options out, you can add `exclude-options` and `filter-options` calls in your state modules, to exclude "noise" options for the relevant plugins.  For more information see the section below on [Option Filtering](#option-filtering).
 
 #### imposer options review
 
@@ -827,6 +828,26 @@ Imposer currently offers the following built-in events:
 Of course, just like with Wordpress, you are not restricted to the built-in events!  You can create your own custom events, and trigger them with `event emit`, `event fire`, etc..  (See the [event API docs](https://github.com/bashup/events/#readme) for more info.)
 
 Note: if your state file needs to run shell commands that will change the state of the system in some way, you must **only** run these commands during the `before_apply` or `after_apply` events, so that they are only run by the  `imposer apply` subcommand and not by [diagnostic commands](#diagnostic-commands) like `imposer json` or `imposer php`!
+
+### Option Filtering
+
+To keep `imposer options review` and `imposer options diff` from including options you don't want to monitor, you can use the following API functions from `shell` blocks in your project or state modules:
+
+* `exclude-options` *option-name...* -- Exclude one or more named options from `imposer options` commands, e.g. `exclude-options _edd_table_check`.  You can exclude *part* of an option by using a dotted path, e.g. `sidebars_widgets.time` to exclude the `time` item under the `sidebars_widgets` option.
+
+  Note: if an option name (or portion thereof) contains characters other than A-Z, a-z, 0-9, or `_`, you must surround it in double quotes within the name, and then surround the whole thing with single quotes, e.g.:
+
+  ~~~shell
+  exclude-options '"option-with-dashes"."key with spaces".ordinary_key'
+  ~~~
+
+  This will exclude the `ordinary_key` part of `key with spaces` within `option-with-dashes`.
+
+  `exclude-options X Y Z` is shorthand for `filter-options 'del(.X, .Y, .Z)'`
+
+* `filter-options` *jq-filter-expression* -- Use *jq-filter-expression* to filter the options before they're displayed or used by `imposer options` commands.  The filter expression will receive a JSON object whose top-level keys are  options, and the output must be in the same format.
+
+You can exclude as many options or add as many filters as you wish, from any state module.  This allows you to have the state module for a particular theme or plugin add exclusions or filters for the corresponding options or portions thereof.
 
 ## Project Status
 
