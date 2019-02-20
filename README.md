@@ -584,7 +584,7 @@ Note that although snapshot directories are managed using git, their contents sh
 
 Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `colordiff` or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
 
-Because many plugins and themes store frequently-changing state information in their options (such as timestamps, counters, undo logs, etc.), this may produce "noise" in your option lists, diffs, and reviews.  In order to filter these options out, you can add `exclude-options` and `filter-options` calls in your state modules, to exclude "noise" options for the relevant plugins.  For more information see the section below on [Option Filtering](#option-filtering).
+Because many plugins and themes store frequently-changing state information in their options (such as timestamps, counters, undo logs, etc.), this may produce "noise" in your option lists, diffs, and reviews.  In order to filter these options out, you can add `exclude-options` and `filter-options` calls in your state modules, to exclude "noise" options for the relevant plugins, or to avoid recording security-sensitive data in the snapshot directory.  (For more information see the section below on [Option Filtering](#option-filtering).)
 
 #### imposer options review
 
@@ -831,7 +831,7 @@ Note: if your state file needs to run shell commands that will change the state 
 
 ### Option Filtering
 
-To keep `imposer options review` and `imposer options diff` from including options you don't want to monitor, you can use the following API functions from `shell` blocks in your project or state modules:
+To keep `imposer options review` and `imposer options diff` from including options you don't want to monitor (because of "noise" or security concerns), you can use the following API functions from `shell` blocks in your project or state modules:
 
 * `exclude-options` *option-name...* -- Exclude one or more named options from `imposer options` commands, e.g. `exclude-options _edd_table_check`.  You can exclude *part* of an option by using a dotted path, e.g. `sidebars_widgets.time` to exclude the `time` item under the `sidebars_widgets` option.
 
