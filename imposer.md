@@ -243,6 +243,8 @@ __load_module() {
     local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after_5fmodule=
     mark-read "$2"
     MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
+    # Force error exit if module fails to compile or run
+    mdsh-ok || exit "$?" "Module $1 ($2) aborted with code $?"
     event fire "after_module"
     event emit "module_loaded" "$1" "$2"
     event resolve "module_loaded_$1" "$2"
