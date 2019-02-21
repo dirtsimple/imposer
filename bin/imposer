@@ -195,7 +195,7 @@ MDSH_MODULE=
 }
 @main() {
 	@is-main || return 0
-	MDSH_FOOTER=$'if [[ $0 == "${BASH_SOURCE-}" ]]; then '"$1"$' "$@"; fi\n'
+	MDSH_FOOTER=$'if [[ $0 == "${BASH_SOURCE-}" ]]; then '"$1"$' "$@"; exit; fi\n'
 }
 @comment() (  # subshell for cd
 	! [[ "${MDSH_SOURCE-}" == */* ]] || cd "${MDSH_SOURCE%/*}"
@@ -888,4 +888,4 @@ watch-once() {
 	clear; printf '%s%*s\n\n' "$REPLY" $((cols-${#REPLY})) "$(date "+%Y-%m-%d %H:%M:%S")"
 	IMPOSER_PAGER="pager.screenfull 3" "$@" || true
 }
-if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; fi
+if [[ $0 == "${BASH_SOURCE-}" ]]; then loco_main "$@"; exit; fi
