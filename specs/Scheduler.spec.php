@@ -135,6 +135,13 @@ describe("Scheduler", function () {
 				expect(Promise\queue())->to->equal($q);
 			} finally { Promise\queue($oldQ); }
 		});
+		it("flushes the promise queue that existed when it was created, before doing anything else", function() {
+			Promise\queue()->add(function() { throw new \RuntimeException("should be called"); });
+			(new Task("x", $this->sched))->steps(function() {
+				throw new \RuntimeException("should NOT be called");
+			});
+			expect( array($this->sched, 'run') )->to->throw(\RuntimeException::class, "should be called");
+		});
 	});
 
 	describe("specification data", function() {

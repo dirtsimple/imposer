@@ -129,13 +129,10 @@ describe("Task", function () {
 				yield 23;
 				throw new \UnexpectedValueException(42);
 			});
-			#$this->task->steps( fn::val($p = new Promise\Promise) );
 			$this->task->run();
 			expect($this->task->finished())->to->be->false;
-			#$p->reject(42);
 			Promise\queue()->run();
 			expect( array($this->task, 'ready') )->to->throw(ExitException::class);
-			#expect($this->task->finished())->to->be->true;
 		});
 	});
 

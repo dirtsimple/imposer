@@ -81,6 +81,7 @@ class Scheduler {
 		$this->resources = new Pool(Resource::class, array($this, '_new') );
 		$this->data      = new RecursiveDataStructureTraverser($data);
 		$this->queue     = new Promise\TaskQueue(false);
+		$this->queue->add( array( Promise\queue(), 'run' ) );
 	}
 
 	function enqueue($task) {
