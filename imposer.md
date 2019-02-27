@@ -395,7 +395,7 @@ Many Wordpress options are not really "options", but scratch storage for plugins
 exclude-options() { printf -v REPLY '.%s, ' "$@"; filter-options "del(${REPLY%, })"; }
 filter-options()  { event on "filter options" FILTER "$1"; }
 
-exclude-options cron elementor_remote_info_library
+exclude-options cron recently_activated
 
 imposer-filtered-options() {
 	wp option list --unserialize --format=json --no-transients --orderby=option_name "$@" |
