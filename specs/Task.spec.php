@@ -1,6 +1,7 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
+use dirtsimple\fn;
 use dirtsimple\imposer\Task;
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\Scheduler;
@@ -8,6 +9,9 @@ use dirtsimple\imposer\Scheduler;
 use \Mockery;
 use Brain\Monkey;
 use \WP_CLI\ExitException;
+use GuzzleHttp\Promise;
+
+class Thenable { function then() { } }
 
 describe("Task", function () {
 
@@ -83,12 +87,71 @@ describe("Task", function () {
 		});
 	});
 
+	describe("ready()", function() {
+		it("is true by default", function() {
+			expect($this->task->ready())->to->be->true;
+		});
+		it("is false while waiting on a generator", function() {
+			$this->task->steps( function() { yield 23; } );
+			$this->task->run();
+			expect($this->task->ready())->to->be->false;
+			Promise\queue()->run();
+			expect($this->task->ready())->to->be->true;
+		});
+		it("is false while waiting on an unresolved promise", function() {
+			$this->task->steps( fn::val($p = new Promise\Promise) );
+			$this->task->run();
+			expect($this->task->ready())->to->be->false;
+			$p->resolve(23);
+			Promise\queue()->run();
+			expect($this->task->ready())->to->be->true;
+		});
+		it("is false while waiting on an arbitrary 'thenable'", function() {
+			$p = new Promise\Promise;
+			$m = Mockery::mock(Thenable::class);
+			$m->shouldReceive('then')->once()->andReturnUsing(
+				function(...$args) use ($p) { return $p->then(...$args); }
+			);
+			$this->task->steps( fn::val($m) );
+			$this->task->run();
+			expect($this->task->ready())->to->be->false;
+			$p->resolve(23);
+			Promise\queue()->run();
+			expect($this->task->ready())->to->be->true;
+		});
+		it("is true after steps returning synchronous values", function() {
+			$this->task->steps( fn::val(42) );
+			$this->task->run();
+			expect($this->task->ready())->to->be->true;
+		});
+		it("forces an exit for unhandled errors from promises", function() {
+			$this->task->steps(function () {
+				yield 23;
+				throw new \UnexpectedValueException(42);
+			});
+			#$this->task->steps( fn::val($p = new Promise\Promise) );
+			$this->task->run();
+			expect($this->task->finished())->to->be->false;
+			#$p->reject(42);
+			Promise\queue()->run();
+			expect( array($this->task, 'ready') )->to->throw(ExitException::class);
+			#expect($this->task->finished())->to->be->true;
+		});
+	});
+
 	describe("finished()", function() {
 		it("is false if a run hasn't been attempted", function() {
 			expect($this->task->finished())->to->be->false;
 		});
 		it("is true if the task was attempted and has no steps", function() {
 			$this->task->run();
+			expect($this->task->finished())->to->be->true;
+		});
+		it("is false while the task isn't ready()", function() {
+			$this->task->steps( function() { yield 23; } );
+			$this->task->run();
+			expect($this->task->finished())->to->be->false;
+			Promise\queue()->run();
 			expect($this->task->finished())->to->be->true;
 		});
 		it("is true if the task was attempted and is not needed()", function() {
@@ -179,7 +242,13 @@ describe("Task", function () {
 				)
 			);
 		});
+		it("forces an exit for unhandled errors from promises", function() {
+			$p = Promise\rejection_for(new \UnexpectedValueException(42));
+			$this->task->steps(fn::val($p));
+			expect( array($this->task, 'run') )->to->throw(ExitException::class);
+		});
 	});
+
 	describe("blockOn()", function() {
 		it("throws an error when there are no tasks for the resource", function() {
 			$res = Mockery::mock(Resource::class);

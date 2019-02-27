@@ -31,16 +31,22 @@ describe("Resource", function () {
 	});
 
 	describe("run()", function() {
-		it("finishes immediately, but may remain unready", function() {
+		it("finishes as soon as it's ready (and run)", function() {
 			$task = new Task("test", $this->sched);
 			$this->sched->shouldReceive('task')->with($task)->andReturn($task);
 			$this->res->isProducedBy($task);
 			expect($this->res->finished())-> to -> be -> false;
 			expect($this->res->ready())   -> to -> be -> false;
-			expect($this->res->run())     -> to -> be -> true;
-			expect($this->res->finished())-> to -> be -> true;
+
+			expect($this->res->run())     -> to -> be -> false;
+			expect($this->res->finished())-> to -> be -> false;
 			expect($this->res->ready())   -> to -> be -> false;
-			$this->sched->shouldHaveReceived('enqueue', array($this->res))->once();
+
+			expect($task->run())          -> to -> be -> true;
+			expect($this->res->ready())   -> to -> be -> true;
+			expect($this->res->finished())-> to -> be -> true;
+
+			$this->sched->shouldHaveReceived('enqueue', array($this->res))->twice();
 		});
 	});
 

@@ -2,6 +2,8 @@
 namespace dirtsimple\imposer;
 
 use WP_CLI;
+use GuzzleHttp\Promise;
+use dirtsimple\fn;
 
 class __TaskBlockingException extends \Exception {}  # private!
 
@@ -56,13 +58,19 @@ class Task {
 	// ===== Task Status API ===== //
 
 	function finished() {
-		return $this->tries && ( ! $this->steps || ! $this->needed() );
+		return $this->tries && ( ( $this->ready() && ! $this->steps ) || ! $this->needed() );
 	}
 
 	function ready() {
 		while ( $this->dependsOn ) {
-			$this->blocker = $this->dependsOn[0];
-			if ( ! $this->blocker->finished() ) { return false; }
+			$blocker = $this->dependsOn[0];
+			if ( $blocker instanceof Promise\PromiseInterface ) {
+				if ( ! Promise\is_settled($blocker) ) return false;
+				$blocker->wait();
+			} else {
+				$this->blocker = $blocker;
+				if ( ! $this->blocker->finished() ) return false;
+			}
 			array_shift($this->dependsOn);
 		}
 		return true;
@@ -105,11 +113,21 @@ class Task {
 	protected function run_next_callback() {
 		try {
 			$args = $this->reads ? array_map( array($this->scheduler, 'spec'), $this->reads ) : array();
-			$this->steps[0](...$args);
+			$this->await( $this->steps[0](...$args) );
 			array_shift($this->steps);
 			return true;
 		} catch (__TaskBlockingException $e) {
 			return false;
+		}
+	}
+
+	protected function await($res) {
+		if ($res instanceof \Generator) $res = Promise\Coroutine(fn::val($res));
+		if (\is_object($res) && \method_exists($res, 'then')) {
+			$res = Promise\promise_for($res);
+			if ( Promise\is_fulfilled($res) ) return;
+			if ( Promise\is_rejected($res) ) WP_CLI::error( Promise\inspect($res)['reason'] );
+			else $this->dependsOn[] = $res->otherwise('WP_CLI::error');
 		}
 	}
 
