@@ -10,9 +10,15 @@ use Brain\Monkey;
 use \WP_CLI\ExitException;
 use \Exception;
 use \RuntimeException;
+use GuzzleHttp\Promise;
 
 describe("Scheduler", function () {
-	beforeEach( function() { $this->sched = new Scheduler(); });
+	beforeEach( function() {
+		$this->sched = new Scheduler();
+
+		# use a fresh queue each time
+		Promise\queue(new Promise\TaskQueue(false));
+	});
 	afterEach( function() { Monkey\tearDown(); });
 
 	describe("task()", function() {

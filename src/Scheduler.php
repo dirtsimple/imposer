@@ -2,6 +2,8 @@
 
 namespace dirtsimple\imposer;
 
+use dirtsimple\fn;
+use GuzzleHttp\Promise;
 use WP_CLI;
 use WP_CLI\Entity\RecursiveDataStructureTraverser;
 use WP_CLI\Entity\NonExistentKeyException;
@@ -40,27 +42,39 @@ class Scheduler {
 	}
 
 	function run($spec=null) {
-		if ( ! empty($this->current) ) return false;
+		if ( $this->running ) return false;
 		$this->data->set_value($spec);
-		while ($tasks = $this->queue) {
-			$this->queue = array();
-			$progress = 0;
-			foreach ($tasks as $task) {
-				$this->current = $task;
-				$progress += $task->run();
-				$this->current = null;
-				if ( $this->restart_requested ) {
-					WP_CLI::debug("Restarting to apply changes", "imposer");
-					WP_CLI::halt(75);
-				}
-			}
-			if ( ! $progress ) return $this->deadlocked($tasks);
+		Promise\queue()->add(array($this, 'check_progress'));
+		$this->running = true;
+		try {
+			Promise\queue()->run();
+		} finally {
+			$this->running = false;
 		}
 		return true;
 	}
 
+	function check_progress() {
+		if ( ! $this->tried ) return;
+		if ( ! $this->progress ) return $this->deadlocked($this->tried);
+		$this->progress = 0;
+		$this->tried = array();
+		Promise\queue()->add(array($this, 'check_progress'));
+	}
+
+	function run_task($task) {
+		$this->current = $task;
+		$this->progress += $task->run();
+		$this->tried[] = $task;
+		$this->current = null;
+		if ( $this->restart_requested ) {
+			WP_CLI::debug("Restarting to apply changes", "imposer");
+			WP_CLI::halt(75);
+		}
+	}
+
 	protected $current, $tasks, $resources, $data, $restart_requested=false;
-	public $queue=array();
+	protected $running=false, $progress=0, $tried=array();
 
 	function __construct($data=null) {
 		$this->tasks     = new Pool(Task::class,     array($this, '_new') );
@@ -69,7 +83,7 @@ class Scheduler {
 	}
 
 	function enqueue($task) {
-		$this->queue[] = $task;
+		Promise\queue()->add( fn::bind( array($this, 'run_task'), $task) );
 	}
 
 	function _new($type, $name, $owner) { return new $type($name, $this); }
