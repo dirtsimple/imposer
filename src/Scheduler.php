@@ -42,15 +42,15 @@ class Scheduler {
 	}
 
 	function run($spec=null) {
-		if ( $this->running ) return false;
+		$oldQueue = Promise\queue();
+		# If our queue is the global one, we're already running: abort
+		if ( $oldQueue === $this->queue ) return false;
+
 		$this->data->set_value($spec);
-		Promise\queue()->add(array($this, 'check_progress'));
-		$this->running = true;
-		try {
-			Promise\queue()->run();
-		} finally {
-			$this->running = false;
-		}
+		$this->queue->add(array($this, 'check_progress'));
+		Promise\queue($this->queue);
+
+		try { $this->queue->run(); } finally { Promise\queue($oldQueue); }
 		return true;
 	}
 
@@ -74,16 +74,17 @@ class Scheduler {
 	}
 
 	protected $current, $tasks, $resources, $data, $restart_requested=false;
-	protected $running=false, $progress=0, $tried=array();
+	protected $progress=0, $tried=array(), $queue;
 
 	function __construct($data=null) {
 		$this->tasks     = new Pool(Task::class,     array($this, '_new') );
 		$this->resources = new Pool(Resource::class, array($this, '_new') );
 		$this->data      = new RecursiveDataStructureTraverser($data);
+		$this->queue     = new Promise\TaskQueue(false);
 	}
 
 	function enqueue($task) {
-		Promise\queue()->add( fn::bind( array($this, 'run_task'), $task) );
+		$this->queue->add( fn::bind( array($this, 'run_task'), $task) );
 	}
 
 	function _new($type, $name, $owner) { return new $type($name, $this); }

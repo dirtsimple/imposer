@@ -15,9 +15,6 @@ use GuzzleHttp\Promise;
 describe("Scheduler", function () {
 	beforeEach( function() {
 		$this->sched = new Scheduler();
-
-		# use a fresh queue each time
-		Promise\queue(new Promise\TaskQueue(false));
 	});
 	afterEach( function() { Monkey\tearDown(); });
 
@@ -127,6 +124,16 @@ describe("Scheduler", function () {
 				"\tTask Alpha\n" . "\tTask Beta\n"
 			);
 			$wp_cli_logger->ob_end();
+		});
+		it("uses a private promise queue", function() {
+			$oldQ = Promise\queue();
+			$q = new Promise\TaskQueue(false);
+			Promise\queue($q);
+			try {
+				$q->add(function() { throw new \RuntimeException("should not be called"); });
+				$this->sched->run();
+				expect(Promise\queue())->to->equal($q);
+			} finally { Promise\queue($oldQ); }
 		});
 	});
 
