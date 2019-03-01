@@ -84,13 +84,24 @@ describe("Pool", function() {
 		});
 	});
 
-	describe("contents()", function() {
-		it("returns an array mapping names to existing items", function() {
-			expect( $this->pool->contents() ) -> to -> have -> length(0);
-			$thingy = $this->pool->get("thingy");
-			expect( $this->pool->contents() ) -> to -> have -> length(1);
+	describe("array interface", function() {
+		it("includes ArrayAccess, Countable, and IteratorAggregate", function() {
+			$pool = $this->pool;
+			expect( $pool ) -> to -> be -> {"instanceof"}(\ArrayAccess::class);
+			expect( $pool ) -> to -> be -> {"instanceof"}(\Countable::class);
+			expect( $pool ) -> to -> be -> {"instanceof"}(\IteratorAggregate::class);
+		});
+		it("has length, creates via []-get, and can be cast to an array", function() {
+			expect( $this->pool ) -> to -> have -> length(0);
+			$thingy = $this->pool["thingy"];
+			expect( $this->pool ) -> to -> have -> length(1);
 			$thingy2 = $this->pool->get("thingy2");
-			expect( $this->pool->contents() ) -> to -> equal( compact('thingy', 'thingy2') );
+			expect( (array) $this->pool ) -> to -> equal( compact('thingy', 'thingy2') );
+		});
+		it("allows assignment", function() {
+			expect( $this->pool ) -> to -> have -> length(0);
+			$this->pool["thingy"] = 42;
+			expect( (array) $this->pool ) -> to -> equal( array('thingy'=>42) );
 		});
 	});
 });

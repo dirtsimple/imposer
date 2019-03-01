@@ -3,11 +3,11 @@
 namespace dirtsimple\imposer;
 use \UnexpectedValueException;
 
-class Pool {
+class Pool extends \ArrayObject {
 
-	protected $type, $instances=array();
+	public $type, $factory;
 
-	function __construct($type=Pooled::class, $factory=null) {
+	function __construct($type=Pool::class, $factory=null) {
 		$this->type = $type;
 		$this->factory = $factory ?: array($this, 'newItem');
 	}
@@ -17,7 +17,7 @@ class Pool {
 	}
 
 	function has($name) {
-		return array_key_exists($name, $this->instances);
+		return $this->offsetExists($name);
 	}
 
 	function get($nameOrInstance) {
@@ -25,9 +25,15 @@ class Pool {
 		if (!is_string($nameOrInstance)) {
 			throw new UnexpectedValueException("Not a string or $this->type");
 		}
-		$tmp =& $this->instances[$nameOrInstance];
-		$factory = $this->factory;
-		return $tmp ?: $this->instances[$nameOrInstance] = $factory($this->type, $nameOrInstance, $this);
+		return $this[$nameOrInstance];
+	}
+
+	function offsetGet($name) {
+		if ( ! $this->offsetExists($name) ) {
+			$factory = $this->factory;
+			$this[$name] = $factory($this->type, $name, $this);
+		}
+		return parent::offsetGet($name);
 	}
 
 	function newItem($type, $name, $owner) {
