@@ -58,8 +58,10 @@ class Task {
 	// ===== Task Status API ===== //
 
 	function finished() {
-		return $this->tries && ( ( $this->ready() && ! $this->steps ) || ! $this->needed() );
+		return $this->tries && ( ( $this->ready() && ! $this->hasSteps() ) || ! $this->needed() );
 	}
+
+	function hasSteps() { return count($this->steps); }
 
 	function ready() {
 		while ( $this->dependsOn ) {
@@ -86,7 +88,7 @@ class Task {
 	function run() {
 		$this->scheduled = false; ++$this->tries; $progress = 0;
 		while ( ! $this->finished() ) {
-			if ( $this->ready() && $this->run_next_callback() ) {
+			if ( $this->ready() && $this->run_next_step() ) {
 				$progress++;
 			} else {
 				$this->schedule();
@@ -104,7 +106,7 @@ class Task {
 		return $this;
 	}
 
-	protected function run_next_callback() {
+	protected function run_next_step() {
 		try {
 			$args = $this->reads ? array_map( array($this->scheduler, 'spec'), $this->reads ) : array();
 			$this->spawn( $this->steps[0](...$args) );
