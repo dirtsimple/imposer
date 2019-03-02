@@ -124,10 +124,9 @@ class Task {
 	protected function await($res) {
 		if ($res instanceof \Generator) $res = Promise\Coroutine(fn::val($res));
 		if (\is_object($res) && \method_exists($res, 'then')) {
-			$res = Promise\promise_for($res);
-			if ( Promise\is_fulfilled($res) ) return;
-			if ( Promise\is_rejected($res) ) WP_CLI::error( Promise\inspect($res)['reason'] );
-			else $this->dependsOn[] = $res->otherwise('WP_CLI::error');
+			$res = CheckedPromise::wrap($res);
+			if ( Promise\is_settled($res) ) return;
+			else $this->dependsOn[] = $res;
 		}
 	}
 

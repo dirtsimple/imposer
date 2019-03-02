@@ -124,15 +124,14 @@ describe("Task", function () {
 			$this->task->run();
 			expect($this->task->ready())->to->be->true;
 		});
-		it("forces an exit for unhandled errors from promises", function() {
+		it("forces a throw of unhandled async errors from promises", function() {
 			$this->task->steps(function () {
 				yield 23;
 				throw new \UnexpectedValueException(42);
 			});
 			$this->task->run();
 			expect($this->task->finished())->to->be->false;
-			Promise\queue()->run();
-			expect( array($this->task, 'ready') )->to->throw(ExitException::class);
+			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 	});
 
@@ -239,10 +238,11 @@ describe("Task", function () {
 				)
 			);
 		});
-		it("forces an exit for unhandled errors from promises", function() {
+		it("forces an exception for unhandled errors from promises", function() {
 			$p = Promise\rejection_for(new \UnexpectedValueException(42));
 			$this->task->steps(fn::val($p));
-			expect( array($this->task, 'run') )->to->throw(ExitException::class);
+			Promise\queue()->add( array($this->task, 'run') );
+			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 	});
 
