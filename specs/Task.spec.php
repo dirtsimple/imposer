@@ -13,6 +13,12 @@ use GuzzleHttp\Promise;
 
 class Thenable { function then() { } }
 
+class Unready extends Task {
+	function ready() { return $this->mockReady; }
+	function setReady($ready) { $this->mockReady = $ready; }
+}
+
+
 describe("Task", function () {
 
 	beforeEach( function() {
@@ -91,48 +97,6 @@ describe("Task", function () {
 		it("is true by default", function() {
 			expect($this->task->ready())->to->be->true;
 		});
-		it("is false while waiting on a generator", function() {
-			$this->task->steps( function() { yield 23; } );
-			$this->task->run();
-			expect($this->task->ready())->to->be->false;
-			Promise\queue()->run();
-			expect($this->task->ready())->to->be->true;
-		});
-		it("is false while waiting on an unresolved promise", function() {
-			$this->task->steps( fn::val($p = new Promise\Promise) );
-			$this->task->run();
-			expect($this->task->ready())->to->be->false;
-			$p->resolve(23);
-			Promise\queue()->run();
-			expect($this->task->ready())->to->be->true;
-		});
-		it("is false while waiting on an arbitrary 'thenable'", function() {
-			$p = new Promise\Promise;
-			$m = Mockery::mock(Thenable::class);
-			$m->shouldReceive('then')->once()->andReturnUsing(
-				function(...$args) use ($p) { return $p->then(...$args); }
-			);
-			$this->task->steps( fn::val($m) );
-			$this->task->run();
-			expect($this->task->ready())->to->be->false;
-			$p->resolve(23);
-			Promise\queue()->run();
-			expect($this->task->ready())->to->be->true;
-		});
-		it("is true after steps returning synchronous values", function() {
-			$this->task->steps( fn::val(42) );
-			$this->task->run();
-			expect($this->task->ready())->to->be->true;
-		});
-		it("forces a throw of unhandled async errors from promises", function() {
-			$this->task->steps(function () {
-				yield 23;
-				throw new \UnexpectedValueException(42);
-			});
-			$this->task->run();
-			expect($this->task->finished())->to->be->false;
-			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
-		});
 	});
 
 	describe("finished()", function() {
@@ -144,10 +108,11 @@ describe("Task", function () {
 			expect($this->task->finished())->to->be->true;
 		});
 		it("is false while the task isn't ready()", function() {
-			$this->task->steps( function() { yield 23; } );
+			$this->task = new Unready("not ready", $this->sched);
+			$this->task->setReady(false);
 			$this->task->run();
 			expect($this->task->finished())->to->be->false;
-			Promise\queue()->run();
+			$this->task->setReady(true);
 			expect($this->task->finished())->to->be->true;
 		});
 		it("is true if the task was attempted and is not needed()", function() {
@@ -238,10 +203,51 @@ describe("Task", function () {
 				)
 			);
 		});
-		it("forces an exception for unhandled errors from promises", function() {
+	});
+	describe("steps() returning promises", function() {
+		it("asynchronously throw an exception for synchronous rejections", function() {
 			$p = Promise\rejection_for(new \UnexpectedValueException(42));
 			$this->task->steps(fn::val($p));
 			Promise\queue()->add( array($this->task, 'run') );
+			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+		});
+		it("asynchronously throw an exception for asynchronous rejections", function() {
+			$p = new Promise\Promise;
+			$this->task->steps( fn::val($p) );
+			$this->task->run();
+			Promise\queue()->run();
+			$p->reject(new \UnexpectedValueException(42));
+			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+		});
+		it("support async throwing for arbitrary 'thenables'", function() {
+			$p = new Promise\Promise;
+			$m = Mockery::mock(Thenable::class);
+			$m->shouldReceive('then')->once()->andReturnUsing(
+				function(...$args) use ($p) { return $p->then(...$args); }
+			);
+			$this->task->steps( fn::val($m) );
+			$this->task->run();
+			Promise\queue()->run();
+			$p->reject(new \UnexpectedValueException(42));
+			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+		});
+	});
+
+	describe("steps() returning generators", function() {
+		it("spawn a coroutine wrapping the generator", function() {
+			$this->done = false;
+			$this->task->steps( function() { yield 23; $this->done = true; } );
+			$this->task->run();
+			expect($this->done)->to->be->false;
+			Promise\queue()->run();
+			expect($this->done)->to->be->true;
+		});
+		it("asynchronously throw an exception for unhandled errors", function() {
+			$this->task->steps(function () {
+				yield 23;
+				throw new \UnexpectedValueException(42);
+			});
+			$this->task->run();
 			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 	});

@@ -63,14 +63,8 @@ class Task {
 
 	function ready() {
 		while ( $this->dependsOn ) {
-			$blocker = $this->dependsOn[0];
-			if ( $blocker instanceof Promise\PromiseInterface ) {
-				if ( ! Promise\is_settled($blocker) ) return false;
-				$blocker->wait();
-			} else {
-				$this->blocker = $blocker;
-				if ( ! $this->blocker->finished() ) return false;
-			}
+			$this->blocker = $this->dependsOn[0];
+			if ( ! $this->blocker->finished() ) return false;
 			array_shift($this->dependsOn);
 		}
 		return true;
@@ -113,7 +107,7 @@ class Task {
 	protected function run_next_callback() {
 		try {
 			$args = $this->reads ? array_map( array($this->scheduler, 'spec'), $this->reads ) : array();
-			$this->await( $this->steps[0](...$args) );
+			$this->spawn( $this->steps[0](...$args) );
 			array_shift($this->steps);
 			return true;
 		} catch (__TaskBlockingException $e) {
@@ -121,12 +115,10 @@ class Task {
 		}
 	}
 
-	protected function await($res) {
+	protected function spawn($res) {
 		if ($res instanceof \Generator) $res = Promise\Coroutine(fn::val($res));
 		if (\is_object($res) && \method_exists($res, 'then')) {
-			$res = CheckedPromise::wrap($res);
-			if ( Promise\is_settled($res) ) return;
-			else $this->dependsOn[] = $res;
+			CheckedPromise::wrap($res);
 		}
 	}
 
