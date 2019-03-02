@@ -47,7 +47,10 @@ class Scheduler {
 	}
 
 	function request_restart() {
-		$this->restart_requested = true;
+		Promise\queue()->add(function() {
+			WP_CLI::debug("Restarting to apply changes", "imposer");
+			WP_CLI::halt(75);
+		});
 	}
 
 	function __call($name, $args) {
@@ -60,50 +63,40 @@ class Scheduler {
 	}
 
 	function run($spec=null) {
-		$oldQueue = Promise\queue();
-		# If our queue is the global one, we're already running: abort
-		if ( $oldQueue === $this->queue ) return false;
-
-		$this->data->set_value($spec);
-		$this->queue->add(array($this, 'check_progress'));
-		Promise\queue($this->queue);
-
-		try { $this->queue->run(); } finally { Promise\queue($oldQueue); }
+		# If we're already running: abort
+		if ( $this->running ) return false;
+		$this->running = true;
+		try {
+			Promise\queue()->run();
+			$this->data->set_value($spec);
+			while ( $todo = $this->todo->exchangeArray(array()) ) {
+				$progress = 0;
+				foreach ($todo as $task) {
+					$this->current = $task;
+					$progress += $task->run();
+					Promise\queue()->run();
+					$this->current = null;
+				}
+				if ( ! $progress ) return $this->deadlocked($todo);
+			}
+		} finally {
+			$this->running = false;
+			$this->current = null;
+		}
 		return true;
 	}
 
-	function check_progress() {
-		if ( ! $this->tried ) return;
-		if ( ! $this->progress ) return $this->deadlocked($this->tried);
-		$this->progress = 0;
-		$this->tried = array();
-		Promise\queue()->add(array($this, 'check_progress'));
-	}
-
-	function run_task($task) {
-		$this->current = $task;
-		$this->progress += $task->run();
-		$this->tried[] = $task;
-		$this->current = null;
-		if ( $this->restart_requested ) {
-			WP_CLI::debug("Restarting to apply changes", "imposer");
-			WP_CLI::halt(75);
-		}
-	}
-
-	protected $current, $tasks, $resources, $data, $restart_requested=false;
-	protected $progress=0, $tried=array(), $queue;
+	protected $current, $tasks, $resources, $data, $todo, $running=false;
 
 	function __construct($data=null) {
 		$this->tasks     = new Pool( fn::bind ( array($this, '_new'), Task::class ) );
 		$this->resources = new Pool( fn::bind ( array($this, '_new'), Resource::class ) );
 		$this->data      = new RecursiveDataStructureTraverser($data);
-		$this->queue     = new Promise\TaskQueue(false);
-		$this->queue->add( array( Promise\queue(), 'run' ) );
+		$this->todo      = new \ArrayObject();
 	}
 
 	function enqueue($task) {
-		$this->queue->add( fn::bind( array($this, 'run_task'), $task) );
+		$this->todo[] = $task;
 	}
 
 	function _new($type, $name) { return new $type($name, $this); }

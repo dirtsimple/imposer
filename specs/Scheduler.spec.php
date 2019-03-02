@@ -165,22 +165,23 @@ describe("Scheduler", function () {
 			);
 			$wp_cli_logger->ob_end();
 		});
-		it("uses a private promise queue", function() {
-			$oldQ = Promise\queue();
-			$q = new Promise\TaskQueue(false);
-			Promise\queue($q);
-			try {
-				$q->add(function() { throw new \RuntimeException("should not be called"); });
-				$this->sched->run();
-				expect(Promise\queue())->to->equal($q);
-			} finally { Promise\queue($oldQ); }
-		});
 		it("flushes the promise queue that existed when it was created, before doing anything else", function() {
 			Promise\queue()->add(function() { throw new \RuntimeException("should be called"); });
 			(new Task("x", $this->sched))->steps(function() {
 				throw new \RuntimeException("should NOT be called");
 			});
 			expect( array($this->sched, 'run') )->to->throw(\RuntimeException::class, "should be called");
+		});
+		it("considers asynchronous code to be run by the task that triggered it", function() {
+			$this->p1 = new Promise\Promise();
+			$this->p2 = new Promise\Promise();
+			$this->p1->then(function() { $this->t1 = $this->sched->task(); return $this->p2; });
+			$this->p2->then(function() { $this->t2 = $this->sched->task(); });
+			$this->sched->task('t1')->steps(function() { $this->p1->resolve('x'); });
+			$this->sched->task('t2')->steps(function() { $this->p2->resolve('y'); });
+			$this->sched->run();
+			expect($this->t1)->to->equal($this->sched->task('t1'));
+			expect($this->t2)->to->equal($this->sched->task('t2'));
 		});
 	});
 
