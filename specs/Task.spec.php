@@ -31,14 +31,18 @@ describe("Task", function () {
 		$this->sched->shouldHaveReceived('enqueue', array($this->task))->once();
 	});
 	it("delegates task() to its scheduler", function() {
-		$this->sched->shouldReceive('task')->with("something")->once()->andReturn("blue");
-		$res = $this->task->task("something");
-		expect($res)->to->equal("blue");
+		$this->sched->shouldReceive('task')->with("something", false)->twice()->andReturn("blue");
+		$this->sched->shouldReceive('task')->with("something", true)->once()->andReturn("green");
+		expect( $this->task->task("something") ) ->to->equal("blue");
+		expect( $this->task->task("something", true) )->to->equal("green");
+		expect( $this->task->task("something", false) )->to->equal("blue");
 	});
 	it("delegates resource() to its scheduler", function() {
-		$this->sched->shouldReceive('resource')->with("@dummy")->once()->andReturn(42);
-		$res = $this->task->resource("@dummy");
-		expect($res)->to->equal(42);
+		$this->sched->shouldReceive('resource')->with("@dummy", false)->twice()->andReturn(42);
+		$this->sched->shouldReceive('resource')->with("@dummy", true)->once()->andReturn(23);
+		expect( $this->task->resource("@dummy") ) ->to->equal(42);
+		expect( $this->task->resource("@dummy", true) )->to->equal(23);
+		expect( $this->task->resource("@dummy", false) )->to->equal(42);
 	});
 
 	describe("__toString()", function() {
@@ -48,7 +52,7 @@ describe("Task", function () {
 		it("includes its blocking task/resource & message if blocked", function() {
 			$res = Mockery::mock(Resource::class);
 			$res->shouldReceive('ready')->once()->andReturn(false);
-			$this->sched->shouldReceive('resource')->with("@resource")->once()->andReturn($res);
+			$this->sched->shouldReceive('resource')->with("@resource", false)->once()->andReturn($res);
 			$this->task->steps(function() { $this->task->blockOn("@resource","message"); });
 			expect($this->task->run())->to->be->false;
 			expect("$this->task")->to->equal("demo (@resource: message)");
@@ -59,16 +63,16 @@ describe("Task", function () {
 	describe("produces()", function() {
 		it("tells the resource to depend on it, and returns itself", function() {
 			$res = Mockery::mock(Resource::class);
-			$this->sched->shouldReceive('resource')->with("@foo")->once()->andReturn($res);
+			$this->sched->shouldReceive('resource')->with("@foo", false)->once()->andReturn($res);
 			$res->shouldReceive('isProducedBy')->with($this->task)->once()->andReturn($res);
 			expect($this->task->produces("@foo"))->to->equal($this->task);
 		});
 		it("accepts multiple arguments", function() {
 			$res1 = Mockery::mock(Resource::class);
-			$this->sched->shouldReceive('resource')->with("@foo")->once()->andReturn($res1);
+			$this->sched->shouldReceive('resource')->with("@foo", false)->once()->andReturn($res1);
 			$res1->shouldReceive('isProducedBy')->with($this->task)->once()->andReturn($res1);
 			$res2 = Mockery::mock(Resource::class);
-			$this->sched->shouldReceive('resource')->with("@bar")->once()->andReturn($res2);
+			$this->sched->shouldReceive('resource')->with("@bar", false)->once()->andReturn($res2);
 			$res2->shouldReceive('isProducedBy')->with($this->task)->once()->andReturn($res2);
 			expect($this->task->produces("@foo", "@bar"))->to->equal($this->task);
 		});
@@ -142,7 +146,7 @@ describe("Task", function () {
 		it("returns 0 (and reschedules) if the first step blocks", function() {
 			$this->sched->shouldHaveReceived('enqueue', array($this->task))->once();
 			$res = Mockery::mock(Resource::class);
-			$this->sched->shouldReceive('resource')->with("@foo")->andReturn($res);
+			$this->sched->shouldReceive('resource')->with("@foo", false)->andReturn($res);
 			$res->shouldReceive('ready')->andReturn(false);
 			$this->task->steps(function() { $this->task->blockOn('@foo','spam'); });
 			expect($this->task->run())->to->equal(0);
@@ -154,7 +158,7 @@ describe("Task", function () {
 		it("returns the count of steps processed before blocking", function() {
 			$this->sched->shouldHaveReceived('enqueue', array($this->task))->once();
 			$res = Mockery::mock(Resource::class);
-			$this->sched->shouldReceive('resource')->with("@foo")->andReturn($res);
+			$this->sched->shouldReceive('resource')->with("@foo", false)->andReturn($res);
 			$res->shouldReceive('ready')->andReturn(false);
 			$this->task->steps(function() { });
 			$this->task->steps(function() { });
@@ -255,7 +259,7 @@ describe("Task", function () {
 	describe("blockOn()", function() {
 		it("throws an error when there are no tasks for the resource", function() {
 			$res = Mockery::mock(Resource::class);
-			$this->sched->shouldReceive('resource')->with("@foo")->once()->andReturn($res);
+			$this->sched->shouldReceive('resource')->with("@foo", false)->once()->andReturn($res);
 			$res->shouldReceive('ready')->once()->andReturn(true);
 			$this->task->steps(function() {$this->task->blockOn("@foo", "bar"); });
 			expect(array($this->task, 'run'))->to->throw(ExitException::class);

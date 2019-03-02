@@ -33,7 +33,7 @@ describe("Resource", function () {
 	describe("run()", function() {
 		it("finishes as soon as it's ready (and run)", function() {
 			$task = new Task("test", $this->sched);
-			$this->sched->shouldReceive('task')->with($task)->andReturn($task);
+			$this->sched->shouldReceive('task')->with($task, false)->andReturn($task);
 			$this->res->isProducedBy($task);
 			expect($this->res->finished())-> to -> be -> false;
 			expect($this->res->ready())   -> to -> be -> false;
@@ -56,16 +56,16 @@ describe("Resource", function () {
 		});
 		it("is false if any dependencies are unfinished", function() {
 			$task = new Task("test", $this->sched);
-			$this->sched->shouldReceive('task')->with($task)->andReturn($task);
+			$this->sched->shouldReceive('task')->with($task, false)->andReturn($task);
 			$this->res->isProducedBy($task);
 			expect($this->res->ready())->to->be->false;
 		});
 		it("is true if all dependencies are finished", function() {
 			$task1 = new Task("task", $this->sched);
-			$this->sched->shouldReceive('task')->with($task1)->andReturn($task1);
+			$this->sched->shouldReceive('task')->with($task1, false)->andReturn($task1);
 
 			$task2 = new Task("task2", $this->sched);
-			$this->sched->shouldReceive('task')->with($task2)->andReturn($task2);
+			$this->sched->shouldReceive('task')->with($task2, false)->andReturn($task2);
 
 			$this->res->isProducedBy($task1, $task2);
 			expect($this->res->ready())->to->be->false;

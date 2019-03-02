@@ -22,6 +22,12 @@ describe("Scheduler", function () {
 		it("given a string, returns Task objects", function() {
 			expect( $this->sched->task("A task") ) -> to -> be -> instanceof(Task::class);
 		});
+		it("raises DomainException for non-existent task when require flag is set", function() {
+			$get = array($this->sched, 'task');
+			expect( $get ) -> with( "nosuch", true ) -> to-> throw(\DomainException::class, "Task 'nosuch' does not exist");
+			expect( $get( "nosuch", false ) )-> to->be->instanceof(Task::class);
+			expect( $get( "nosuch", true )  )-> to->be->instanceof(Task::class);
+		});
 		it("given a Task object, returns Task objects", function() {
 			$t = $this->sched->task('A');
 			expect( $this->sched->task($t) ) -> to -> equal($t);
@@ -48,6 +54,12 @@ describe("Scheduler", function () {
 	describe("resource()", function() {
 		it("given a string, returns Resource objects", function() {
 			expect( $this->sched->resource("A task") ) -> to -> be -> instanceof(Resource::class);
+		});
+		it("raises DomainException for non-existent task when require flag is set", function() {
+			$get = array($this->sched, 'resource');
+			expect( $get ) -> with( "nada", true ) -> to-> throw(\DomainException::class, "Resource 'nada' does not exist");
+			expect( $get( "nada", false ) )-> to->be->instanceof(Resource::class);
+			expect( $get( "nada", true )  )-> to->be->instanceof(Resource::class);
 		});
 		it("given a Resource object, returns Resource objects", function() {
 			$r = $this->sched->resource('A');

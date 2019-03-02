@@ -39,8 +39,8 @@ class Task {
 		foreach ( func_get_args() as $cb ) $this->steps[] = $cb; return $this->schedule();
 	}
 
-	function resource($resource) { return $this->scheduler->resource($resource); }
-	function task($task)         { return $this->scheduler->task($task); }
+	function resource($resource, $required=false) { return $this->scheduler->resource($resource, $required); }
+	function task($task, $required=false)         { return $this->scheduler->task($task, $required); }
 
 	// ===== Specification Management API ===== //
 

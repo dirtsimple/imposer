@@ -10,17 +10,23 @@ use WP_CLI\Entity\NonExistentKeyException;
 
 class Scheduler {
 
-	function task($what=null) {
+	function task($what=null, $required=false) {
 		if ( is_null($what) ) return $this->current;
-		return $this->getOrCast(Task::class, $what, $this->tasks);
+		return $this->getOrCast(Task::class, $what, $this->tasks, $required);
 	}
 
-	function resource($what) {
-		return $this->getOrCast(Resource::class, $what, $this->resources);
+	function resource($what, $required=false) {
+		return $this->getOrCast(Resource::class, $what, $this->resources, $required);
 	}
 
-	protected function getOrCast($cls, $key, $pool) {
-		if ( is_string($key) ) return $pool[$key];
+	protected function getOrCast($cls, $key, $pool, $required) {
+		if ( is_string($key) ) {
+			if ( $required && ! $pool->has($key) )
+				throw new \DomainException(
+					array_slice(explode("\\", $cls), -1)[0] . " '$key' does not exist"
+				);
+			return $pool[$key];
+		}
 		if ( $key instanceof $cls ) return $key;
 		throw new \UnexpectedValueException("Not a string or $cls");
 	}
