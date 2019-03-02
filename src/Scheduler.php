@@ -77,7 +77,18 @@ class Scheduler {
 					Promise\queue()->run();
 					$this->current = null;
 				}
-				if ( ! $progress ) return $this->deadlocked($todo);
+				if ( ! $progress ) {
+					# We stalled, maybe due to unresolved references
+					foreach ($todo as $res) {
+						if ( $res instanceof Resource && $res->hasSteps() ) {
+							# Try to break the deadlock by rejecting a reference
+							$res->cancelPending();
+							continue 2;
+						}
+					}
+					# No pending refs, so it's a retry deadlock
+					return $this->deadlocked($todo);
+				}
 			}
 		} finally {
 			$this->running = false;
@@ -106,4 +117,5 @@ class Scheduler {
 		foreach ($tasks as $task) $msg .= "\n\t$task";
 		WP_CLI::error($msg);
 	}
+
 }

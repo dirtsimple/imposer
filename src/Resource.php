@@ -3,7 +3,7 @@
 namespace dirtsimple\imposer;
 
 use dirtsimple\fn;
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise as GP;
 use WP_CLI;
 
 class Resource extends Task {
@@ -29,7 +29,7 @@ class Resource extends Task {
 		$this->lookups = new Pool();
 		$this->pending = new Pool(
 			function() {
-				return new Pool( function() { return new Promise\Promise(); } );
+				return new Pool( function() { return new GP\Promise(); } );
 			}
 		);
 	}
@@ -52,16 +52,16 @@ class Resource extends Task {
 		if ( ($found = $this->runLookups($key, $keyType) ) !== null) {
 			return $found;
 		}
-		$cache[$key] = $p = $this->pending[$keyType][$key];
+		$p = $this->pending[$keyType][$key];
 
 		# Ensure any external resolution will also resolve internally
 		$p->then(
 			fn::bind( array($this, 'resolve'), $keyType, $key ),
-			function($reason) use($keyType, $key, $p) { $this->resolve($keyType, $key, $p ); }
+			function($reason) use($keyType, $key, &$p) { $this->resolve($keyType, $key, $p ); }
 		);
 
 		$this->schedule();  # <-- must be *after* promise is created
-		return $p;
+		return $cache[$key] = $p = Promise::checked($p);
 	}
 
 	function addLookup($handler, $keyType='') {
@@ -92,7 +92,7 @@ class Resource extends Task {
 			if ( $pending->has($k) ) {
 				$p = $pending[$k];
 				unset($pending[$k]);
-				if ( ! Promise\is_settled($p) ) $p->resolve($v);
+				if ( ! GP\is_settled($p) ) $p->resolve($v);
 			}
 		}
 		if ( ! $pending->count() ) unset($this->pending[$keyType]);
@@ -116,11 +116,13 @@ class Resource extends Task {
 	}
 
 	function cancelPending() {
-		foreach ( $this->pending->exchangeArray(array()) as $keyType => $pending )
-			foreach ( $pending as $key => $promise )
+		foreach ( $this->pending as $keyType => $pending ) {
+			foreach ( $pending as $key => $promise ) {
 				$promise->reject("$this->name:$keyType '$key' not found");
+				return $this->resolve($keyType, $key, $promise);
+			}
+		}
 	}
-
 
 	protected function runLookups($key, $keyType='') {
 		foreach ( $this->lookups[$keyType] as $lookup ) {

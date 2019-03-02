@@ -1,6 +1,8 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
+use dirtsimple\fn;
+use function dirtsimple\fn;
 use dirtsimple\imposer\Task;
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\Scheduler;
@@ -143,6 +145,13 @@ describe("Scheduler", function () {
 			$t2->shouldReceive('run')->with()->once()->andReturn(true);
 			$sched->enqueue( $t1 );
 			expect($sched->run())->to->be->true;
+		});
+
+		it("tries to break deadlocks by rejecting a pending reference", function() {
+			$p1 = $this->sched->resource('@res')->lookup('x');
+			$p1->otherwise(fn()); # don't error out
+			$this->sched->run();
+			expect( Promise\inspect($p1)['reason'] )->to->equal("@res: 'x' not found");
 		});
 
 		it("aborts w/task list on stderr if no task makes progress", function() {

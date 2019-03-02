@@ -2,6 +2,7 @@
 namespace dirtsimple\imposer\tests;
 
 use dirtsimple\fn;
+use function dirtsimple\fn;
 use dirtsimple\imposer\Task;   # XXX should be mockable
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\Scheduler;
@@ -153,6 +154,7 @@ describe("Resource", function () {
 			it("rejected promises", function() {
 				$p = $this->res->lookup("x");
 				$p->reject("foo");
+				$p->otherwise(fn()); # don't throw
 				GP\queue()->run();
 				expect( $this->res->lookup("x") )->to->equal($p);
 				expect( $this->res->hasSteps() )->to->be->false;
@@ -214,15 +216,17 @@ describe("Resource", function () {
 		});
 	});
 	describe("cancelPending()", function() {
-		it("rejects all pending promises that can't be resolved", function(){
+		it("rejects a pending promise that can't be resolved", function(){
 			$p1 = $this->res->lookup('x', 'a');
 			$p2 = $this->res->lookup('y', 'b');
 			expect( GP\is_rejected($p1) )->to->be->false;
 			expect( GP\is_rejected($p2) )->to->be->false;
 			$this->res->cancelPending();
 			expect( GP\is_rejected($p1) )->to->be->true;
-			expect( GP\is_rejected($p2) )->to->be->true;
+			expect( GP\is_rejected($p2) )->to->be->false;
 			expect( GP\inspect($p1)['reason'] )->to->equal("@demo:a 'x' not found");
+			$this->res->cancelPending();
+			expect( GP\is_rejected($p2) )->to->be->true;
 			expect( GP\inspect($p2)['reason'] )->to->equal("@demo:b 'y' not found");
 		});
 		it("resets hasSteps() to false", function(){
@@ -230,7 +234,10 @@ describe("Resource", function () {
 			$p2 = $this->res->lookup('y', 'b');
 			expect($this->res->hasSteps())->to->be->true;
 			$this->res->cancelPending();
+			$this->res->cancelPending();
 			expect($this->res->hasSteps())->to->be->false;
+			expect( GP\inspect($p1)['reason'] )->to->equal("@demo:a 'x' not found");
+			expect( GP\inspect($p2)['reason'] )->to->equal("@demo:b 'y' not found");
 		});
 	});
 
