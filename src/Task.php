@@ -2,7 +2,7 @@
 namespace dirtsimple\imposer;
 
 use WP_CLI;
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise as GP;
 use dirtsimple\fn;
 
 class __TaskBlockingException extends \Exception {}  # private!
@@ -116,9 +116,9 @@ class Task {
 	}
 
 	protected function spawn($res) {
-		if ($res instanceof \Generator) $res = Promise\Coroutine(fn::val($res));
+		if ($res instanceof \Generator) $res = GP\Coroutine(fn::val($res));
 		if (\is_object($res) && \method_exists($res, 'then')) {
-			CheckedPromise::wrap($res);
+			Promise::checked($res);
 		}
 	}
 

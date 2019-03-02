@@ -6,14 +6,14 @@
 
 namespace dirtsimple\imposer;
 
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise as GP;
 
-class CheckedPromise implements Promise\PromiseInterface {
+class Promise implements GP\PromiseInterface {
 
 	protected $promise, $handler, $checked=false;
 
 	function __construct($promiseOrValue, callable $handler=null) {
-		$this->promise = Promise\promise_for($promiseOrValue);
+		$this->promise = GP\promise_for($promiseOrValue);
 		$this->handler = $handler;
 		if ($handler) $this->promise->otherwise(
 			function($reason) use($handler) {
@@ -23,13 +23,13 @@ class CheckedPromise implements Promise\PromiseInterface {
 	}
 
 	/* Factory that avoids duplicating wrappers with the same handler */
-	static function wrap($data, $handler='dirtsimple\imposer\CheckedPromise::deferredThrow') {
+	static function checked($data, $handler='dirtsimple\imposer\Promise::deferredThrow') {
 		return ( $data instanceof static && $data->handler === $handler) ? $data : new static($data, $handler);
 	}
 
 	static function deferredThrow($reason) {
-		Promise\queue()->add(function() use ($reason) {
-			throw Promise\exception_for($reason);
+		GP\queue()->add(function() use ($reason) {
+			throw GP\exception_for($reason);
 		});
 	}
 
