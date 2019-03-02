@@ -19,8 +19,16 @@ describe("Scheduler", function () {
 	afterEach( function() { Monkey\tearDown(); });
 
 	describe("task()", function() {
-		it("returns Task objects", function() {
+		it("given a string, returns Task objects", function() {
 			expect( $this->sched->task("A task") ) -> to -> be -> instanceof(Task::class);
+		});
+		it("given a Task object, returns Task objects", function() {
+			$t = $this->sched->task('A');
+			expect( $this->sched->task($t) ) -> to -> equal($t);
+		});
+		it("raises UnexpectedValueException for non-string/non-Tasks", function() {
+			$get = array($this->sched, 'task');
+			expect( $get ) -> with( array() ) -> to-> throw(\UnexpectedValueException::class, 'Not a string or ' . Task::class);
 		});
 		context("with no argument", function() {
 			it("returns the running task, only if there is one", function() {
@@ -38,8 +46,16 @@ describe("Scheduler", function () {
 		});
 	});
 	describe("resource()", function() {
-		it("returns Resource objects", function() {
+		it("given a string, returns Resource objects", function() {
 			expect( $this->sched->resource("A task") ) -> to -> be -> instanceof(Resource::class);
+		});
+		it("given a Resource object, returns Resource objects", function() {
+			$r = $this->sched->resource('A');
+			expect( $this->sched->resource($r) ) -> to -> equal($r);
+		});
+		it("raises UnexpectedValueException for non-string/non-Resources", function() {
+			$get = array($this->sched, 'resource');
+			expect( $get ) -> with( array() ) -> to-> throw(\UnexpectedValueException::class, 'Not a string or ' . Resource::class);
 		});
 		it("uses a separate namespace from task()", function() {
 			$resource = $this->sched->resource("thing 1");
