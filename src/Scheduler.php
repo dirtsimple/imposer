@@ -31,6 +31,11 @@ class Scheduler {
 		throw new \UnexpectedValueException("Not a string or $cls");
 	}
 
+	function ref($resource, ...$args) {
+		return $this->resource($resource, true)->lookup(...$args);
+	}
+
+
 	function spec_has($key) {
 		try { $this->data->get($key); return true; }
 		catch (NonExistentKeyException $e) { return false; }

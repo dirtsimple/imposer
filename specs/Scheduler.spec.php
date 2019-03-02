@@ -51,6 +51,18 @@ describe("Scheduler", function () {
 			});
 		});
 	});
+	describe('ref($resource, ...)', function() {
+		it('delegates to resource($resource)->lookup(...)', function() {
+			$p1 = $this->sched->resource('foo')->lookup('bar', 'baz');
+			$p2 = $this->sched->ref('foo', 'bar', 'baz');
+			expect($p1)->to->equal($p2);
+		});
+		it('fails if the named resource doesn\'t exist', function() {
+			expect( array($this->sched, 'ref') )->with( 'foo', 'bar') ->to->throw(
+				\DomainException::class, "Resource 'foo' does not exist"
+			);
+		});
+	});
 	describe("resource()", function() {
 		it("given a string, returns Resource objects", function() {
 			expect( $this->sched->resource("A task") ) -> to -> be -> instanceof(Resource::class);
