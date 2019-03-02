@@ -111,10 +111,12 @@ class Task {
 			$args = $this->reads ? array_map( array($this->scheduler, 'spec'), $this->reads ) : array();
 			$this->spawn( $this->steps[0](...$args) );
 			array_shift($this->steps);
-			return true;
+			$progress = true;
 		} catch (__TaskBlockingException $e) {
-			return false;
+			$progress = false;
 		}
+		GP\queue()->run();
+		return $progress;
 	}
 
 	protected function spawn($res) {

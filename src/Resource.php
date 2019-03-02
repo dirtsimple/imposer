@@ -41,7 +41,9 @@ class Resource extends Task {
 	}
 
 	protected function run_next_step() {
-		return $this->updatePending();
+		$progress = $this->updatePending();
+		GP\queue()->run();
+		return $progress;
 	}
 
 	# Lookup management
@@ -119,7 +121,9 @@ class Resource extends Task {
 		foreach ( $this->pending as $keyType => $pending ) {
 			foreach ( $pending as $key => $promise ) {
 				$promise->reject("$this->name:$keyType '$key' not found");
-				return $this->resolve($keyType, $key, $promise);
+				$this->resolve($keyType, $key, $promise);
+				GP\queue()->run();
+				return;
 			}
 		}
 	}

@@ -74,7 +74,6 @@ class Scheduler {
 				foreach ($todo as $task) {
 					$this->current = $task;
 					$progress += $task->run();
-					Promise\queue()->run();
 					$this->current = null;
 				}
 				if ( ! $progress ) {

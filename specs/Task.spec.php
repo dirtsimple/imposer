@@ -238,20 +238,33 @@ describe("Task", function () {
 	});
 
 	describe("steps() returning generators", function() {
-		it("spawn a coroutine wrapping the generator", function() {
+		it("immediately spawn a coroutine wrapping the generator", function() {
 			$this->done = false;
-			$this->task->steps( function() { yield 23; $this->done = true; } );
+			$this->p = new Promise\Promise;
+			$this->task->steps( function() {
+				yield null;     $this->done = 1;
+				yield $this->p; $this->done = 2;
+			});
 			$this->task->run();
-			expect($this->done)->to->be->false;
-			Promise\queue()->run();
-			expect($this->done)->to->be->true;
+			expect($this->done)->to->equal(1);
+			$this->p->resolve(23); Promise\queue()->run();
+			expect($this->done)->to->equal(2);
 		});
-		it("asynchronously throw an exception for unhandled errors", function() {
+		it("immediately throw an exception for unhandled errors", function() {
 			$this->task->steps(function () {
-				yield 23;
+				yield 42;
+				throw new \UnexpectedValueException(42);
+			});
+			expect( array($this->task, 'run') )->to->throw(\UnexpectedValueException::class);
+		});
+		it("asynchronously throw an exception for unhandled async errors", function() {
+			$this->p = new Promise\Promise;
+			$this->task->steps(function () {
+				yield $this->p;
 				throw new \UnexpectedValueException(42);
 			});
 			$this->task->run();
+			$this->p->resolve(23);
 			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 	});

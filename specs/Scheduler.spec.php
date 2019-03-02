@@ -111,10 +111,9 @@ describe("Scheduler", function () {
 		});
 		it("calls WP_CLI::halt(75) if request_restart() called", function() {
 			$sched = $this->sched;
-			$sched->enqueue($task = Mockery::mock(Task::class));
-			$task->shouldReceive('run')->once()->andReturnUsing(
+			$sched->task('test')->steps(
 				function() use ($sched) {
-					$sched->request_restart(); return true;
+					$this->sched->request_restart();
 				}
 			);
 			try { $this->sched->run(); }

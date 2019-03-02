@@ -36,6 +36,13 @@ describe("Resource", function () {
 		it("returns true if no pending promises", function(){
 			expect($this->res->run())-> to -> be -> true;
 		});
+		it("flushes the promise queue", function(){
+			$p1 = $this->res->lookup('x', 'a');
+			$this->wasRun = false;
+			GP\queue()->add( function() { $this->wasRun = true; } );
+			$this->res->run();
+			expect($this->wasRun)-> to -> be -> true;
+		});
 		it("returns 1 if any promises were resolved", function(){
 			$p1 = $this->res->lookup('x', 'a');
 			$p2 = $this->res->lookup('y', 'b');
@@ -217,27 +224,27 @@ describe("Resource", function () {
 	});
 	describe("cancelPending()", function() {
 		it("rejects a pending promise that can't be resolved", function(){
-			$p1 = $this->res->lookup('x', 'a');
-			$p2 = $this->res->lookup('y', 'b');
+			$p1 = $this->res->lookup('x', 'a'); $p1->otherwise(fn());
+			$p2 = $this->res->lookup('y', 'b'); $p2->otherwise(fn());
 			expect( GP\is_rejected($p1) )->to->be->false;
 			expect( GP\is_rejected($p2) )->to->be->false;
+
 			$this->res->cancelPending();
 			expect( GP\is_rejected($p1) )->to->be->true;
 			expect( GP\is_rejected($p2) )->to->be->false;
 			expect( GP\inspect($p1)['reason'] )->to->equal("@demo:a 'x' not found");
+
 			$this->res->cancelPending();
 			expect( GP\is_rejected($p2) )->to->be->true;
 			expect( GP\inspect($p2)['reason'] )->to->equal("@demo:b 'y' not found");
 		});
 		it("resets hasSteps() to false", function(){
-			$p1 = $this->res->lookup('x', 'a');
-			$p2 = $this->res->lookup('y', 'b');
+			$p1 = $this->res->lookup('x', 'a'); $p1->otherwise(fn());
+			$p2 = $this->res->lookup('y', 'b'); $p2->otherwise(fn());
 			expect($this->res->hasSteps())->to->be->true;
 			$this->res->cancelPending();
 			$this->res->cancelPending();
 			expect($this->res->hasSteps())->to->be->false;
-			expect( GP\inspect($p1)['reason'] )->to->equal("@demo:a 'x' not found");
-			expect( GP\inspect($p2)['reason'] )->to->equal("@demo:b 'y' not found");
 		});
 	});
 
