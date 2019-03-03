@@ -2,7 +2,9 @@
 
 namespace dirtsimple\imposer;
 
-class ResourceDef {
+use dirtsimple\fn;
+
+class ResourceDef extends Bag {
 
 	# Configure resource lookups
 	static function configure($resource) {
