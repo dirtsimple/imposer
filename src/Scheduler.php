@@ -31,6 +31,10 @@ class Scheduler {
 		throw new \UnexpectedValueException("Not a string or $cls");
 	}
 
+	function define($resource, ...$args) {
+		return $this->resource($resource, true)->define(...$args);
+	}
+
 	function ref($resource, ...$args) {
 		return $this->resource($resource, true)->lookup(...$args);
 	}

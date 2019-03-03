@@ -5,6 +5,7 @@ use dirtsimple\fn;
 use function dirtsimple\fn;
 use dirtsimple\imposer\Task;   # XXX should be mockable
 use dirtsimple\imposer\Resource;
+use dirtsimple\imposer\ResourceDef;
 use dirtsimple\imposer\Scheduler;
 
 use \Mockery;
@@ -30,6 +31,48 @@ describe("Resource", function () {
 			"Error: @demo: Resources don't read specification data\n"
 		);
 		$wp_cli_logger->ob_end();
+	});
+
+	class ValidDef extends ResourceDef { }
+
+	describe("define()", function() {
+		it("throws an error if no definer registered", function(){
+			expect(function() { $this->res->define("x"); })->to->throw(
+				\LogicException::class,
+				"No class has been registered to define instances of resource type @demo"
+			);
+		});
+		it("returns a new instance of the defined type", function() {
+			$this->res->define_using(ValidDef::class);
+			$s1 = $this->res->define("x");
+			$s2 = $this->res->define("x");
+			expect($s1)->to->be->instanceof(ValidDef::class);
+			expect($s2)->to->be->instanceof(ValidDef::class);
+			expect($s1)->to->not->equal($s2);
+		});
+	});
+
+	describe("define_using()", function() {
+		it("accepts only false values or ResourceDef subclasses", function(){
+			$this->res->define_using(ValidDef::class);
+			$this->res->define_using(false);
+			expect(function() { $this->res->define_using(Task::class); })->to->throw(
+				\DomainException::class,
+				"dirtsimple\imposer\Task is not a ResourceDef subclass"
+			);
+			expect(function() { $this->res->define_using(ResourceDef::class); })->to->throw(
+				\DomainException::class,
+				"dirtsimple\imposer\ResourceDef is not a ResourceDef subclass"
+			);
+		});
+		it("calls the given class's ::configure() method with the resource", function(){
+			class ConfigDef extends ResourceDef {
+				public static $r=42;
+				static function configure($resource) { static::$r = $resource; }
+			}
+			$this->res->define_using(ConfigDef::class);
+			expect(ConfigDef::$r)->to->equal($this->res);
+		});
 	});
 
 	describe("run()", function() {

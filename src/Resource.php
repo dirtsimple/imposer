@@ -8,6 +8,22 @@ use WP_CLI;
 
 class Resource extends Task {
 
+	function define_using($type) {
+		if ( $this->type = $type ) {
+			if ( ! is_subclass_of($type, ResourceDef::class) ) throw new \DomainException(
+				"$type is not a ResourceDef subclass"
+			);
+			call_user_func("$type::configure", $this);
+		}
+	}
+
+	function define($key, $keyType='') {
+		if ( ! $type = $this->type ) throw new \LogicException(
+			"No class has been registered to define instances of resource type $this->name"
+		);
+		return new $type($this, $keyType, $key);
+	}
+
 	function steps() {
 		$this->error("Resources can't have steps");
 	}
@@ -21,7 +37,7 @@ class Resource extends Task {
 		return $this;
 	}
 
-	protected $cache, $lookups, $pending;
+	protected $cache, $lookups, $pending, $type=null;
 
 	function __construct($name, $scheduler) {
 		parent::__construct($name, $scheduler);

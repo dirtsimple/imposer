@@ -53,6 +53,19 @@ describe("Scheduler", function () {
 			});
 		});
 	});
+	describe('define($resource, ...)', function() {
+		it('delegates to resource($resource)->define(...)', function() {
+			$sched = $this->sched;
+			$res = Mockery::mock(Resource::class);
+			$res->shouldReceive('define')->with('foo', 'bar')->once()->andReturn(42);
+			expect($this->sched->define($res, 'foo', 'bar'))->to->equal(42);
+		});
+		it('fails if the named resource doesn\'t exist', function() {
+			expect( array($this->sched, 'define') )->with( 'foo', 'bar') ->to->throw(
+				\DomainException::class, "Resource 'foo' does not exist"
+			);
+		});
+	});
 	describe('ref($resource, ...)', function() {
 		it('delegates to resource($resource)->lookup(...)', function() {
 			$p1 = $this->sched->resource('foo')->lookup('bar', 'baz');
