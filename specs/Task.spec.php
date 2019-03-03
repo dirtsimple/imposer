@@ -2,6 +2,7 @@
 namespace dirtsimple\imposer\tests;
 
 use dirtsimple\fn;
+use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Task;
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\Scheduler;
@@ -9,7 +10,7 @@ use dirtsimple\imposer\Scheduler;
 use \Mockery;
 use Brain\Monkey;
 use \WP_CLI\ExitException;
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise as GP;
 
 class Thenable { function then() { } }
 
@@ -210,44 +211,44 @@ describe("Task", function () {
 	});
 	describe("steps() returning promises", function() {
 		it("asynchronously throw an exception for synchronous rejections", function() {
-			$p = Promise\rejection_for(new \UnexpectedValueException(42));
+			$p = GP\rejection_for(new \UnexpectedValueException(42));
 			$this->task->steps(fn::val($p));
-			Promise\queue()->add( array($this->task, 'run') );
-			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			GP\queue()->add( array($this->task, 'run') );
+			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 		it("asynchronously throw an exception for asynchronous rejections", function() {
-			$p = new Promise\Promise;
+			$p = new GP\Promise;
 			$this->task->steps( fn::val($p) );
 			$this->task->run();
-			Promise\queue()->run();
+			GP\queue()->run();
 			$p->reject(new \UnexpectedValueException(42));
-			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 		it("support async throwing for arbitrary 'thenables'", function() {
-			$p = new Promise\Promise;
+			$p = new GP\Promise;
 			$m = Mockery::mock(Thenable::class);
 			$m->shouldReceive('then')->once()->andReturnUsing(
 				function(...$args) use ($p) { return $p->then(...$args); }
 			);
 			$this->task->steps( fn::val($m) );
 			$this->task->run();
-			Promise\queue()->run();
+			GP\queue()->run();
 			$p->reject(new \UnexpectedValueException(42));
-			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 	});
 
 	describe("steps() returning generators", function() {
 		it("immediately spawn a coroutine wrapping the generator", function() {
 			$this->done = false;
-			$this->p = new Promise\Promise;
+			$this->p = new GP\Promise;
 			$this->task->steps( function() {
 				yield null;     $this->done = 1;
 				yield $this->p; $this->done = 2;
 			});
 			$this->task->run();
 			expect($this->done)->to->equal(1);
-			$this->p->resolve(23); Promise\queue()->run();
+			$this->p->resolve(23); GP\queue()->run();
 			expect($this->done)->to->equal(2);
 		});
 		it("immediately throw an exception for unhandled errors", function() {
@@ -258,14 +259,14 @@ describe("Task", function () {
 			expect( array($this->task, 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 		it("asynchronously throw an exception for unhandled async errors", function() {
-			$this->p = new Promise\Promise;
+			$this->p = new GP\Promise;
 			$this->task->steps(function () {
 				yield $this->p;
 				throw new \UnexpectedValueException(42);
 			});
 			$this->task->run();
 			$this->p->resolve(23);
-			expect( array(Promise\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
 	});
 

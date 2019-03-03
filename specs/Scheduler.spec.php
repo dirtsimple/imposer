@@ -12,7 +12,7 @@ use Brain\Monkey;
 use \WP_CLI\ExitException;
 use \Exception;
 use \RuntimeException;
-use GuzzleHttp\Promise;
+use GuzzleHttp\Promise as GP;
 
 describe("Scheduler", function () {
 	beforeEach( function() {
@@ -163,7 +163,7 @@ describe("Scheduler", function () {
 			$p1 = $this->sched->resource('@res')->lookup('x');
 			$p1->otherwise(fn()); # don't error out
 			$this->sched->run();
-			expect( Promise\inspect($p1)['reason'] )->to->equal("@res: 'x' not found");
+			expect( GP\inspect($p1)['reason'] )->to->equal("@res: 'x' not found");
 		});
 
 		it("aborts w/task list on stderr if no task makes progress", function() {
@@ -187,15 +187,15 @@ describe("Scheduler", function () {
 			$wp_cli_logger->ob_end();
 		});
 		it("flushes the promise queue that existed when it was created, before doing anything else", function() {
-			Promise\queue()->add(function() { throw new \RuntimeException("should be called"); });
+			GP\queue()->add(function() { throw new \RuntimeException("should be called"); });
 			(new Task("x", $this->sched))->steps(function() {
 				throw new \RuntimeException("should NOT be called");
 			});
 			expect( array($this->sched, 'run') )->to->throw(\RuntimeException::class, "should be called");
 		});
 		it("considers asynchronous code to be run by the task that triggered it", function() {
-			$this->p1 = new Promise\Promise();
-			$this->p2 = new Promise\Promise();
+			$this->p1 = new GP\Promise();
+			$this->p2 = new GP\Promise();
 			$this->p1->then(function() { $this->t1 = $this->sched->task(); return $this->p2; });
 			$this->p2->then(function() { $this->t2 = $this->sched->task(); });
 			$this->sched->task('t1')->steps(function() { $this->p1->resolve('x'); });
