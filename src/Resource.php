@@ -1,10 +1,8 @@
 <?php
-
 namespace dirtsimple\imposer;
 
 use dirtsimple\fn;
 use GuzzleHttp\Promise as GP;
-use WP_CLI;
 
 class Resource extends Task {
 
@@ -79,7 +77,7 @@ class Resource extends Task {
 		);
 
 		$this->schedule();  # <-- must be *after* promise is created
-		return $cache[$key] = $p = Promise::checked($p);
+		return $cache[$key] = $p = new WatchedPromise($p);
 	}
 
 	function addLookup($handler, $keyType='') {

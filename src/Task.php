@@ -122,7 +122,7 @@ class Task {
 	protected function spawn($res) {
 		if ($res instanceof \Generator) $res = GP\Coroutine(fn::val($res));
 		if (\is_object($res) && \method_exists($res, 'then')) {
-			Promise::checked($res);
+			WatchedPromise::wrap($res);
 		}
 	}
 

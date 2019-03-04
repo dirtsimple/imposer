@@ -7,9 +7,9 @@ use GuzzleHttp\Promise as GP;
 
 class Promise {
 
-	# Return a checked promise for $data, defaulting to throw handler
-	static function checked($data, $handler=null) {
-		return CheckedPromise::wrap($data, $handler);
+	# Return a watched promise for $data, defaulting to throw handler
+	static function value($val, $handler=null) {
+		return WatchedPromise::wrap($val, $handler);
 	}
 
 	static function deferred_throw($reason) {

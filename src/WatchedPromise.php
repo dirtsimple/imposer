@@ -4,7 +4,7 @@ namespace dirtsimple\imposer;
 
 use GuzzleHttp\Promise as GP;
 
-class CheckedPromise implements GP\PromiseInterface {
+class WatchedPromise implements GP\PromiseInterface {
 
 	/*  A Promise wrapper that invokes a hnadler for rejections of leaf promises
 	 *  (i.e., those with no handlers and which have not been unwrapped)
@@ -23,7 +23,7 @@ class CheckedPromise implements GP\PromiseInterface {
 	}
 
 	/* Factory that avoids duplicating wrappers with the same handler */
-	static function wrap($data, $handler) {
+	static function wrap($data, $handler=null) {
 		$handler = $handler ?: 'dirtsimple\imposer\Promise::deferred_throw';
 		return ( $data instanceof static  && $data->handler === $handler ) ? $data : new static($data, $handler);
 	}
