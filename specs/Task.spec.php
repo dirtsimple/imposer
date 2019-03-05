@@ -224,18 +224,6 @@ describe("Task", function () {
 			$p->reject(new \UnexpectedValueException(42));
 			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
 		});
-		it("support async throwing for arbitrary 'thenables'", function() {
-			$p = new GP\Promise;
-			$m = Mockery::mock(Thenable::class);
-			$m->shouldReceive('then')->once()->andReturnUsing(
-				function(...$args) use ($p) { return $p->then(...$args); }
-			);
-			$this->task->steps( fn::val($m) );
-			$this->task->run();
-			GP\queue()->run();
-			$p->reject(new \UnexpectedValueException(42));
-			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
-		});
 	});
 
 	describe("steps() returning generators", function() {

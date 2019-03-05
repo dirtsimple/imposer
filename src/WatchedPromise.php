@@ -12,8 +12,8 @@ class WatchedPromise implements GP\PromiseInterface {
 
 	protected $promise, $handler, $checked=false;
 
-	function __construct($promiseOrValue, callable $handler=null) {
-		$this->promise = GP\promise_for($promiseOrValue);
+	function __construct($promiseOrValue=null, callable $handler=null) {
+		$this->promise = func_num_args() ? GP\promise_for($promiseOrValue) : new GP\Promise();
 		$handler = $handler ?: 'dirtsimple\imposer\Promise::deferred_throw';
 		if ($this->handler = $handler) $this->promise->otherwise(
 			function($reason) use($handler) {

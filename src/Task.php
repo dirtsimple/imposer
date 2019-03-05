@@ -109,7 +109,7 @@ class Task {
 	protected function run_next_step() {
 		try {
 			$args = $this->reads ? array_map( array($this->scheduler, 'spec'), $this->reads ) : array();
-			$this->spawn( $this->steps[0](...$args) );
+			Promise::interpret( $this->steps[0](...$args) );
 			array_shift($this->steps);
 			$progress = true;
 		} catch (__TaskBlockingException $e) {
@@ -117,13 +117,6 @@ class Task {
 		}
 		GP\queue()->run();
 		return $progress;
-	}
-
-	protected function spawn($res) {
-		if ($res instanceof \Generator) $res = GP\Coroutine(fn::val($res));
-		if (\is_object($res) && \method_exists($res, 'then')) {
-			WatchedPromise::wrap($res);
-		}
 	}
 
 }
