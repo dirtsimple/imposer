@@ -76,7 +76,7 @@ describe("Promise", function() {
 			expect( $g )->to->be->instanceof(WatchedPromise::class);
 			expect( Promise::now($g) )->to->be->null;
 			expect($this->flag)->to->be->false;
-			$p->resolve(42); GP\queue()->run();
+			$p->resolve(42); Promise::sync();
 			expect( Promise::now($g) )->to->equal(42);
 			expect($this->flag)->to->be->true;
 		});
@@ -103,7 +103,7 @@ describe("Promise", function() {
 			$p = new GP\Promise;
 			$i = Promise::interpret( array('x'=>array('y'=>array('z'=>$p))) );
 			expect($i)->to->be->instanceof(WatchedPromise::class);
-			$p->resolve(55); GP\queue()->run();
+			$p->resolve(55); Promise::sync();
 			expect( Promise::now($i) )->to->equal( array('x'=>array('y'=>array('z'=>55))) );
 		});
 		it("a watched, rejected promise for an array w/any rejected promises (recursively)", function(){
@@ -143,14 +143,35 @@ describe("Promise", function() {
 	});
 
 	describe("Primitives", function() {
+		describe("::later(func, ...args)", function() {
+			it("calls func(...args) during Promise::sync()", function(){
+				$this->log = array();
+				$f = function() { $this->log[] = func_get_args(); };
+				Promise::later($f); Promise::later($f, 1, 2, 3);
+				expect( $this->log )->to->equal( array() );
+				Promise::sync();
+				expect( $this->log )->to->equal( array( array(), array(1,2,3) ) );
+			});
+		});
+		describe("::sync(func, ...args)", function() {
+			it("updates chained promises", function() {
+				$p1 = new WatchedPromise();
+				$p2 = $p1->then( fn::expr('$_*2') );
+				$p1->resolve(21);
+				expect(Promise::now($p1))->to->equal(21);
+				expect(Promise::now($p2))->to->be->null;
+				Promise::sync();
+				expect(Promise::now($p2))->to->equal(42);
+			});
+		});
 		describe("::deferred_throw(reason) asynchronously throws", function() {
 			it("a throwable or exception", function(){
 				Promise::deferred_throw($e = new \DomainException("blah"));
-				expect( array(GP\queue(), 'run') )->to->throw(\DomainException::class, "blah");
+				expect( array(Promise::class, 'sync') )->to->throw(\DomainException::class, "blah");
 			});
 			it("a rejection error for a non-throwable, non-exception", function(){
 				Promise::deferred_throw("blah");
-				expect( array(GP\queue(), 'run') )->to->throw(GP\RejectionException::class, "The promise was rejected with reason: blah");
+				expect( array(Promise::class, 'sync') )->to->throw(GP\RejectionException::class, "The promise was rejected with reason: blah");
 			});
 		});
 		describe("::spawn(generator)", function() {
@@ -177,7 +198,7 @@ describe("Promise", function() {
 				$p = Promise::spawn($gen);
 				$p->otherwise( fn::val(null) );  # don't throw this later
 				expect($p)->to->be->instanceof(WatchedPromise::class);
-				GP\queue()->run();
+				Promise::sync();
 				expect(GP\inspect($p))->to->equal(array('state'=>'rejected', 'reason'=>$e));
 			});
 			it("returns a promise that resolves to the last yield result", function() {
@@ -188,7 +209,7 @@ describe("Promise", function() {
 				expect( $g )->to->be->instanceof(WatchedPromise::class);
 				expect( Promise::now($g) )->to->be->null;
 				expect($this->flag)->to->be->false;
-				$p->resolve(42); GP\queue()->run();
+				$p->resolve(42); Promise::sync();
 				expect( Promise::now($g) )->to->equal(42);
 				expect($this->flag)->to->be->true;
 			});
@@ -198,7 +219,7 @@ describe("Promise", function() {
 				$g = Promise::spawn($gen);
 				expect($g)->to->be->instanceof(WatchedPromise::class);
 				$p->reject($e=new \Exception('bah'));
-				GP\queue()->run();
+				Promise::sync();
 				expect($g->wait())->to->be->null;
 			});
 		});
@@ -248,12 +269,12 @@ describe("WatchedPromise", function() {
 		});
 		it("asynchronously call the rejection handler when rejected", function(){
 			$this->promise->reject("error");
-			GP\queue()->run();
+			Promise::sync();
 			expect( $this->log )->to->equal( array("error") );
 		});
 		describe("don't call the rejection handler", function() {
 			afterEach( function(){
-				GP\queue()->run(); expect( $this->log )->to->equal( array() );
+				Promise::sync(); expect( $this->log )->to->equal( array() );
 			});
 			it("if they've been chained", function() {
 				$p2 = $this->watched->otherwise(fn::compose());

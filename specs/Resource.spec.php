@@ -3,9 +3,10 @@ namespace dirtsimple\imposer\tests;
 
 use dirtsimple\fn;
 use function dirtsimple\fn;
+use dirtsimple\imposer\Model;
+use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Task;   # XXX should be mockable
 use dirtsimple\imposer\Resource;
-use dirtsimple\imposer\Model;
 use dirtsimple\imposer\Scheduler;
 
 use \Mockery;
@@ -83,7 +84,7 @@ describe("Resource", function () {
 		it("flushes the promise queue", function(){
 			$p1 = $this->res->lookup('x', 'a');
 			$this->wasRun = false;
-			GP\queue()->add( function() { $this->wasRun = true; } );
+			Promise::later( function() { $this->wasRun = true; } );
 			$this->res->run();
 			expect($this->wasRun)-> to -> be -> true;
 		});
@@ -198,7 +199,7 @@ describe("Resource", function () {
 			it("fulfilled promises", function() {
 				$p = $this->res->lookup("x");
 				$p->resolve("foo");
-				GP\queue()->run();
+				Promise::sync();
 				expect( $this->res->lookup("x") )->to->equal("foo");
 				expect( $this->res->hasSteps() )->to->be->false;
 			});
@@ -206,7 +207,7 @@ describe("Resource", function () {
 				$p = $this->res->lookup("x");
 				$p->reject("foo");
 				$p->otherwise(fn()); # don't throw
-				GP\queue()->run();
+				Promise::sync();
 				expect( $this->res->lookup("x") )->to->equal($p);
 				expect( $this->res->hasSteps() )->to->be->false;
 			});

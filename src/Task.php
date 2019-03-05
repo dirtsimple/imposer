@@ -2,7 +2,6 @@
 namespace dirtsimple\imposer;
 
 use WP_CLI;
-use GuzzleHttp\Promise as GP;
 use dirtsimple\fn;
 
 class __TaskBlockingException extends \Exception {}  # private!
@@ -115,7 +114,7 @@ class Task {
 		} catch (__TaskBlockingException $e) {
 			$progress = false;
 		}
-		GP\queue()->run();
+		Promise::sync();
 		return $progress;
 	}
 

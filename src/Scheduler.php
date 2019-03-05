@@ -3,7 +3,6 @@
 namespace dirtsimple\imposer;
 
 use dirtsimple\fn;
-use GuzzleHttp\Promise as GP;
 use WP_CLI;
 use WP_CLI\Entity\RecursiveDataStructureTraverser;
 use WP_CLI\Entity\NonExistentKeyException;
@@ -51,7 +50,7 @@ class Scheduler {
 	}
 
 	function request_restart() {
-		GP\queue()->add(function() {
+		Promise::later(function() {
 			WP_CLI::debug("Restarting to apply changes", "imposer");
 			WP_CLI::halt(75);
 		});
@@ -71,7 +70,7 @@ class Scheduler {
 		if ( $this->running ) return false;
 		$this->running = true;
 		try {
-			GP\queue()->run();
+			Promise::sync();
 			$this->data->set_value($spec);
 			while ( $todo = $this->todo->exchangeArray(array()) ) {
 				$progress = 0;

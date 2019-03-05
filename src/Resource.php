@@ -56,7 +56,7 @@ class Resource extends Task {
 
 	protected function run_next_step() {
 		$progress = $this->updatePending();
-		GP\queue()->run();
+		Promise::sync();
 		return $progress;
 	}
 
@@ -136,7 +136,7 @@ class Resource extends Task {
 			foreach ( $pending as $key => $promise ) {
 				$promise->reject("$this->name:$keyType '$key' not found");
 				$this->resolve($keyType, $key, $promise);
-				GP\queue()->run();
+				Promise::sync();
 				return;
 			}
 		}

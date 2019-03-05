@@ -213,16 +213,16 @@ describe("Task", function () {
 		it("asynchronously throw an exception for synchronous rejections", function() {
 			$p = GP\rejection_for(new \UnexpectedValueException(42));
 			$this->task->steps(fn::val($p));
-			GP\queue()->add( array($this->task, 'run') );
-			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			Promise::later( array($this->task, 'run') );
+			expect( array(Promise::class, 'sync') )->to->throw(\UnexpectedValueException::class);
 		});
 		it("asynchronously throw an exception for asynchronous rejections", function() {
 			$p = new GP\Promise;
 			$this->task->steps( fn::val($p) );
 			$this->task->run();
-			GP\queue()->run();
+			Promise::sync();
 			$p->reject(new \UnexpectedValueException(42));
-			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			expect( array(Promise::class, 'sync') )->to->throw(\UnexpectedValueException::class);
 		});
 	});
 
@@ -236,7 +236,7 @@ describe("Task", function () {
 			});
 			$this->task->run();
 			expect($this->done)->to->equal(1);
-			$this->p->resolve(23); GP\queue()->run();
+			$this->p->resolve(23); Promise::sync();
 			expect($this->done)->to->equal(2);
 		});
 		it("immediately throw an exception for unhandled errors", function() {
@@ -254,7 +254,7 @@ describe("Task", function () {
 			});
 			$this->task->run();
 			$this->p->resolve(23);
-			expect( array(GP\queue(), 'run') )->to->throw(\UnexpectedValueException::class);
+			expect( array(Promise::class, 'sync') )->to->throw(\UnexpectedValueException::class);
 		});
 	});
 

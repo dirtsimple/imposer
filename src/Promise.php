@@ -6,7 +6,6 @@ use GuzzleHttp\Promise as GP;
 use GuzzleHttp\Promise\PromiseInterface;
 
 class Promise {
-
 	# Return watched promise for a value/promise or error
 	static function value($val) { return WatchedPromise::wrap($val); }
 	static function error($reason) { return new WatchedPromise( GP\rejection_for($reason) ); }
@@ -97,4 +96,15 @@ class Promise {
 	static function deferred_throw($reason) {
 		GP\queue()->add(function() use ($reason) { throw GP\exception_for($reason); });
 	}
+
+	# Guzzle wrappers and async utils
+	static function sync() {
+		GP\queue()->run();
+	}
+
+	static function later($cb, ...$args) {
+		if ($args) $cb = function () use ($cb, $args) { $cb(...$args); };
+		GP\queue()->add($cb);
+	}
+
 }

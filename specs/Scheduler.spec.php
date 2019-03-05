@@ -3,6 +3,7 @@ namespace dirtsimple\imposer\tests;
 
 use dirtsimple\fn;
 use function dirtsimple\fn;
+use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Task;
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\Scheduler;
@@ -187,7 +188,7 @@ describe("Scheduler", function () {
 			$wp_cli_logger->ob_end();
 		});
 		it("flushes the promise queue that existed when it was created, before doing anything else", function() {
-			GP\queue()->add(function() { throw new \RuntimeException("should be called"); });
+			Promise::later(function() { throw new \RuntimeException("should be called"); });
 			(new Task("x", $this->sched))->steps(function() {
 				throw new \RuntimeException("should NOT be called");
 			});
