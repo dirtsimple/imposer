@@ -5,7 +5,7 @@ use dirtsimple\fn;
 use function dirtsimple\fn;
 use dirtsimple\imposer\Task;   # XXX should be mockable
 use dirtsimple\imposer\Resource;
-use dirtsimple\imposer\ResourceDef;
+use dirtsimple\imposer\Model;
 use dirtsimple\imposer\Scheduler;
 
 use \Mockery;
@@ -33,7 +33,7 @@ describe("Resource", function () {
 		$wp_cli_logger->ob_end();
 	});
 
-	class ValidDef extends ResourceDef { }
+	class ValidModel extends Model { function save(){} }
 
 	describe("define()", function() {
 		it("throws an error if no definer registered", function(){
@@ -42,36 +42,37 @@ describe("Resource", function () {
 				"No class has been registered to define instances of resource type @demo"
 			);
 		});
-		it("returns a new instance of the defined type", function() {
-			$this->res->define_using(ValidDef::class);
+		it("returns a new Model of the defined type", function() {
+			$this->res->define_using(ValidModel::class);
 			$s1 = $this->res->define("x");
 			$s2 = $this->res->define("x");
-			expect($s1)->to->be->instanceof(ValidDef::class);
-			expect($s2)->to->be->instanceof(ValidDef::class);
+			expect($s1)->to->be->instanceof(ValidModel::class);
+			expect($s2)->to->be->instanceof(ValidModel::class);
 			expect($s1)->to->not->equal($s2);
 		});
 	});
 
 	describe("define_using()", function() {
-		it("accepts only false values or ResourceDef subclasses", function(){
-			$this->res->define_using(ValidDef::class);
+		it("accepts only false values or Model subclasses", function(){
+			$this->res->define_using(ValidModel::class);
 			$this->res->define_using(false);
 			expect(function() { $this->res->define_using(Task::class); })->to->throw(
 				\DomainException::class,
-				"dirtsimple\imposer\Task is not a ResourceDef subclass"
+				"dirtsimple\imposer\Task is not a Model subclass"
 			);
-			expect(function() { $this->res->define_using(ResourceDef::class); })->to->throw(
+			expect(function() { $this->res->define_using(Model::class); })->to->throw(
 				\DomainException::class,
-				"dirtsimple\imposer\ResourceDef is not a ResourceDef subclass"
+				"dirtsimple\imposer\Model is not a Model subclass"
 			);
 		});
 		it("calls the given class's ::configure() method with the resource", function(){
-			class ConfigDef extends ResourceDef {
+			class ConfigModel extends Model {
 				public static $r=42;
 				static function configure($resource) { static::$r = $resource; }
+				function save(){}
 			}
-			$this->res->define_using(ConfigDef::class);
-			expect(ConfigDef::$r)->to->equal($this->res);
+			$this->res->define_using(ConfigModel::class);
+			expect(ConfigModel::$r)->to->equal($this->res);
 		});
 	});
 
