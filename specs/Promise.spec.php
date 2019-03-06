@@ -80,6 +80,18 @@ describe("Promise", function() {
 			expect( Promise::now($g) )->to->equal(42);
 			expect($this->flag)->to->be->true;
 		});
+		it("a watched coroutine promise for a generator function", function() {
+			$this->flag = false;
+			$p = new GP\Promise;
+			$mygf = (function () use ($p){ yield $p; $this->flag = true; });
+			$g = Promise::interpret($mygf);
+			expect( $g )->to->be->instanceof(WatchedPromise::class);
+			expect( Promise::now($g) )->to->be->null;
+			expect($this->flag)->to->be->false;
+			$p->resolve(42); Promise::sync();
+			expect( Promise::now($g) )->to->equal(42);
+			expect($this->flag)->to->be->true;
+		});
 		it("a value for a fulfilled promise", function(){
 			expect( Promise::interpret( GP\promise_for(42) ) )->to->equal(42);
 		});

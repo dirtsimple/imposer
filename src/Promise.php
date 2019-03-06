@@ -27,6 +27,8 @@ class Promise {
 				else return WatchedPromise::wrap($data);
 			else if ( $data instanceof \Generator )
 				return Promise::spawn($data);
+			else if ( $data instanceof \Closure && (new \ReflectionFunction($data))->isGenerator())
+				return Promise::call($data);
 			else return $data;
 		} else if ( \is_array($data) ) {
 			$all = false;
