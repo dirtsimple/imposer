@@ -50,10 +50,7 @@ class Scheduler {
 	}
 
 	function request_restart() {
-		Promise::later(function() {
-			WP_CLI::debug("Restarting to apply changes", "imposer");
-			WP_CLI::halt(75);
-		});
+		$this->restart_requested = true;
 	}
 
 	function __call($name, $args) {
@@ -78,6 +75,10 @@ class Scheduler {
 					$this->current = $task;
 					$progress += $task->run();
 					$this->current = null;
+					if ( $this->restart_requested ) {
+						WP_CLI::debug("Restarting to apply changes", "imposer");
+						WP_CLI::halt(75);
+					}
 				}
 				if ( ! $progress ) {
 					# We stalled, maybe due to unresolved references
@@ -99,7 +100,7 @@ class Scheduler {
 		return true;
 	}
 
-	protected $current, $tasks, $resources, $data, $todo, $running=false;
+	protected $current, $tasks, $resources, $data, $todo, $running=false, $restart_requested=false;
 
 	function __construct($data=null) {
 		$this->tasks     = new Pool( fn::bind ( array($this, '_new'), Task::class ) );

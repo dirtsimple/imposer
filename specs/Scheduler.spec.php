@@ -136,6 +136,30 @@ describe("Scheduler", function () {
 			}
 			throw new Exception("run() didn't try to exit");
 		});
+		it("halts for a restart only once, even if called more than once", function() {
+			$sched = $this->sched;
+			$sched->task('test')->steps(
+				function() use ($sched) {
+					$this->sched->request_restart();
+					$this->sched->request_restart();
+				}
+			);
+			expect( array($this->sched, 'run') )->to->throw(ExitException::class);
+			expect( array(Promise::class, 'sync') )->not->to->throw(ExitException::class);
+		});
+		it("allows all promise-resolution tasks to finish before restart", function() {
+			$this->flag = false;
+			$sched = $this->sched;
+			$sched->task('test')->steps(
+				function() use ($sched) {
+					$this->sched->request_restart();
+					Promise::later( function() { $this->flag = true; } );
+				}
+			);
+			expect( array($this->sched, 'run') )->to->throw(ExitException::class);
+			expect( $this->flag )->to->be->true;
+			expect( array(Promise::class, 'sync') )->not->to->throw(ExitException::class);
+		});
 
 		it("invokes each task's run() method", function() {
 			$sched = $this->sched;
