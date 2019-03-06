@@ -5,6 +5,7 @@ use dirtsimple\imposer\Bag;
 use dirtsimple\imposer\HasMeta;
 use dirtsimple\imposer\Model;
 use dirtsimple\imposer\Promise;
+use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\WatchedPromise;
 
 use Brain\Monkey;
@@ -38,6 +39,39 @@ describe("Model", function() {
 
 	it("is a Bag", function(){
 		expect( $this->model )->to->be->instanceof(Bag::class);
+	});
+
+	describe("::configure() in subclasses adds lookups such that", function(){
+		class Lookup1 extends MockModel {
+			static function lookup() {}
+		}
+		class Lookup2 extends MockModel {
+			static function lookup() {}
+			static function lookup_by_path() {}
+			static function lookup_by_guid() {}
+		}
+
+		beforeEach( function() {
+			$this->resource = Mockery::Mock(Resource::class);
+			$this->model = new MockModel($this->ref);
+		});
+		afterEach( function(){
+			Monkey\tearDown();
+		});
+
+		it("lookup() method becomes a lookup handler", function() {
+			$res = $this->resource;
+			$res->shouldReceive('addLookup')->with(array(Lookup1::class, 'lookup'))->once();
+			Lookup1::configure($this->resource);
+		});
+
+		it("lookup_by_X() methods become lookup handlers for key type X", function() {
+			$res = $this->resource;
+			$res->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup'))->once();
+			$res->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup_by_path'), 'path')->once();
+			$res->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup_by_guid'), 'guid')->once();
+			Lookup2::configure($this->resource);
+		});
 	});
 
 	describe("id()", function(){

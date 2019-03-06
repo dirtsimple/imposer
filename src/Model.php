@@ -64,6 +64,14 @@ abstract class Model extends Bag {
 
 	# Configure resource lookups
 	static function configure($resource) {
+		if ( method_exists(static::class, 'lookup') )
+			$resource->addLookup( array(static::class, 'lookup') );
+		foreach ( get_class_methods(static::class) as $method ) {
+			$type = explode('lookup_by_', $method);
+			if ( count($type)===2 && $type[0] === '' ) {
+				$resource->addLookup( array(static::class, $method), $type[1]);
+			}
+		}
 	}
 
 }
