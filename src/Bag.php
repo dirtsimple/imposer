@@ -13,6 +13,11 @@ class Bag extends \ArrayObject {
 		return $this->offsetExists($name);
 	}
 
+	/* shorthand for getArrayCopy() */
+	function items() {
+		return $this->getArrayCopy();
+	}
+
 	/* Get a key or default */
 	function get($key, $default=null) {
 		return $this->offsetExists($key) ? $this[$key] : $default;

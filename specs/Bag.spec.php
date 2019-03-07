@@ -23,6 +23,13 @@ describe("Bag", function() {
 		$this->bag = new Bag( array('x'=>42) );
 	});
 
+	describe("items()", function() {
+		it("casts the bag to an array", function(){
+			$b = new Bag(array('a', 'b'=>'c'));
+			expect($b->items())->to->equal(array('a', 'b'=>'c'));
+		});
+	});
+
 	describe("has()", function() {
 		it("returns true if key is present", function(){
 			expect($this->bag->has('x'))->to->be->true;
