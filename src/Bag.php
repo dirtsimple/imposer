@@ -39,8 +39,15 @@ class Bag extends \ArrayObject {
 	function select($funcs, ...$args) {
 		if ( is_string($funcs) ) $funcs = array($funcs=>array_shift($args));
 		$res = array();
-		foreach ($funcs as $k => $v) {
-			if ( $this->offsetExists($k) ) $res[$k] = is_callable($v) ? $v($this[$k], ...$args) : $this[$k];
+		foreach ($funcs as $k => $cb) {
+			if ( ! $this->offsetExists($k) ) continue;
+			$v = $this[$k];
+			if ( is_array($cb) && ( array_keys($cb) !== array(0, 1) || ! is_callable($cb) ) ) {
+				$v = new Bag( (array) $v );
+				$res[$k] = $v->select($cb, ...$args);
+			} else {
+				$res[$k] = is_callable($cb) ? $cb($v, ...$args) : $v;
+			}
 		}
 		return $res;
 	}

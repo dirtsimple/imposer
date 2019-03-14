@@ -96,6 +96,21 @@ describe("Bag", function() {
 				$this->bag->select( array('x'=>true ) )
 			)->to->equal( array('x'=>42) );
 		});
+		it("recursively nested for associative-array callbacks", function(){
+			$this->bag->q = array('foo'=>array('bar'=>'baz', 'baz'=>'bing'));
+			expect(
+				$this->bag->select(
+					array(
+						'x'=>fn::expr('$_*2'),
+						'q'=>array(
+							'foo'=>array(
+								'baz'=>function($v, $x) { return $x; },
+								'bar'=>fn::expr('"bar: $_"'))
+						)
+					), "arg"
+				)
+			)->to->equal( array('x'=>84, 'q'=>array('foo' => array('baz'=>'arg', 'bar'=> 'bar: baz'))) );
+		});
 		it("correct when given a string and a func/val in place of an array+args", function(){
 			expect(
 				$this->bag->select( 'x', fn::expr('$_*3') )
