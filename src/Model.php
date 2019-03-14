@@ -21,15 +21,18 @@ abstract class Model extends Bag {
 
 	function ref() { return $this->ref; }
 
-	function next() { return new static($this->ref); }
+	function next($previous) { return new static($this->ref, $previous); }
 
 	# Create or update the database object, returning a promise that resolves when
 	# this and any prior apply()s, set_metas, etc. are finished.
-	function apply($saver=null) {
+	function apply() {
+		# Await previous save
+		yield $this->previous;
+
 		# Await args before save
 		yield( $this->settle_args() );
 
-		$res = yield( $saver ? $saver($this) : $this->save() );
+		$res = yield( $this->save() );
 
 		# XXX check that handler-based lookup resolves correctly?
 		if ( $res && $this->id() === null ) $this->ref->resolve($res);
@@ -44,8 +47,9 @@ abstract class Model extends Bag {
 	# Blocks apply() from finishing before $do (generator, promise, array, etc.)
 	# is resolved; can be called more than once to add more parallel tasks
 	protected function also($do) {
-		$do = ( \is_object($do) && \is_callable($do) ) ? Promise::call($do) : Promise::interpret($do);
-		if ( $do instanceof GP\PromiseInterface ) $this->todo[] = $do;
+		$this->todo[] = Promise::call(
+			function () use ($do) { yield $this->previous; yield $do; }
+		);
 		return $this;
 	}
 
@@ -55,11 +59,12 @@ abstract class Model extends Bag {
 
 	# Implementation Details:
 
-	private $todo=array(), $id, $ref;
+	private $todo=array(), $id, $ref, $previous;
 
-	function __construct($ref) {
+	function __construct($ref, $previous=null) {
 		parent::__construct();
 		$this->id = $this->ref = $ref;
+		$this->previous = $previous;
 	}
 
 	# Configure resource lookups

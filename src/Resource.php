@@ -6,20 +6,18 @@ use GuzzleHttp\Promise as GP;
 
 class Resource extends Task {
 
-	function define_using($modelClass) {
-		if ( $this->modelClass = $modelClass ) {
-			if ( ! is_subclass_of($modelClass, Model::class) ) throw new \DomainException(
-				"$modelClass is not a Model subclass"
-			);
-			call_user_func("$modelClass::configure", $this);
-		}
+	function set_model($model_class) {
+		if ( $model_class && ! is_subclass_of($model_class, Model::class) ) throw new \DomainException(
+			"$model_class is not a Model subclass"
+		);
+		if ( $this->model_class = $model_class ) call_user_func("$model_class::configure", $this);
 	}
 
 	function define($key, $keyType='') {
-		if ( ! $modelClass = $this->modelClass ) throw new \LogicException(
+		if ( ! $model_class = $this->model_class ) throw new \LogicException(
 			"No class has been registered to define instances of resource type $this->name"
 		);
-		return new $modelClass(Promise::value($this->lookup($key, $keyType)));
+		return $this->mappers[$keyType][$key];
 	}
 
 	function steps() {
@@ -35,7 +33,7 @@ class Resource extends Task {
 		return $this;
 	}
 
-	protected $cache, $lookups, $pending, $modelClass=null;
+	protected $cache, $lookups, $pending, $mappers, $model_class=null;
 
 	function __construct($name, $scheduler) {
 		parent::__construct($name, $scheduler);
@@ -44,6 +42,15 @@ class Resource extends Task {
 		$this->pending = new Pool(
 			function() {
 				return new Pool( function() { return new GP\Promise(); } );
+			}
+		);
+		$this->mappers = new Pool(
+			function($keyType) {
+				return new Pool( function($key) use ($keyType) {
+					$cls = $this->model_class ?: Bag::class;  # XXX
+					$ref = Promise::value($this->lookup($key, $keyType));
+					return new Mapper( new $cls( $ref ) );
+				});
 			}
 		);
 	}

@@ -37,31 +37,31 @@ describe("Resource", function () {
 	class ValidModel extends Model { function save(){} }
 
 	describe("define()", function() {
-		it("throws an error if no definer registered", function(){
+		it("throws an error if no model class registered", function(){
 			expect(function() { $this->res->define("x"); })->to->throw(
 				\LogicException::class,
 				"No class has been registered to define instances of resource type @demo"
 			);
 		});
-		it("returns a new Model of the defined type", function() {
-			$this->res->define_using(ValidModel::class);
+		it("returns a Mapper wrapping an instance of the model class", function() {
+			$this->res->set_model(ValidModel::class);
 			$s1 = $this->res->define("x");
 			$s2 = $this->res->define("x");
-			expect($s1)->to->be->instanceof(ValidModel::class);
-			expect($s2)->to->be->instanceof(ValidModel::class);
-			expect($s1)->to->not->equal($s2);
+			expect($s1->implements(ValidModel::class))->to->be->true;
+			expect($s2->implements(ValidModel::class))->to->be->true;
+			expect($s1)->to->equal($s2);
 		});
 	});
 
-	describe("define_using()", function() {
+	describe("set_model()", function() {
 		it("accepts only false values or Model subclasses", function(){
-			$this->res->define_using(ValidModel::class);
-			$this->res->define_using(false);
-			expect(function() { $this->res->define_using(Task::class); })->to->throw(
+			$this->res->set_model(ValidModel::class);
+			$this->res->set_model(false);
+			expect(function() { $this->res->set_model(Task::class); })->to->throw(
 				\DomainException::class,
 				"dirtsimple\imposer\Task is not a Model subclass"
 			);
-			expect(function() { $this->res->define_using(Model::class); })->to->throw(
+			expect(function() { $this->res->set_model(Model::class); })->to->throw(
 				\DomainException::class,
 				"dirtsimple\imposer\Model is not a Model subclass"
 			);
@@ -72,7 +72,7 @@ describe("Resource", function () {
 				static function configure($resource) { static::$r = $resource; }
 				function save(){}
 			}
-			$this->res->define_using(ConfigModel::class);
+			$this->res->set_model(ConfigModel::class);
 			expect(ConfigModel::$r)->to->equal($this->res);
 		});
 	});

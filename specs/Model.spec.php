@@ -3,6 +3,7 @@ namespace dirtsimple\imposer\tests;
 
 use dirtsimple\imposer\Bag;
 use dirtsimple\imposer\HasMeta;
+use dirtsimple\imposer\Mapper;
 use dirtsimple\imposer\Model;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Resource;
@@ -30,6 +31,110 @@ class MockModel extends Model {
 	}
 }
 
+describe("Mapper", function() {
+	beforeEach( function() {
+		$this->ref = new WatchedPromise;
+		$this->model = new MockModel($this->ref);
+		$this->mapper = new Mapper($this->model);
+		$this->model->save = function($def) { return 42; };
+	});
+
+	describe("implements()", function(){
+		it("is true iff its model is an instance of the class or interface", function(){
+			expect($this->mapper->implements(Model::class))->to->be->true;
+			expect($this->mapper->implements(Resource::class))->to->be->false;
+		});
+	});
+	describe("has_method()", function(){
+		it("is true iff its model has the method", function(){
+			expect($this->mapper->has_method('call'))->to->be->true;
+			expect($this->mapper->has_method('nosuchmethod'))->to->be->false;
+		});
+	});
+	describe("apply()", function(){
+		it("creates a new model each time", function(){
+			$this->mapper->foo = 'bar';
+			expect ( $this->model->items()  )->to->equal( array('foo'=>'bar') );
+			expect ( $this->mapper->items() )->to->equal( array('foo'=>'bar') );
+			$this->mapper->apply();
+			expect ( $this->mapper->items() )->to->equal( array() );
+			expect ( $this->model->items()  )->to->equal( array('foo'=>'bar') );
+		});
+		it("calls its model's apply() after the previous one resolves", function(){
+			$this->log = array(); $p1 = new GP\Promise(); $p2 = new GP\Promise();
+			$this->mapper->save = function() use ($p1) { $this->log[] = 'save 1'; return $p1; };
+
+			# First apply: save started but hung on p1, so not resolved yet
+			$a1 = $this->mapper->apply();
+			Promise::sync();
+			expect($this->log)->to->equal(array('save 1'));
+			expect( Promise::now($a1, false) )->to->be->false;
+
+			# Second apply, save shouldn't have run because a1 isn't done
+			$this->mapper->save = function() use ($p2) { $this->log[] = 'save 2'; return $p2; };
+			$a2 = $this->mapper->apply();
+			expect($this->log)->to->equal(array('save 1'));
+			expect( Promise::now($a1, false) )->to->equal(false);
+			expect( Promise::now($a2, false) )->to->equal(false);
+
+			# Resolving p1 finishes a1's save and a1 in general, starting a2 save
+			$p1->resolve(42); Promise::sync();
+			expect( Promise::now($a1, false) )->to->equal(42);
+			expect( Promise::now($a2, false) )->to->equal(false);
+			expect($this->log)->to->equal(array('save 1', 'save 2'));
+
+			# Resolving p2 allows a2 to finish
+			$p2->resolve(99); Promise::sync();
+			expect( Promise::now($a2, false) )->to->equal(99);
+		});
+	});
+	describe("delegates to its model methods and", function(){
+		class DelegateTestModel extends MockModel {
+			function yieldingMethod() {
+				yield 42; yield 26; yield "hut!";
+			}
+			function rejectingMethod() {
+				return Promise::error("blue 62");
+			}
+		}
+		beforeEach( function() {
+			$this->model = new DelegateTestModel($this->ref);
+			$this->mapper = new Mapper($this->model);
+		});
+		it("Promise::interpret()s the results", function(){
+			expect( $this->mapper->yieldingMethod() )->to->equal('hut!');
+		});
+		it("throws errors for returned promise rejections", function(){
+			expect( array($this->mapper, 'rejectingMethod') )->to->throw(
+				"Exception", "The promise was rejected with reason: blue 62"
+			);
+		});
+		it("returns itself for chainable methods", function(){
+			expect( $this->mapper->call('also', null) )->to->equal($this->mapper);
+		});
+		it("properties, offsets, and count", function(){
+			$mapper = $this->mapper; $model = $this->model;
+			$mapper->x = 'y';
+			$mapper['q'] = 'r';
+			expect( isset($mapper->q) )->to->be->true;
+			expect( isset($mapper['x']) )->to->be->true;
+			expect( isset($mapper->y) )->to->be->false;
+			expect( isset($mapper['z']) )->to->be->false;
+			expect( $mapper->q )->to->equal('r');
+			expect( $mapper['x'] )->to->equal('y');
+			expect( $model->items() )->to->equal( array('x'=>'y', 'q'=>'r') );
+			expect( count($mapper) )->to->equal(2);
+			expect( $mapper->offsetExists('x') )->to->be->true;
+			expect( $mapper->offsetExists('a') )->to->be->false;
+			expect( (array) $mapper->getIterator() )->to->equal( array('x'=>'y', 'q'=>'r') );
+			unset($mapper->q);
+			expect( $model->items() )->to->equal( array('x'=>'y') );
+			unset($mapper['x']);
+			expect( $model->items() )->to->equal( array() );
+		});
+	});
+
+});
 
 describe("Model", function() {
 	beforeEach( function() {
@@ -125,6 +230,25 @@ describe("Model", function() {
 		it("returns \$this", function (){
 			expect($this->model->call('also', 42))->to->equal($this->model);
 		});
+		describe("starts coroutines", function(){
+			it("after the previous model completes", function(){
+				$this->flag = false;
+				$new = $this->model->next($p = new GP\Promise());
+				$new->call('also', function(){
+					yield 16; $this->flag = true;
+				});
+				expect($this->flag)->to->be->false;
+				$p->resolve(null); Promise::sync();
+				expect($this->flag)->to->be->true;
+			});
+			it("immediately if no previous model", function(){
+				$this->flag = false;
+				$this->model->call('also', function(){
+					yield 16; $this->flag = true;
+				});
+				expect($this->flag)->to->be->true;
+			});
+		});
 	});
 
 	describe("settle_args()", function(){
@@ -139,7 +263,7 @@ describe("Model", function() {
 	describe("next()", function(){
 		it("returns a new empty instance with the same class and ref()", function (){
 			$this->model->foo = 22;
-			$new = $this->model->next();
+			$new = $this->model->next($p=new GP\Promise());
 			expect($new)->to->be->instanceof(get_class($this->model));
 			expect( $new->ref() )->to->equal($this->model->ref());
 			expect( (array) $this->model )->to->equal( array('foo'=>22) );
