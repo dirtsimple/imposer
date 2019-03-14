@@ -1,10 +1,12 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
+use dirtsimple\fn;
 use dirtsimple\imposer\Bag;
 use dirtsimple\imposer\HasMeta;
 use dirtsimple\imposer\Mapper;
 use dirtsimple\imposer\Model;
+use dirtsimple\imposer\Pool;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\WatchedPromise;
@@ -272,68 +274,80 @@ describe("Model", function() {
 	});
 
 	describe("with HasMeta", function(){
-		describe("set_meta()", function(){
-			beforeEach( function() {
-				$this->log=array();
-				$this->mock_meta=array();
-				$this->expected = [];
-				$this->expect = function(...$args) { $this->expected[] = $args; };
-				$this->model->save = function($def) { return 42; };
-				$this->check = function($meta=null) {
-					expect($this->log)->to->equal($this->expected);
-					if ($meta !== null)
-						expect($this->mock_meta)->to->equal($meta);
-				};
-				fun\stubs(array(
-					'update_foo_meta' => function($id, $key, $val){
-						$this->log[] = array('set', $id, $key, $val);
-						$this->mock_meta[$id][$key]=$val;
-					},
-					'get_foo_meta' => function($id, $key, $true){
-						$this->log[] = array('get', $id, $key, $true);
-						return $this->mock_meta[$id][$key];
-					},
-				));
-			});
-			afterEach( function(){
-				$this->check();
-				Monkey\tearDown();
-			});
+		beforeEach( function() {
+			$this->log=array();
+			$this->mock_meta=new Pool(function(){ return new Pool(fn::val(false)); });
+			$this->expected = [];
+			$this->expect = function(...$args) { $this->expected[] = $args; };
+			$this->model->save = function($def) { return 42; };
+			$this->check = function() {
+				expect($this->log)->to->equal($this->expected);
+			};
+			fun\stubs(array(
+				'wp_slash' => function($val){ return $val; },
+				'update_foo_meta' => function($id, $key, $val){
+					$this->log[] = array('set', $id, $key, $val);
+					$this->mock_meta[$id][$key]=$val;
+				},
+				'get_foo_meta' => function($id, $key, $true){
+					$this->log[] = array('get', $id, $key, $true);
+					return $this->mock_meta[$id][$key];
+				},
+				'delete_foo_meta' => function($id, $key, $val){
+					$this->log[] = array('delete', $id, $key, $val);
+					$this->mock_meta[$id][$key];  # force to exist before delete
+					unset($this->mock_meta[$id][$key]);
+				},
+			));
+		});
 
+		afterEach( function(){
+			$this->check();
+			Monkey\tearDown();
+		});
+
+		class NoMetaModel extends Model {
+			use HasMeta;
+			function save(){}
+		}
+
+		function common_hasmeta_checks() {
 			it("is disabled unless a `meta_type` constant is set", function(){
-				class NoMetaModel extends Model {
-					use HasMeta;
-					function save(){}
-				}
 				$model = new NoMetaModel($this->ref);
-				expect( array($model, 'set_meta') )->with('x', 'y')->to->throw(
+				expect( array($model, $this->method) )->with('x', 'y')->to->throw(
 					"Exception", 'dirtsimple\imposer\tests\NoMetaModel does not support metadata'
 				);
 			});
 
 			it("rejects null, empty, or non-string keys", function(){
-				expect( array($this->model, 'set_meta') )->with(null, 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with(null, 'y')->to->throw(
 					"Exception", "meta_key must not be empty"
 				);
-				expect( array($this->model, 'set_meta') )->with(array(), 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with(array(), 'y')->to->throw(
 					"Exception", "meta_key must not be empty"
 				);
-				expect( array($this->model, 'set_meta') )->with('', 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with('', 'y')->to->throw(
 					"Exception", "meta_key items must be non-empty strings"
 				);
-				expect( array($this->model, 'set_meta') )->with(2, 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with(2, 'y')->to->throw(
 					"Exception", "meta_key items must be non-empty strings"
 				);
-				expect( array($this->model, 'set_meta') )->with(array("x", 4.6), 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with(array("x", 4.6), 'y')->to->throw(
 					"Exception", "meta_key items must be non-empty strings"
 				);
-				expect( array($this->model, 'set_meta') )->with(array('','x'), 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with(array('','x'), 'y')->to->throw(
 					"Exception", "meta_key items must be non-empty strings"
 				);
-				expect( array($this->model, 'set_meta') )->with(array('x',''), 'y')->to->throw(
+				expect( array($this->model, $this->method) )->with(array('x',''), 'y')->to->throw(
 					"Exception", "meta_key items must be non-empty strings"
 				);
 			});
+		}
+
+		describe("set_meta()", function(){
+			$this->method = 'set_meta';
+			common_hasmeta_checks();
+
 			it("returns self", function(){
 				$this->ref->resolve(42);  # run sync so we don't have to apply()
 				$this->expect('set', 42, 'x', 'y');
@@ -354,8 +368,6 @@ describe("Model", function() {
 
 			it("patches meta values if key is a multi-element array", function(){
 				$this->ref->resolve(42);  # run sync so we don't have to apply()
-				$this->expect('set', 42, 'srcKey', false);
-				$this->model->set_meta('srcKey', false);
 				$this->expect('get', 42, 'srcKey', true);
 				$this->expect('set', 42, 'srcKey', array('some'=>array('thing'=>'else')));
 				$this->model->set_meta(array('srcKey', 'some', 'thing'), Promise::value('else'));
@@ -373,6 +385,35 @@ describe("Model", function() {
 				expect( Promise::now($res) )->to->be->null;
 				$p->resolve('another'); Promise::sync();
 				expect( Promise::now($res) )->to->equal(42);
+			});
+		});
+
+		describe("delete_meta()", function(){
+			$this->method = 'delete_meta';
+			common_hasmeta_checks();
+			it("returns self", function(){
+				$this->ref->resolve(42);  # run sync so we don't have to apply()
+				$this->expect('delete', 42, 'x', '');
+				expect( $this->model->delete_meta('x') )->to->equal($this->model);
+			});
+			it("calls _delete_meta() if key is a string or single-element array", function(){
+				$this->ref->resolve(42);  # run sync so we don't have to apply()
+				$this->expect('delete', 42, 'aKey', '');
+				$this->model->delete_meta(array('aKey'));
+				$this->check();  # should synchronously apply and unset meta
+
+				$this->expect('delete', 42, 'otherKey', '');
+				$this->model->delete_meta(array('otherKey'));
+			});
+			it("patches meta values if key is a multi-element array", function(){
+				$this->ref->resolve(42);  # run sync so we don't have to apply()
+				$this->expect('get', 42, 'srcKey', true);
+				$this->expect('set', 42, 'srcKey', array('some'=>array('thing'=>'else')));
+				$this->model->set_meta(array('srcKey', 'some', 'thing'), 'else');
+				$this->check();  # should synchronously apply and resolve
+				$this->expect('get', 42, 'srcKey', true);
+				$this->expect('set', 42, 'srcKey', array('some'=>array()));
+				$this->model->delete_meta(array('srcKey', 'some', 'thing'));
 			});
 		});
 	});
