@@ -20,11 +20,8 @@ class Mapper implements \ArrayAccess, \IteratorAggregate, \Countable {
 		$model = $this->model;
 		$this->model = $model->next( $this->lastSave );
 
-		$res = Promise::call( array($model, 'apply') );
-
-		if ( $res instanceof WatchedPromise ) $res->then( array($this->lastSave, 'resolve') );
-		else $this->lastSave->resolve($res);
-		return $this->lastSave;
+		# Make lastSave's state equal the result of calling/spawning apply()
+		return $this->lastSave->call( array($model, 'apply') );
 	}
 
 	/* Delegate everything else to the underlying model */

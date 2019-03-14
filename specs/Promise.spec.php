@@ -302,4 +302,90 @@ describe("WatchedPromise", function() {
 			});
 		});
 	});
+	describe("call()", function() {
+		it("returns itself rejected if the function throws", function(){
+			$e = new \DomainException("blah");
+			$f = function() use ($e){ throw $e; };
+			$p1 = new WatchedPromise;
+			$p2 = $p1->call( $f );
+			expect( $p2 )->to->equal($p1);
+			$p2->otherwise( fn::val(null) );  # don't throw this later
+			expect( GP\is_rejected($p2) )->to->be->true;
+			expect( GP\inspect($p2) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
+		});
+		it("returns itself rejected for a rejected promise return", function(){
+			$e = new \DomainException("blah");
+			$f = function() use ($e){ return Promise::error( $e ); };
+			$p1 = new WatchedPromise;
+			$p2 = $p1->call( $f );
+			expect( $p2 )->to->equal($p1);
+			$p2->otherwise( fn::val(null) );  # don't throw this later
+			expect( GP\is_rejected($p2) )->to->be->true;
+			expect( GP\inspect($p2) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
+		});
+		it("returns Promise::interpret() of the function's return value", function(){
+			$f = function(){ return array('blue'=>Promise::value(42)); };
+			$p = new WatchedPromise();
+			expect( $p->call( $f ) )->to->equal( array('blue'=>42) );
+		});
+		it("resolves to Promise::interpret() of the function's return value", function(){
+			$f = function(){ return array('blue'=>Promise::value(42)); };
+			$p = new WatchedPromise();
+			$p->call( $f );
+			expect( $p->wait() )->to->equal( array('blue'=>42) );
+		});
+		it("passes additional arguments through to the function", function(){
+			$f = function($a, $b) { return array($b, $a); };
+			$p = new WatchedPromise();
+			expect( $p->call($f, 1, 2) )->to->equal( array(2,1) );
+		});
+		describe("with async result", function(){
+			it("returns itself and async rejects", function(){
+				$p1 = new WatchedPromise;
+				$p2 = new WatchedPromise;
+				$p2->call( fn::val($p1) );
+				$p1->reject( $e = new \DomainException("blah") );
+				$p2->otherwise( fn::val(null) );  # don't throw this later
+				expect( GP\is_rejected($p2) )->to->be->false;
+				Promise::sync();
+				expect( GP\is_rejected($p2) )->to->be->true;
+				expect( GP\inspect($p2) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
+			});
+			it("returns itself and async resolves", function(){
+				$p1 = new WatchedPromise;
+				$p2 = new WatchedPromise;
+				$p2->call( fn::val($p1) );
+				$p1->resolve( $v = array("blah") );
+				expect( GP\is_fulfilled($p2) )->to->be->false;
+				Promise::sync();
+				expect( GP\is_fulfilled($p2) )->to->be->true;
+				expect( GP\inspect($p2) )->to->equal( array('state'=>'fulfilled', 'value'=>$v) );
+			});
+		});
+		describe("with generator function", function(){
+			it("returns itself and async rejects", function(){
+				$e = new \DomainException("blah");
+				$p1 = new WatchedPromise;
+				$p2 = new WatchedPromise;
+				$p2->call( function() use ($p1, $e) { yield $p1; throw $e; } );
+				$p1->resolve( null );
+				$p2->otherwise( fn::val(null) );  # don't throw this later
+				expect( GP\is_rejected($p2) )->to->be->false;
+				Promise::sync();
+				expect( GP\is_rejected($p2) )->to->be->true;
+				expect( GP\inspect($p2) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
+			});
+			it("returns itself and async resolves", function(){
+				$v = array("blah");
+				$p1 = new WatchedPromise;
+				$p2 = new WatchedPromise;
+				$p2->call( function() use ($p1, $v) { yield $p1; yield Promise::value($v); } );
+				$p1->resolve( null );
+				expect( GP\is_fulfilled($p2) )->to->be->false;
+				Promise::sync();
+				expect( GP\is_fulfilled($p2) )->to->be->true;
+				expect( GP\inspect($p2) )->to->equal( array('state'=>'fulfilled', 'value'=>$v) );
+			});
+		});
+	});
 });

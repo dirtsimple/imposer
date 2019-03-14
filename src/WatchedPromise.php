@@ -3,6 +3,7 @@
 namespace dirtsimple\imposer;
 
 use GuzzleHttp\Promise as GP;
+use GuzzleHttp\Promise\PromiseInterface;
 
 class WatchedPromise implements GP\PromiseInterface {
 
@@ -28,6 +29,65 @@ class WatchedPromise implements GP\PromiseInterface {
 		return ( $data instanceof static  && $data->handler === $handler ) ? $data : new static($data, $handler);
 	}
 
+
+	/* set promise state to the result of calling a function w/args, trapping errors and unwrapping sync results */
+	function call() {
+		$args = func_get_args(); $fn = array_shift($args);
+		try {
+			$val = call_user_func_array($fn, $args);
+			if ($val instanceof \Generator) return $this->spawn($val);
+			$val = Promise::interpret( $val );
+			if ($val instanceof PromiseInterface) {
+				if ( $val->getState() === self::REJECTED ) $this->reject( GP\inspect($val)['reason'] );
+				else $val->then( array($this,'resolve'), array($this,'reject') );
+			} else {
+				$this->resolve($val);
+				return $val;
+			}
+		} catch (\Exception $e) {
+			$this->reject($e);
+		} catch (\Throwable $t) {
+			$this->reject($t);
+		}
+		return $this;
+	}
+
+	/* set promise state using the last yield or error of a coroutine */
+	function spawn($gen) {
+		$send  = array($gen, 'send');
+		$throw = array($gen, 'throw');
+		$run = function($fn, $in) use ($gen, $send, $throw, &$run) {
+			try {
+				while (true) {
+					$val = Promise::interpret( $fn ? $fn($in) : $gen->current() );
+					if ( ! $gen->valid() ) { $this->resolve( $fn == $throw ? null : $in); return; }
+					if ( ! $val instanceof PromiseInterface ) {
+						$fn = $send;  $in = $val;
+					} else if ( $val->getState() === PromiseInterface::REJECTED ) {
+						$fn = $throw; $in = GP\exception_for( GP\inspect($val)['reason'] );
+					} else {
+						$val->then(
+							function($val) use($run, $send)  { $run( $send, $val ); },
+							function($err) use($run, $throw) { $run( $throw, GP\exception_for($err) ); }
+						);
+						return;
+					}
+				}
+			} catch (\Exception $e) {
+				$this->reject($e);
+			} catch (\Throwable $t) {
+				$this->reject($t);
+			}
+		};
+		if ( $gen instanceof \Generator ) {
+			$run( null, null );
+		} else {
+			$this->resolve($gen);
+		}
+		if ( $this->getState() === PromiseInterface::FULFILLED )
+			return $this->wait();
+		return $this;
+	}
 
 	function wait($unwrap=true) {
 		# Synchronous inspection throws upon rejection, so consider ourselves checked
