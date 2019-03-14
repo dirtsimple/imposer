@@ -36,11 +36,11 @@ class Bag extends \ArrayObject {
 	}
 
 	/* Apply function(s) to contents, return matching fields */
-	function select($funcs) {
-		if (func_num_args()>1) $funcs = array($funcs=>func_get_arg(1));
+	function select($funcs, ...$args) {
+		if ( is_string($funcs) ) $funcs = array($funcs=>array_shift($args));
 		$res = array();
 		foreach ($funcs as $k => $v) {
-			if ( $this->offsetExists($k) ) $res[$k] = is_callable($v) ? $v($this[$k]) : $this[$k];
+			if ( $this->offsetExists($k) ) $res[$k] = is_callable($v) ? $v($this[$k], ...$args) : $this[$k];
 		}
 		return $res;
 	}

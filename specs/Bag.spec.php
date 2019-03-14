@@ -77,20 +77,38 @@ describe("Bag", function() {
 		it("empty for an array w/out overlapping keys", function(){
 			expect( $this->bag->select( array('q'=>fn::expr('$_')) ) )->to->equal( array() );
 		});
-		it("the result of calling the given function(s)", function(){
+		it("the result of calling the given function(s) with any extra args", function(){
 			expect(
 				$this->bag->select( array('x'=>fn::expr('$_+1') ) )
 			)->to->equal( array('x'=>43) );
+			expect(
+				$this->bag->select(
+					array(
+						'x' => function ($a1, $a2, $a3) {
+							return array($a2, $a1, $a3);
+						}
+					), 'wazzup', 'whiz'
+				)
+			)->to->equal( array('x'=>array('wazzup', 42, 'whiz')) );
 		});
 		it("original values for non-callables", function() {
 			expect(
 				$this->bag->select( array('x'=>true ) )
 			)->to->equal( array('x'=>42) );
 		});
-		it("correct when given a key+value in place of an array", function(){
+		it("correct when given a string and a func/val in place of an array+args", function(){
 			expect(
 				$this->bag->select( 'x', fn::expr('$_*3') )
 			)->to->equal( array('x'=>126) );
+			expect(
+				$this->bag->select(
+					'x',
+					function ($a1, $a2, $a3) {
+						return array($a2, $a1, $a3);
+					},
+					'wazzup', 'whiz'
+				)
+			)->to->equal( array('x'=>array('wazzup', 42, 'whiz')) );
 		});
 	});
 
