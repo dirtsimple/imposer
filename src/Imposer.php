@@ -67,7 +67,7 @@ class Imposer {
 
 	function __construct() {
 		$cls = static::class;
-		$this->scheduler = new Scheduler(Task::class, Resource::class);
+		$this->scheduler = new Scheduler();
 
 		$this -> task('Theme Selection')
 			-> reads('theme')

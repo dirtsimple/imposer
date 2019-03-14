@@ -54,7 +54,7 @@ abstract class Model extends Bag {
 	}
 
 	protected function settle_args() {
-		$this->exchangeArray( yield( $this->exchangeArray( array() ) ) );
+		$this->exchangeArray( yield( $this->items() ) );
 	}
 
 	# Implementation Details:

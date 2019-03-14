@@ -255,8 +255,12 @@ describe("Model", function() {
 
 	describe("settle_args()", function(){
 		it("returns a promise for resolving all internal promises", function(){
-			$this->model->set(array('a'=>42, 'b'=>Promise::value(99)));
+			$p = new WatchedPromise;
+			$this->model->set(array('a'=>42, 'b'=>$p));
 			$res = Promise::interpret($this->model->call('settle_args'));
+			Promise::sync();
+			expect((array)$this->model)->to->equal(array('a'=>42,'b'=>$p));
+			$p->resolve(99);
 			Promise::sync();
 			expect((array)$this->model)->to->equal(array('a'=>42,'b'=>99));
 		});
