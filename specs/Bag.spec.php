@@ -2,6 +2,7 @@
 namespace dirtsimple\imposer\tests;
 
 use dirtsimple\imposer\Bag;
+use dirtsimple\fn;
 
 describe("Bag", function() {
 	it("is an ArrayObject with prop-setting", function(){
@@ -68,4 +69,29 @@ describe("Bag", function() {
 			expect($this->bag['y'])->to->equal(99);
 		});
 	});
+
+	describe("select() returns an array that's", function() {
+		it("empty for an empty array", function(){
+			expect( $this->bag->select(array()) )->to->equal( array() );
+		});
+		it("empty for an array w/out overlapping keys", function(){
+			expect( $this->bag->select( array('q'=>fn::expr('$_')) ) )->to->equal( array() );
+		});
+		it("the result of calling the given function(s)", function(){
+			expect(
+				$this->bag->select( array('x'=>fn::expr('$_+1') ) )
+			)->to->equal( array('x'=>43) );
+		});
+		it("original values for non-callables", function() {
+			expect(
+				$this->bag->select( array('x'=>true ) )
+			)->to->equal( array('x'=>42) );
+		});
+		it("correct when given a key+value in place of an array", function(){
+			expect(
+				$this->bag->select( 'x', fn::expr('$_*3') )
+			)->to->equal( array('x'=>126) );
+		});
+	});
+
 });
