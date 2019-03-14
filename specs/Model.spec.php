@@ -29,7 +29,7 @@ class MockModel extends Model {
 
 	# To call protected methods
 	public function call($method, ...$args){
-		return $this->$method($args);
+		return $this->$method(...$args);
 	}
 }
 
@@ -274,6 +274,41 @@ describe("Model", function() {
 			expect( $new->ref() )->to->equal($this->model->ref());
 			expect( (array) $this->model )->to->equal( array('foo'=>22) );
 			expect( (array) $new         )->to->equal( array() );
+		});
+	});
+
+	describe("check_save() calls the given func/args", function(){
+		beforeEach( function() {
+			fun\stubs(array(
+				'is_wp_error' => function($val){ return false; },
+			));
+			global $wp_cli_logger;
+			$wp_cli_logger->ob_start();
+			$wp_cli_logger->stderr = '';
+			$this->logger = $wp_cli_logger;
+		});
+		afterEach( function(){
+			$this->logger->ob_end();
+			Monkey\tearDown();
+		});
+		it("issuing a WP_CLI::error if result is_wp_error()", function(){
+			fun\stubs(array(
+				'is_wp_error' => function($val){ return true; },
+			));
+			expect( array( $this->model, 'call' ) )->with(
+				'check_save', fn::expr('$_'), "msg"
+			)->to->throw(\WP_CLI\ExitException::class);
+			expect( $this->logger->stderr ) -> to -> equal("Error: msg\n");
+		});
+		it("issuing a formatted WP_CLI::error if result is empty", function(){
+			expect( array( $this->model, 'call' ) )->with(
+				'check_save', 'is_array', 42
+			)->to->throw(\WP_CLI\ExitException::class);
+			expect( $this->logger->stderr ) -> to -> equal(
+				"Error: Empty ID returned by is_array(42)\n");
+		});
+		it("returning the result if not empty", function() {
+			expect($this->model->call('check_save', fn::expr('$_'), 42))->to->equal(42);
 		});
 	});
 

@@ -79,4 +79,17 @@ abstract class Model extends Bag {
 		}
 	}
 
+	protected function check_save($cb, ...$args) {
+		$res = $cb(...$args);
+		if ( is_wp_error( $res ) ) WP_CLI::error($res);
+		if ( ! $res ) {
+			$name = is_string($cb) ? $cb : "(" . var_export($cb, true) . ")";
+			$args = implode(', ', array_map('json_encode', $args));
+			WP_CLI::error(
+				sprintf( "Empty ID returned by %s(%s)", $name, $args )
+			);
+		}
+		return $res;
+	}
+
 }
