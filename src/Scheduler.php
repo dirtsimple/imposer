@@ -35,7 +35,7 @@ class Scheduler {
 	}
 
 	function ref($resource, ...$args) {
-		return $this->resource($resource, true)->lookup(...$args);
+		return $this->resource($resource, true)->ref(...$args);
 	}
 
 

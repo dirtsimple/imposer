@@ -48,7 +48,7 @@ class Resource extends Task {
 			function($keyType) {
 				return new Pool( function($key) use ($keyType) {
 					$cls = $this->model_class ?: Bag::class;  # XXX
-					$ref = Promise::value($this->lookup($key, $keyType));
+					$ref = Promise::value($this->ref($key, $keyType));
 					return new Mapper( new $cls( $ref ) );
 				});
 			}
@@ -69,7 +69,7 @@ class Resource extends Task {
 
 	# Lookup management
 
-	function lookup($key, $keyType='') {
+	function ref($key, $keyType='') {
 		$cache = $this->cache[$keyType];
 		if ( $cache->has($key) ) return $cache[$key];
 		if ( ($found = $this->runLookups($key, $keyType) ) !== null) {

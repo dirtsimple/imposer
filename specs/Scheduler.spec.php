@@ -69,7 +69,7 @@ describe("Scheduler", function () {
 	});
 	describe('ref($resource, ...)', function() {
 		it('delegates to resource($resource)->lookup(...)', function() {
-			$p1 = $this->sched->resource('foo')->lookup('bar', 'baz');
+			$p1 = $this->sched->resource('foo')->ref('bar', 'baz');
 			$p2 = $this->sched->ref('foo', 'bar', 'baz');
 			expect($p1)->to->equal($p2);
 		});
@@ -185,7 +185,7 @@ describe("Scheduler", function () {
 		});
 
 		it("tries to break deadlocks by rejecting a pending reference", function() {
-			$p1 = $this->sched->resource('@res')->lookup('x');
+			$p1 = $this->sched->resource('@res')->ref('x');
 			$p1->otherwise(fn()); # don't error out
 			$this->sched->run();
 			expect( GP\inspect($p1)['reason'] )->to->equal("@res: 'x' not found");

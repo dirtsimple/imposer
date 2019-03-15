@@ -82,21 +82,21 @@ describe("Resource", function () {
 			expect($this->res->run())-> to -> be -> true;
 		});
 		it("flushes the promise queue", function(){
-			$p1 = $this->res->lookup('x', 'a');
+			$p1 = $this->res->ref('x', 'a');
 			$this->wasRun = false;
 			Promise::later( function() { $this->wasRun = true; } );
 			$this->res->run();
 			expect($this->wasRun)-> to -> be -> true;
 		});
 		it("returns 1 if any promises were resolved", function(){
-			$p1 = $this->res->lookup('x', 'a');
-			$p2 = $this->res->lookup('y', 'b');
+			$p1 = $this->res->ref('x', 'a');
+			$p2 = $this->res->ref('y', 'b');
 			$this->res->addLookup(fn::val(42), 'a');
 			expect($this->res->run())-> to -> equal(1);
 		});
 		it("returns 0 and reschedules itself if no promises could be resolved", function(){
-			$p1 = $this->res->lookup('x', 'a');
-			$p2 = $this->res->lookup('y', 'b');
+			$p1 = $this->res->ref('x', 'a');
+			$p2 = $this->res->ref('y', 'b');
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->once();
 			expect($this->res->run())-> to -> equal(0);
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->twice();
@@ -167,9 +167,9 @@ describe("Resource", function () {
 		it("are called in add order for the matching type", function(){
 			$this->res->addLookup($f1 = fn::val(42));
 			$this->res->addLookup($f2 = fn::val(23));
-			expect( $this->res->lookup("x") )->to->equal(42);
+			expect( $this->res->ref("x") )->to->equal(42);
 			$this->res->removeLookup($f1);
-			expect( $this->res->lookup("y") )->to->equal(23);
+			expect( $this->res->ref("y") )->to->equal(23);
 		});
 	});
 	describe("runLookups()", function() {
@@ -181,16 +181,16 @@ describe("Resource", function () {
 			expect( $this->res->runLookups("x", "q") )->to->equal(23);
 		});
 	});
-	describe("lookup()", function() {
+	describe("ref()", function() {
 		it("caches results", function(){
 			$this->res->addLookup($f1 = fn::val(42));
 			$this->res->addLookup($f2 = fn::val(23));
-			expect( $this->res->lookup("x") )->to->equal(42);
+			expect( $this->res->ref("x") )->to->equal(42);
 			$this->res->removeLookup($f1);
-			expect( $this->res->lookup("x") )->to->equal(42);
+			expect( $this->res->ref("x") )->to->equal(42);
 		});
 		it("returns pending promises for not-found items", function(){
-			$p = $this->res->lookup("x");
+			$p = $this->res->ref("x");
 			expect( $p )->to->be->instanceof(GP\PromiseInterface::class);
 			expect( GP\is_settled($p) )->to->be->false;
 		});
@@ -198,26 +198,26 @@ describe("Resource", function () {
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->once();
 			$this->res->run();
 			expect($this->res->finished())->to->be->true;
-			$p = $this->res->lookup("x");
+			$p = $this->res->ref("x");
 			expect($this->res->finished())->to->be->false;
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->twice();
-			$p = $this->res->lookup("y");
+			$p = $this->res->ref("y");
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->twice();
 		});
 		describe("updates cache and pending status for externally", function(){
 			it("fulfilled promises", function() {
-				$p = $this->res->lookup("x");
+				$p = $this->res->ref("x");
 				$p->resolve("foo");
 				Promise::sync();
-				expect( $this->res->lookup("x") )->to->equal("foo");
+				expect( $this->res->ref("x") )->to->equal("foo");
 				expect( $this->res->hasSteps() )->to->be->false;
 			});
 			it("rejected promises", function() {
-				$p = $this->res->lookup("x");
+				$p = $this->res->ref("x");
 				$p->reject("foo");
 				$p->otherwise(fn()); # don't throw
 				Promise::sync();
-				expect( $this->res->lookup("x") )->to->equal($p);
+				expect( $this->res->ref("x") )->to->equal($p);
 				expect( $this->res->hasSteps() )->to->be->false;
 			});
 		});
@@ -225,16 +225,16 @@ describe("Resource", function () {
 	describe("resolve()", function() {
 		it("updates the cache for one or more items", function(){
 			$this->res->resolve("", "a", "b");
-			expect( $this->res->lookup("a") )->to->equal("b");
+			expect( $this->res->ref("a") )->to->equal("b");
 			$this->res->resolve("", "a", "c");
-			expect( $this->res->lookup("a") )->to->equal("c");
+			expect( $this->res->ref("a") )->to->equal("c");
 			$this->res->resolve("x", array('q'=>'z', 'p'=>'r'));
-			expect( $this->res->lookup("p", "x") )->to->equal("r");
-			expect( $this->res->lookup("q", "x") )->to->equal("z");
+			expect( $this->res->ref("p", "x") )->to->equal("r");
+			expect( $this->res->ref("q", "x") )->to->equal("z");
 		});
 		it("resolves the relevant outstanding promises", function(){
-			$p1 = $this->res->lookup("x", "y");
-			$p2 = $this->res->lookup("x", "z");
+			$p1 = $this->res->ref("x", "y");
+			$p2 = $this->res->ref("x", "z");
 			expect( GP\is_fulfilled($p1) )->to->be->false;
 			expect( GP\is_fulfilled($p2) )->to->be->false;
 			$this->res->resolve("y", "x", "q");
@@ -243,17 +243,17 @@ describe("Resource", function () {
 			expect( $p1->wait() )->to->equal("q");
 		});
 		it("doesn't affect resolved promises", function(){
-			$p = $this->res->lookup("x", "y");
+			$p = $this->res->ref("x", "y");
 			$this->res->resolve("y", "x", "q");
 			$this->res->resolve("y", "x", "z");
-			expect( $this->res->lookup("x", "y") )->to->equal("z");
+			expect( $this->res->ref("x", "y") )->to->equal("z");
 			expect( $p->wait() )->to->equal("q");
 		});
 	});
 	describe("hasSteps()", function() {
 		it("returns true iff there are pending promises", function() {
 			expect($this->res->hasSteps())->to->be->false;
-			$this->res->lookup('x');
+			$this->res->ref('x');
 			expect($this->res->hasSteps())->to->be->true;
 			$this->res->resolve('', 'x', 'y');
 			expect($this->res->hasSteps())->to->be->false;
@@ -261,8 +261,8 @@ describe("Resource", function () {
 	});
 	describe("updatePending()", function() {
 		it("reruns lookup+resolve on pending promises, counting successes", function(){
-			$p1 = $this->res->lookup('x', 'a');
-			$p2 = $this->res->lookup('y', 'b');
+			$p1 = $this->res->ref('x', 'a');
+			$p2 = $this->res->ref('y', 'b');
 			expect( GP\is_fulfilled($p1) )->to->be->false;
 			expect( GP\is_fulfilled($p2) )->to->be->false;
 			$this->res->addLookup(fn::val(42), 'b');
@@ -278,8 +278,8 @@ describe("Resource", function () {
 	});
 	describe("cancelPending()", function() {
 		it("rejects a pending promise that can't be resolved", function(){
-			$p1 = $this->res->lookup('x', 'a'); $p1->otherwise(fn());
-			$p2 = $this->res->lookup('y', 'b'); $p2->otherwise(fn());
+			$p1 = $this->res->ref('x', 'a'); $p1->otherwise(fn());
+			$p2 = $this->res->ref('y', 'b'); $p2->otherwise(fn());
 			expect( GP\is_rejected($p1) )->to->be->false;
 			expect( GP\is_rejected($p2) )->to->be->false;
 
@@ -293,8 +293,8 @@ describe("Resource", function () {
 			expect( GP\inspect($p2)['reason'] )->to->equal("@demo:b 'y' not found");
 		});
 		it("resets hasSteps() to false", function(){
-			$p1 = $this->res->lookup('x', 'a'); $p1->otherwise(fn());
-			$p2 = $this->res->lookup('y', 'b'); $p2->otherwise(fn());
+			$p1 = $this->res->ref('x', 'a'); $p1->otherwise(fn());
+			$p2 = $this->res->ref('y', 'b'); $p2->otherwise(fn());
 			expect($this->res->hasSteps())->to->be->true;
 			$this->res->cancelPending();
 			$this->res->cancelPending();
