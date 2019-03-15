@@ -36,7 +36,7 @@ class PostModel extends Model {
 	}
 
 	static function lookup($key, $type, $resource) {
-		return $resource->runLookups($key, 'guid') ?: $resource->runLookups($key, 'path') ?: null;
+		return $resource->lookup($key, 'guid') ?: $resource->lookup($key, 'path') ?: null;
 	}
 
 	static function lookup_by_path($path) {

@@ -113,8 +113,8 @@ describe("PostModel", function() {
 	});
 	describe("::lookup()", function(){
 		it("tries guid, then path", function() {
-			$this->res->shouldReceive('runLookups')->with('foo', 'guid')->once()->andReturn(false);
-			$this->res->shouldReceive('runLookups')->with('foo', 'path')->once()->andReturn(99);
+			$this->res->shouldReceive('lookup')->with('foo', 'guid')->once()->andReturn(false);
+			$this->res->shouldReceive('lookup')->with('foo', 'path')->once()->andReturn(99);
 			expect( PostModel::lookup("foo", '', $this->res) )->to->equal(99);
 		});
 	});

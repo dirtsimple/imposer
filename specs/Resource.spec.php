@@ -172,13 +172,13 @@ describe("Resource", function () {
 			expect( $this->res->ref("y") )->to->equal(23);
 		});
 	});
-	describe("runLookups()", function() {
+	describe("lookup()", function() {
 		it("returns the uncached result of chaining lookups", function(){
 			$this->res->addLookup($f1 = fn::val(42), 'q');
 			$this->res->addLookup($f2 = fn::val(23), 'q');
-			expect( $this->res->runLookups("x", "q") )->to->equal(42);
+			expect( $this->res->lookup("x", "q") )->to->equal(42);
 			$this->res->removeLookup($f1, "q");
-			expect( $this->res->runLookups("x", "q") )->to->equal(23);
+			expect( $this->res->lookup("x", "q") )->to->equal(23);
 		});
 	});
 	describe("ref()", function() {

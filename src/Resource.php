@@ -72,7 +72,7 @@ class Resource extends Task {
 	function ref($key, $keyType='') {
 		$cache = $this->cache[$keyType];
 		if ( $cache->has($key) ) return $cache[$key];
-		if ( ($found = $this->runLookups($key, $keyType) ) !== null) {
+		if ( ($found = $this->lookup($key, $keyType) ) !== null) {
 			return $found;
 		}
 		$p = $this->pending[$keyType][$key];
@@ -128,7 +128,7 @@ class Resource extends Task {
 		$resolved = 0;
 		foreach ( $this->pending as $keyType => $pending ) {
 			foreach ( $pending as $key => $promise ) {
-				$found = $this->runLookups($key, $keyType);
+				$found = $this->lookup($key, $keyType);
 				if ( $found !== null ) {
 					$this->resolve($keyType, $key, $found);
 					$resolved++;
@@ -149,7 +149,7 @@ class Resource extends Task {
 		}
 	}
 
-	function runLookups($key, $keyType='') {
+	function lookup($key, $keyType='') {
 		# XXX this can recurse infinitely if called from a lookup w/same args
 		foreach ( $this->lookups[$keyType] as $lookup ) {
 			if ( ( $found = $lookup($key, $keyType, $this) ) !== null )
