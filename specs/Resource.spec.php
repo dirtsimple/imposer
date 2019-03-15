@@ -172,6 +172,15 @@ describe("Resource", function () {
 			expect( $this->res->lookup("y") )->to->equal(23);
 		});
 	});
+	describe("runLookups()", function() {
+		it("returns the uncached result of chaining lookups", function(){
+			$this->res->addLookup($f1 = fn::val(42), 'q');
+			$this->res->addLookup($f2 = fn::val(23), 'q');
+			expect( $this->res->runLookups("x", "q") )->to->equal(42);
+			$this->res->removeLookup($f1, "q");
+			expect( $this->res->runLookups("x", "q") )->to->equal(23);
+		});
+	});
 	describe("lookup()", function() {
 		it("caches results", function(){
 			$this->res->addLookup($f1 = fn::val(42));

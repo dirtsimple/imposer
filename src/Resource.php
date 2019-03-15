@@ -149,7 +149,8 @@ class Resource extends Task {
 		}
 	}
 
-	protected function runLookups($key, $keyType='') {
+	function runLookups($key, $keyType='') {
+		# XXX this can recurse infinitely if called from a lookup w/same args
 		foreach ( $this->lookups[$keyType] as $lookup ) {
 			if ( ( $found = $lookup($key, $keyType, $this) ) !== null )
 				return $this->resolve($keyType, $key, $found);
