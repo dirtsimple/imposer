@@ -112,7 +112,7 @@ describe("Mapper", function() {
 			);
 		});
 		it("returns itself for chainable methods", function(){
-			expect( $this->mapper->call('also', null) )->to->equal($this->mapper);
+			expect( $this->mapper->also(null) )->to->equal($this->mapper);
 		});
 		it("properties, offsets, and count", function(){
 			$mapper = $this->mapper; $model = $this->model;
@@ -216,8 +216,8 @@ describe("Model", function() {
 		});
 		it("waits for all promises given to also() before resolving", function(){
 			$this->model->save=function($def) { return 42; };
-			$this->model->call('also', $p1=new GP\Promise);
-			$this->model->call('also', $p2=new GP\Promise);
+			$this->model->also($p1=new GP\Promise);
+			$this->model->also($p2=new GP\Promise);
 			$res = Promise::interpret($this->model->apply());
 
 			expect( Promise::now($res) )->to->be->null;
@@ -230,13 +230,13 @@ describe("Model", function() {
 
 	describe("also()", function(){
 		it("returns \$this", function (){
-			expect($this->model->call('also', 42))->to->equal($this->model);
+			expect($this->model->also(42))->to->equal($this->model);
 		});
 		describe("starts coroutines", function(){
 			it("after the previous model completes", function(){
 				$this->flag = false;
 				$new = $this->model->next($p = new GP\Promise());
-				$new->call('also', function(){
+				$new->also(function(){
 					yield 16; $this->flag = true;
 				});
 				expect($this->flag)->to->be->false;
@@ -245,7 +245,7 @@ describe("Model", function() {
 			});
 			it("immediately if no previous model", function(){
 				$this->flag = false;
-				$this->model->call('also', function(){
+				$this->model->also(function(){
 					yield 16; $this->flag = true;
 				});
 				expect($this->flag)->to->be->true;

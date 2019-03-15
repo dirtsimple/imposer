@@ -46,7 +46,7 @@ abstract class Model extends Bag {
 
 	# Blocks apply() from finishing before $do (generator, promise, array, etc.)
 	# is resolved; can be called more than once to add more parallel tasks
-	protected function also($do) {
+	function also($do) {
 		$this->todo[] = Promise::call(
 			function () use ($do) { yield $this->previous; yield $do; }
 		);
