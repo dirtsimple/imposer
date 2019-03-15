@@ -85,6 +85,8 @@ class Imposer {
 			-> produces('@wp-menus', '@wp-menuitems')
 			-> reads('menus')
 			-> steps('dirtsimple\imposer\Menu::build_menus');
+
+		$this->resource('@wp-post')->set_model(PostModel::class);
 	}
 
 	static function sanitize_option($option, $value) {
