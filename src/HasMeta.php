@@ -31,10 +31,11 @@ trait HasMeta {
 
 	/* Update or patch a meta value (patch if key is an array w/len > 1) */
 	function set_meta($meta_key, $meta_val) {
-		return $this->edit_meta($meta_key, function($id, $key, $path, $old) use ($meta_val) {
+		return $this->edit_meta($meta_key, function($id, $key, $path) use ($meta_val) {
 			$meta_val = yield $meta_val;
 			if ( $path ) {
 				# Patch -- XXX unserialize and count up?
+				$old = static::_get_meta($id, $key);
 				if ( $old === false ) $old = array();
 				$traverser = new RecursiveDataStructureTraverser($old);
 				while ( $path ) {
@@ -52,9 +53,10 @@ trait HasMeta {
 
 	/* Unset a meta value or a portion thereof (patch if key is array w/len > 1) */
 	function delete_meta($meta_key) {
-		return $this->edit_meta( $meta_key, function($id, $key, $path, $old) {
+		return $this->edit_meta( $meta_key, function($id, $key, $path) {
 			if ( $path ) {
 				# Patch -- XXX unserialize and count up?
+				$old = static::_get_meta($id, $key);
 				if ( $old === false ) $old = array();
 				$traverser = new RecursiveDataStructureTraverser($old);
 				while ( $path ) {
@@ -88,7 +90,7 @@ trait HasMeta {
 			yield $ed;  # wait for last edit to finish
 			$id = yield $this->ref();
 			$key = array_shift($path);
-			yield $fn($id, $key, $path, $path ? static::_get_meta($id, $key) : null);
+			yield $fn($id, $key, $path);
 		});
 	}
 

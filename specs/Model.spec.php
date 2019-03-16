@@ -441,6 +441,15 @@ describe("Model", function() {
 				$this->model->set_meta(array('srcKey', 'some', 'and'), 'more');
 			});
 
+			it("waits before fetching the value to patch", function(){
+				$this->ref->resolve(42);  # run sync so we don't have to apply()
+				$this->model->set_meta(array('srcKey', 'some', 'thing'), $p = new GP\Promise());
+				$this->check();  # should not get or set until promise resolves
+				$p->resolve('else'); Promise::sync();
+				$this->expect('get', 42, 'srcKey', true);
+				$this->expect('set', 42, 'srcKey', array('some'=>array('thing'=>'else')));
+			});
+
 			it("delays the fulfillment of apply(), if it has to wait", function(){
 				$this->expect('set', 42, 'aKey', array('another','thing'));
 				$done = $this->model->set_meta(array('aKey'), array($p=new GP\Promise(), 'thing'));
