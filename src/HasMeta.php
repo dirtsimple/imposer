@@ -71,6 +71,8 @@ trait HasMeta {
 		});
 	}
 
+	private $prevMetaEdit;
+
 	protected function edit_meta($meta_key, $fn) {
 		if ( ! static::meta_type ) {
 			throw new \BadMethodCallException(static::class . " does not support metadata");
@@ -81,7 +83,9 @@ trait HasMeta {
 		if ( array_filter(array_filter($path), 'is_string') !== $path )
 			throw new \DomainException("meta_key items must be non-empty strings");
 
-		return $this->also(function() use ($path, $fn) {
+		$ed = $this->prevMetaEdit;
+		return $this->prevMetaEdit = $this->also(function() use ($path, $fn, $ed) {
+			yield $ed;  # wait for last edit to finish
 			$id = yield $this->ref();
 			$key = array_shift($path);
 			yield $fn($id, $key, $path, $path ? static::_get_meta($id, $key) : null);

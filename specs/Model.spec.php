@@ -360,6 +360,19 @@ describe("Model", function() {
 			function save(){}
 		}
 
+		it("serializes execution of set_meta()/delete_meta()", function(){
+			$this->ref->resolve(42);  # run sync so we don't have to apply()
+			$this->model->set_meta('x', $p1 = new GP\Promise());
+			$this->model->delete_meta('x');
+			$this->model->set_meta('x', 99);
+			# none of the above execute until $p1 resolves
+			$this->check();
+			$p1->resolve('y'); Promise::sync();
+			$this->expect('set', 42, 'x', 'y');
+			$this->expect('delete', 42, 'x', '');
+			$this->expect('set', 42, 'x',  99);
+		});
+
 		function common_hasmeta_checks() {
 			it("is disabled unless a `meta_type` constant is set", function(){
 				$model = new NoMetaModel($this->ref);
