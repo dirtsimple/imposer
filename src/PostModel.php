@@ -66,7 +66,7 @@ class PostModel extends Model {
 
 	static function nonguid_post_types() {
 		if ( ! isset(self::$excludes) ) {
-			$excludes = array('revision','edd_payment','shop_order','shop_subscription');
+			$excludes = array('revision','edd_log','edd_payment','shop_order','shop_subscription');
 			$excludes = \apply_filters('imposer_nonguid_post_types', $excludes);
 			$excludes = array_fill_keys($excludes, 1);
 			ksort($excludes);

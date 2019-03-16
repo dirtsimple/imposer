@@ -122,6 +122,7 @@ describe("PostModel", function() {
 		it("includes some known types (revision, EDD/woo orders & payments)", function() {
 			Monkey\setUp();
 			expect( PostModel::nonguid_post_types() )->to->equal(array(
+				'edd_log' => 1,
 				'edd_payment' => 1,
 				'revision' => 1,
 				'shop_order' => 1,
@@ -131,7 +132,7 @@ describe("PostModel", function() {
 		it("filters via imposer_nonguid_post_types", function() {
 			Monkey\setUp();
 			Filters\expectApplied('imposer_nonguid_post_types')->once()->with(
-				array('revision','edd_payment','shop_order','shop_subscription')
+				array('revision','edd_log','edd_payment','shop_order','shop_subscription')
 			);
 			PostModel::nonguid_post_types();
 		});
