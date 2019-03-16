@@ -48,8 +48,6 @@ trait HasMeta {
 			}
 			static::_set_meta($id, $key, $meta_val);
 		});
-
-		return $this;
 	}
 
 	/* Unset a meta value or a portion thereof (patch if key is array w/len > 1) */
@@ -83,12 +81,11 @@ trait HasMeta {
 		if ( array_filter(array_filter($path), 'is_string') !== $path )
 			throw new \DomainException("meta_key items must be non-empty strings");
 
-		$this->also(function() use ($path, $fn) {
+		return $this->also(function() use ($path, $fn) {
 			$id = yield $this->ref();
 			$key = array_shift($path);
 			yield $fn($id, $key, $path, $path ? static::_get_meta($id, $key) : null);
 		});
-		return $this;
 	}
 
 }

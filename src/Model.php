@@ -47,10 +47,11 @@ abstract class Model extends Bag {
 	# Blocks apply() from finishing before $do (generator, promise, array, etc.)
 	# is resolved; can be called more than once to add more parallel tasks
 	function also($do) {
-		$this->todo[] = Promise::call(
+		$this->todo[] = $done = new WatchedPromise();
+		$done->call(
 			function () use ($do) { yield $this->previous; yield $do; }
 		);
-		return $this;
+		return $done;
 	}
 
 	protected function settle_args() {

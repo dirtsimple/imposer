@@ -27,6 +27,9 @@ class MockModel extends Model {
 		return ($this->save)($this);
 	}
 
+	# Fake chainable method
+	function return_this() { return $this; }
+
 	# To call protected methods
 	public function call($method, ...$args){
 		return $this->$method(...$args);
@@ -112,7 +115,7 @@ describe("Mapper", function() {
 			);
 		});
 		it("returns itself for chainable methods", function(){
-			expect( $this->mapper->also(null) )->to->equal($this->mapper);
+			expect( $this->mapper->return_this() )->to->equal($this->mapper);
 		});
 		it("properties, offsets, and count", function(){
 			$mapper = $this->mapper; $model = $this->model;
@@ -229,8 +232,15 @@ describe("Model", function() {
 	});
 
 	describe("also()", function(){
-		it("returns \$this", function (){
-			expect($this->model->also(42))->to->equal($this->model);
+		it("returns a promise tied to task completion", function (){
+			$p1 = $this->model->also(42);
+			expect($p1)->to->be->instanceof(WatchedPromise::class);
+			expect(Promise::now($p1))->to->equal(42);
+			$p2 = $this->model->also($p3 = new GP\Promise());
+			expect($p2)->to->be->instanceof(WatchedPromise::class);
+			expect(Promise::now($p2))->to->equal(null);
+			$p3->resolve(99); Promise::sync();
+			expect(Promise::now($p2))->to->equal(99);
 		});
 		describe("starts coroutines", function(){
 			it("after the previous model completes", function(){
@@ -387,10 +397,11 @@ describe("Model", function() {
 			$this->method = 'set_meta';
 			common_hasmeta_checks();
 
-			it("returns self", function(){
+			it("returns a promise for its completion", function(){
 				$this->ref->resolve(42);  # run sync so we don't have to apply()
 				$this->expect('set', 42, 'x', 'y');
-				expect( $this->model->set_meta('x', 'y') )->to->equal($this->model);
+				$p = $this->model->set_meta('x', 'y');
+				expect( $p )->to->be->instanceof(WatchedPromise::class);
 			});
 
 			it("calls _set_meta() if key is a string or single-element array", function(){
@@ -419,10 +430,12 @@ describe("Model", function() {
 
 			it("delays the fulfillment of apply(), if it has to wait", function(){
 				$this->expect('set', 42, 'aKey', array('another','thing'));
-				$this->model->set_meta(array('aKey'), array($p=new GP\Promise(), 'thing'));
+				$done = $this->model->set_meta(array('aKey'), array($p=new GP\Promise(), 'thing'));
+				expect(GP\is_settled($done))->to->be->false;
 				$res = Promise::interpret( $this->model->apply() ); Promise::sync();
 				expect( Promise::now($res) )->to->be->null;
 				$p->resolve('another'); Promise::sync();
+				expect(GP\is_settled($done))->to->be->true;
 				expect( Promise::now($res) )->to->equal(42);
 			});
 		});
@@ -430,10 +443,11 @@ describe("Model", function() {
 		describe("delete_meta()", function(){
 			$this->method = 'delete_meta';
 			common_hasmeta_checks();
-			it("returns self", function(){
+			it("returns a promise for its completion", function(){
 				$this->ref->resolve(42);  # run sync so we don't have to apply()
 				$this->expect('delete', 42, 'x', '');
-				expect( $this->model->delete_meta('x') )->to->equal($this->model);
+				$p = $this->model->delete_meta('x');
+				expect( $p )->to->be->instanceof(WatchedPromise::class);
 			});
 			it("calls _delete_meta() if key is a string or single-element array", function(){
 				$this->ref->resolve(42);  # run sync so we don't have to apply()
