@@ -774,7 +774,7 @@ Note: the specification object read by imposer tasks is built up from nothing on
 
 For plugins and PHP blocks within state files, imposer offers the following actions and filters (listed in execution order):
 
-* `do_action("imposer_tasks")` -- an opportunity for plugins or packages to directly register tasks with imposer, rather than via a state module.  (Or, for state modules to register cleanup tasks that will occur after all the tasks defined directly by state modules.)
+* `do_action("imposer_tasks")` -- an opportunity for plugins or WP-CLI packages to directly register tasks, resources, models, lookups, etc. with imposer, rather than via a state module.
 * `apply_filters("imposer_spec_$propName", $value, $spec)` -- each top-level property of the JSON configuration map is passed through a filter named `imposer_spec_PROP`, where `PROP` is the property name.  So for example, if you want to alter the `options` or `plugins` imposer will apply, you can add filters to `imposer_spec_options` and `imposer_spec_plugins`.  The first argument is the value of the key, the second is the current contents of the overall configuration map.
 * `apply_filters("imposer_spec", $spec)` -- add a filter to this hook to make any changes to the configuration map that span multiple keys: the individual keys will have already been modified by the preceding `imposer_spec_KEY` filters.
 

@@ -35,7 +35,6 @@ class Imposer {
 	}
 
 	function run_with($php, $spec) {
-		do_action("imposer_tasks");
 		eval( "?>$php" );
 		foreach ( $spec as $key => $val ) {
 			$spec->{$key} = apply_filters( "imposer_spec_$key", $val, $spec);
@@ -50,7 +49,11 @@ class Imposer {
 	protected static $instance;
 
 	static function instance() {
-		return static::$instance ?: static::$instance = new Imposer();
+		if ( ! isset(static::$instance) ) {
+			static::$instance = new Imposer();
+			do_action("imposer_tasks");
+		}
+		return static::$instance;
 	}
 
 	static function __callStatic($name, $args) {
