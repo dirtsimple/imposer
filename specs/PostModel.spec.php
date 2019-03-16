@@ -170,21 +170,21 @@ describe("PostModel", function() {
 	describe("::on_save_post()", function(){
 		it("is a no-op when guid cache is inactive", function() {
 			expect( PostModel::_test_get_guid_cache() )->to->equal(null);
-			PostModel::on_save_post( 42, (object) array('type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
+			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
 			expect( PostModel::_test_get_guid_cache() )->to->equal(null);
 		});
 		it("is a no-op when post->type is exlcuded", function() {
 			PostModel::_test_set_excludes(array('post'=>1));
 			PostModel::_test_set_guid_cache(array());
 			expect( PostModel::_test_get_guid_cache() )->to->equal(array());
-			PostModel::on_save_post( 42, (object) array('type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
+			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
 			expect( PostModel::_test_get_guid_cache() )->to->equal(array());
 		});
 		it("updates the guid cache", function() {
 			PostModel::_test_set_guid_cache(array());
 			PostModel::_test_set_excludes(array());
 			expect( PostModel::_test_get_guid_cache() )->to->equal(array());
-			PostModel::on_save_post( 42, (object) array('type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
+			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
 			expect( PostModel::_test_get_guid_cache() )->to->equal(array('urn:x-test-guid:foo'=>42));
 		});
 	});

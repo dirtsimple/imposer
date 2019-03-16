@@ -30,7 +30,7 @@ class PostModel extends Model {
 	}
 
 	static function on_save_post($post_ID, $post) {
-		if ( isset(self::$guid_cache) && ! isset( self::nonguid_post_types()[$post->type] ) ) {
+		if ( isset(self::$guid_cache) && ! isset( self::nonguid_post_types()[$post->post_type] ) ) {
 			self::$guid_cache[$post->guid] = $post_ID;
 		}
 	}
