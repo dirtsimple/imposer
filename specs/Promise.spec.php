@@ -92,6 +92,11 @@ describe("Promise", function() {
 			expect( Promise::now($g) )->to->equal(42);
 			expect($this->flag)->to->be->true;
 		});
+		it("the Promise::call() of a closure", function() {
+			$p = Promise::interpret(function () { throw new \Exception("message"); });
+			expect( $p )->to->be->instanceof(WatchedPromise::class);
+			expect( array(Promise::class, 'now') )->with( $p )->to->throw(\Exception::class, "message");
+		});
 		it("a value for a fulfilled promise", function(){
 			expect( Promise::interpret( GP\promise_for(42) ) )->to->equal(42);
 		});

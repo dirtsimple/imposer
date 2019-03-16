@@ -106,7 +106,7 @@ describe("Mapper", function() {
 			$this->model = new DelegateTestModel($this->ref);
 			$this->mapper = new Mapper($this->model);
 		});
-		it("Promise::interpret()s the results", function(){
+		it("Promise::spawn()s returned generators", function(){
 			expect( $this->mapper->yieldingMethod() )->to->equal('hut!');
 		});
 		it("throws errors for returned promise rejections", function(){

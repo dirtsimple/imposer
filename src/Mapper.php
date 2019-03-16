@@ -27,7 +27,8 @@ class Mapper implements \ArrayAccess, \IteratorAggregate, \Countable {
 	/* Delegate everything else to the underlying model */
 
 	function __call($method, $args) {
-		$ret = Promise::interpret( $this->model->$method(...$args) );
+		$ret = $this->model->$method(...$args);
+		if ($ret instanceof \Generator) $ret = Promise::spawn( $ret );
 		Promise::now($ret);  # force rejections to become immediate errors
 		return ($ret === $this->model) ? $this : $ret;
 	}
