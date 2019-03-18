@@ -102,6 +102,7 @@ class Menu {
 	function sync_children($ob, $parent_id=0) {
 		foreach (get($ob->items, array()) as $itemdata) {
 			$item = new MenuItem($this->term_id, (object) $itemdata, $parent_id, ++$this->item_count);
+			$item->items = get($itemdata->items, array());
 			$db_id = $item->sync($old = get($this->old_items->{$item->guid}, null));
 			if ( is_wp_error($db_id) ) WP_CLI::error($db_id);
 			if ( $old ) unset($this->old_items->{$item->guid});
