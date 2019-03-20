@@ -10,7 +10,11 @@ class Resource extends Task {
 		if ( $model_class && ! is_subclass_of($model_class, Model::class) ) throw new \DomainException(
 			"$model_class is not a Model subclass"
 		);
-		if ( $this->model_class = $model_class ) call_user_func("$model_class::configure", $this);
+		if ( $this->model_class !== $model_class ) {
+			if ( $this->model_class ) call_user_func("$this->model_class::deconfigure", $this);
+			$this->model_class = $model_class;
+			if ( $model_class ) call_user_func("$model_class::configure", $this);
+		}
 	}
 
 	function define($key, $keyType='') {

@@ -151,7 +151,7 @@ describe("Model", function() {
 		expect( $this->model )->to->be->instanceof(Bag::class);
 	});
 
-	describe("::configure() in subclasses adds lookups such that", function(){
+	describe("::configure()/::deconfigure() manage subclass lookups such that", function(){
 		class Lookup1 extends MockModel {
 			static function lookup() {}
 		}
@@ -161,26 +161,32 @@ describe("Model", function() {
 			static function lookup_by_guid() {}
 		}
 
-		beforeEach( function() {
-			$this->resource = Mockery::Mock(Resource::class);
-			$this->model = new MockModel($this->ref);
-		});
 		afterEach( function(){
 			Monkey\tearDown();
 		});
 
 		it("lookup() method becomes a lookup handler", function() {
-			$res = $this->resource;
-			$res->shouldReceive('addLookup')->with(array(Lookup1::class, 'lookup'))->once();
-			Lookup1::configure($this->resource);
+			$res1 = Mockery::Mock(Resource::class);
+			$res1->shouldReceive('addLookup')->with(array(Lookup1::class, 'lookup'), '')->once();
+			Lookup1::configure($res1);
+
+			$res2 = Mockery::Mock(Resource::class);
+			$res2->shouldReceive('removeLookup')->with(array(Lookup1::class, 'lookup'), '')->once();
+			Lookup1::deconfigure($res2);
 		});
 
 		it("lookup_by_X() methods become lookup handlers for key type X", function() {
-			$res = $this->resource;
-			$res->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup'))->once();
-			$res->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup_by_path'), 'path')->once();
-			$res->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup_by_guid'), 'guid')->once();
-			Lookup2::configure($this->resource);
+			$res1 = Mockery::Mock(Resource::class);
+			$res1->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup'), '')->once();
+			$res1->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup_by_path'), 'path')->once();
+			$res1->shouldReceive('addLookup')->with(array(Lookup2::class, 'lookup_by_guid'), 'guid')->once();
+			Lookup2::configure($res1);
+
+			$res2 = Mockery::Mock(Resource::class);
+			$res2->shouldReceive('removeLookup')->with(array(Lookup2::class, 'lookup'), '')->once();
+			$res2->shouldReceive('removeLookup')->with(array(Lookup2::class, 'lookup_by_path'), 'path')->once();
+			$res2->shouldReceive('removeLookup')->with(array(Lookup2::class, 'lookup_by_guid'), 'guid')->once();
+			Lookup2::deconfigure($res2);
 		});
 	});
 

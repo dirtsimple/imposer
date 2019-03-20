@@ -75,6 +75,16 @@ describe("Resource", function () {
 			$this->res->set_model(ConfigModel::class);
 			expect(ConfigModel::$r)->to->equal($this->res);
 		});
+		it("calls the previously-registered class's ::deconfigure() method with the resource", function(){
+			class DeConfigModel extends Model {
+				public static $r=42;
+				static function deconfigure($resource) { static::$r = $resource; }
+				function save(){}
+			}
+			$this->res->set_model(DeConfigModel::class);
+			$this->res->set_model(null);
+			expect(DeConfigModel::$r)->to->equal($this->res);
+		});
 	});
 
 	describe("run()", function() {

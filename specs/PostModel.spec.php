@@ -156,7 +156,7 @@ describe("PostModel", function() {
 	describe("::configure()", function(){
 		it("configures lookups", function(){
 			Monkey\setUp();
-			$this->res->shouldReceive('addLookup')->with(array(PostModel::class, 'lookup'))->once();
+			$this->res->shouldReceive('addLookup')->with(array(PostModel::class, 'lookup'), '')->once();
 			$this->res->shouldReceive('addLookup')->with(array(PostModel::class, 'lookup_by_path'), 'path')->once();
 			$this->res->shouldReceive('addLookup')->with(array(PostModel::class, 'lookup_by_guid'), 'guid')->once();
 			PostModel::configure($this->res);
