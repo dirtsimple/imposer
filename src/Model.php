@@ -16,18 +16,18 @@ abstract class Model extends Bag {
 
 	# Return the underlying database ID, or null if it doesn't exist yet
 	function id() {
-		return ($id = Promise::now($this->id)) ? $this->id = $id : $id;
+		return ($id = Promise::now($this->_id)) ? $this->_id = $id : $id;
 	}
 
-	function ref() { return $this->ref; }
+	function ref() { return $this->_ref; }
 
-	function next($previous) { return new static($this->ref, $previous); }
+	function next($previous) { return new static($this->_ref, $previous); }
 
 	# Create or update the database object, returning a promise that resolves when
 	# this and any prior apply()s, set_metas, etc. are finished.
 	function apply() {
 		# Await previous save
-		yield $this->previous;
+		yield $this->_previous;
 
 		# Await args before save
 		yield( $this->settle_args() );
@@ -35,10 +35,10 @@ abstract class Model extends Bag {
 		$res = yield( $this->save() );
 
 		# XXX check that handler-based lookup resolves correctly?
-		if ( $res && $this->id() === null ) $this->ref->resolve($res);
+		if ( $res && $this->id() === null ) $this->_ref->resolve($res);
 
 		# Await dependencies before finish
-		while ($item = array_shift($this->todo)) yield $item ;
+		while ($item = array_shift($this->_todo)) yield $item ;
 
 		# Return the result of the save
 		yield $res;
@@ -47,9 +47,9 @@ abstract class Model extends Bag {
 	# Blocks apply() from finishing before $do (generator, promise, array, etc.)
 	# is resolved; can be called more than once to add more parallel tasks
 	function also($do) {
-		$this->todo[] = $done = new WatchedPromise();
+		$this->_todo[] = $done = new WatchedPromise();
 		$done->call(
-			function () use ($do) { yield $this->previous; yield $do; }
+			function () use ($do) { yield $this->_previous; yield $do; }
 		);
 		return $done;
 	}
@@ -60,12 +60,12 @@ abstract class Model extends Bag {
 
 	# Implementation Details:
 
-	private $todo=array(), $id, $ref, $previous;
+	private $_todo=array(), $_id, $_ref, $_previous;
 
 	function __construct($ref, $previous=null) {
 		parent::__construct();
-		$this->id = $this->ref = $ref;
-		$this->previous = $previous;
+		$this->_id = $this->_ref = $ref;
+		$this->_previous = $previous;
 	}
 
 	# Configure resource lookups
