@@ -47,8 +47,8 @@ class Resource extends Task {
 		$this->mappers = new Pool(
 			function($keyType) {
 				return new Pool( function($key) use ($keyType) {
-					$cls = $this->model_class ?: Bag::class;  # XXX
 					$ref = Promise::value($this->ref($key, $keyType));
+					$cls = $this->model_class;
 					return new Mapper( new $cls( $ref ) );
 				});
 			}
@@ -84,7 +84,11 @@ class Resource extends Task {
 		);
 
 		$this->schedule();  # <-- must be *after* promise is created
-		return $cache[$key] = $p = new WatchedPromise($p);
+		$p = new WatchedPromise($p);
+		$p->key = $key;
+		$p->keyType = $keyType;
+		$p->resource = $this;
+		return $cache[$key] = $p;
 	}
 
 	function addLookup($handler, $keyType='') {

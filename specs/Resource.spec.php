@@ -194,6 +194,12 @@ describe("Resource", function () {
 			expect( $p )->to->be->instanceof(GP\PromiseInterface::class);
 			expect( GP\is_settled($p) )->to->be->false;
 		});
+		it("labels promises with the original key, keyType, and resource", function(){
+			$p = $this->res->ref("x", "y");
+			expect( $p->resource )->to->equal($this->res);
+			expect( $p->key      )->to->equal('x');
+			expect( $p->keyType  )->to->equal('y');
+		});
 		it("schedules a run if needed", function() {
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->once();
 			$this->res->run();
