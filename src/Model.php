@@ -68,15 +68,25 @@ abstract class Model extends Bag {
 		$this->_previous = $previous;
 	}
 
+	protected static function on_setup() {}
+	protected static function on_teardown() {}
+
+
+	private static $refcnt = array();
+
 	# Configure resource lookups
 	static function configure($resource) {
 		foreach( static::lookup_methods() as $type => $cb )
 			$resource->addLookup($cb, $type);
+		$refcnt =& self::$refcnt[static::class];
+		if ( ! $refcnt++ ) static::on_setup();
 	}
 
 	static function deconfigure($resource) {
 		foreach( static::lookup_methods() as $type => $cb )
 			$resource->removeLookup($cb, $type);
+		$refcnt =& self::$refcnt[static::class];
+		if ( ! --$refcnt ) static::on_teardown();
 	}
 
 	static function lookup_methods() {

@@ -24,8 +24,7 @@ class PostModel extends Model {
 
 	private static $guid_cache, $excludes;
 
-	static function configure($resource) {
-		parent::configure($resource);
+	static function on_setup() {
 		\add_action('save_post', array(__CLASS__, "on_save_post"), 10, 2);
 	}
 

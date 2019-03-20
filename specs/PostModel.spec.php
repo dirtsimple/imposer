@@ -1,6 +1,7 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
+use dirtsimple\imposer\Model;
 use dirtsimple\imposer\PostModel;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Resource;
@@ -154,6 +155,7 @@ describe("PostModel", function() {
 		});
 	});
 	describe("::configure()", function(){
+		afterEach(function() { private_var(Model::class, 'refcnt')->setValue(array()); });
 		it("configures lookups", function(){
 			Monkey\setUp();
 			$this->res->shouldReceive('addLookup')->with(array(PostModel::class, 'lookup'), '')->once();
