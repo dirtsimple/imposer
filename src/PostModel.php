@@ -75,12 +75,6 @@ class PostModel extends Model {
 		return self::$excludes;
 	}
 
-	/* Accessors for tests only */
-	static function _test_set_guid_cache($data) { self::$guid_cache = $data; }
-	static function _test_get_guid_cache() { return self::$guid_cache; }
-	static function _test_set_excludes($data) { self::$excludes = $data; }
-	static function _test_get_excludes() { return self::$excludes; }
-
 	use HasMeta;
 
 }

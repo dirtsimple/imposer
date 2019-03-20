@@ -14,14 +14,14 @@ use Mockery;
 
 describe("PostModel", function() {
 	beforeEach(function(){
-		PostModel::_test_set_guid_cache(null);
-		PostModel::_test_set_excludes(null);
+		private_var(PostModel::class, 'guid_cache')->setValue(null);
+		private_var(PostModel::class, 'excludes')->setValue(null);
 		$this->res = Mockery::Mock(Resource::class);
 		global $wpdb;
 		$wpdb = $this->wpdb = Mockery::Mock();
 		$this->expectedFilter = 'post_type NOT IN ("foo", "bar")';
 		$this->expectFilter = function() {
-			PostModel::_test_set_excludes( $fubar = array('foo'=>1, 'bar'=>1) );
+			private_var(PostModel::class, 'excludes')->setValue( $fubar = array('foo'=>1, 'bar'=>1) );
 			$this->wpdb->shouldReceive('prepare')->once()
 			->with('post_type NOT IN (%s, %s)', array_keys($fubar))
 			->andReturn( $this->expectedFilter );
@@ -97,7 +97,7 @@ describe("PostModel", function() {
 	});
 	describe("::lookup_by_guid()", function(){
 		beforeEach(function(){
-			PostModel::_test_set_guid_cache(array('urn:x-foo:bar'=>27));
+			private_var(PostModel::class, 'guid_cache')->setValue(array('urn:x-foo:bar'=>27));
 		});
 		it("returns a cached id", function(){
 			expect(PostModel::lookup_by_guid('urn:x-foo:bar'))->to->equal(27);
@@ -106,7 +106,7 @@ describe("PostModel", function() {
 			expect(PostModel::lookup_by_guid('urn:x-foo:baz'))->to->equal(null);
 		});
 		it("fetches guids on demand", function(){
-			PostModel::_test_set_guid_cache(null);
+			private_var(PostModel::class, 'guid_cache')->setValue(null);
 			$this->expectFetch();
 			expect(PostModel::lookup_by_guid('fi'))->to->equal(42);
 		});
@@ -137,7 +137,7 @@ describe("PostModel", function() {
 			PostModel::nonguid_post_types();
 		});
 		it("returns the cached map if set", function() {
-			PostModel::_test_set_excludes( $fubar = array('foo'=>1, 'bar'=>1) );
+			private_var(PostModel::class, 'excludes')->setValue( $fubar = array('foo'=>1, 'bar'=>1) );
 			expect( PostModel::nonguid_post_types() )->to->equal($fubar);
 		});
 	});
@@ -170,23 +170,23 @@ describe("PostModel", function() {
 	});
 	describe("::on_save_post()", function(){
 		it("is a no-op when guid cache is inactive", function() {
-			expect( PostModel::_test_get_guid_cache() )->to->equal(null);
+			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(null);
 			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
-			expect( PostModel::_test_get_guid_cache() )->to->equal(null);
+			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(null);
 		});
 		it("is a no-op when post->type is exlcuded", function() {
-			PostModel::_test_set_excludes(array('post'=>1));
-			PostModel::_test_set_guid_cache(array());
-			expect( PostModel::_test_get_guid_cache() )->to->equal(array());
+			private_var(PostModel::class, 'excludes')->setValue(array('post'=>1));
+			private_var(PostModel::class, 'guid_cache')->setValue(array());
+			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array());
 			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
-			expect( PostModel::_test_get_guid_cache() )->to->equal(array());
+			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array());
 		});
 		it("updates the guid cache", function() {
-			PostModel::_test_set_guid_cache(array());
-			PostModel::_test_set_excludes(array());
-			expect( PostModel::_test_get_guid_cache() )->to->equal(array());
+			private_var(PostModel::class, 'guid_cache')->setValue(array());
+			private_var(PostModel::class, 'excludes')->setValue(array());
+			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array());
 			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
-			expect( PostModel::_test_get_guid_cache() )->to->equal(array('urn:x-test-guid:foo'=>42));
+			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array('urn:x-test-guid:foo'=>42));
 		});
 	});
 });
