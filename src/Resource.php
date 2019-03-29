@@ -77,6 +77,12 @@ class Resource extends Task {
 	# Lookup management
 
 	function ref($key, $keyType='') {
+		if ( is_array($key) || is_object($key) )
+			return array_map(
+				function($key) use ($keyType) { return $this->ref($key, $keyType); },
+				(array) $key
+			);
+
 		$cache = $this->cache[$keyType];
 		if ( $cache->has($key) ) return $cache[$key];
 		if ( ($found = $this->lookup($key, $keyType) ) !== null) {

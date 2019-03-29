@@ -222,6 +222,11 @@ describe("Resource", function () {
 			expect( $p->key      )->to->equal('x');
 			expect( $p->keyType  )->to->equal('y');
 		});
+		it("maps arrays", function(){
+			list($p1, $p2) = $this->res->ref(array("x", "y"));
+			expect( $p1->key )->to->equal("x");
+			expect( $p2->key )->to->equal("y");
+		});
 		it("schedules a run if needed", function() {
 			$this->sched->shouldHaveReceived('enqueue')->with($this->res)->once();
 			$this->res->run();
