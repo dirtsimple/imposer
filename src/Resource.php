@@ -52,6 +52,9 @@ class Resource extends Task {
 			function($keyType) {
 				return new Pool( function($key) use ($keyType) {
 					$ref = Promise::value($this->ref($key, $keyType));
+					$ref->key = $key;
+					$ref->keyType = $keyType;
+					$ref->resource = $this;
 					$cls = $this->model_class;
 					return new Mapper( new $cls( $ref ) );
 				});

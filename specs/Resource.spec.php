@@ -51,6 +51,18 @@ describe("Resource", function () {
 			expect($s2->implements(ValidModel::class))->to->be->true;
 			expect($s1)->to->equal($s2);
 		});
+		it("returns a Mapper that knows its key, keyType, and resource", function(){
+			$this->res->set_model(ValidModel::class);
+			$this->res->resolve('q', 'y', 'z');
+			$s1 = $this->res->define("x");
+			$s2 = $this->res->define("y", "q");
+			expect($s1->ref()->resource)->to->equal($this->res);
+			expect($s2->ref()->resource)->to->equal($this->res);
+			expect($s1->ref()->key)->to->equal("x");
+			expect($s2->ref()->key)->to->equal("y");
+			expect($s1->ref()->keyType)->to->equal("");
+			expect($s2->ref()->keyType)->to->equal("q");
+		});
 	});
 
 	describe("set_model()", function() {
