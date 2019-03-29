@@ -89,8 +89,17 @@ class Imposer {
 			-> reads('menus')
 			-> steps('dirtsimple\imposer\Menu::build_menus');
 
+		$this -> task('Wordpress Widgets')
+			-> reads('widgets')
+			-> steps('dirtsimple\imposer\WidgetModel::impose_widgets');
+
+		$this -> task('Wordpress Sidebars')
+			-> reads('sidebars')
+			-> steps('dirtsimple\imposer\WidgetModel::impose_sidebars');
+
 		$this->resource('@wp-post')->set_model(PostModel::class);
 		$this->resource('@wp-user')->set_model(UserModel::class);
+		$this->resource('@wp-widget')->set_model(WidgetModel::class);
 	}
 
 	static function sanitize_option($option, $value) {
@@ -102,7 +111,7 @@ class Imposer {
 		return $ret;
 	}
 
-	static function impose_options($options) {
+	static function impose_options($options, $restart=true) {
 		foreach ( $options as $opt => $new ) {
 			WP_CLI::debug("Imposing option $opt", 'imposer-options');
 			$old = static::sanitize_option($opt, get_option($opt));
@@ -111,7 +120,7 @@ class Imposer {
 				update_option($opt, $new);
 				if (($saved = get_option($opt)) !== $new) {
 					WP_CLI::error("Option $opt was set to " . json_encode($new) . " but new value is " . json_encode($saved));
-				} else {
+				} else if ( $restart ) {
 					WP_CLI::success("Updated option $opt");
 					Imposer::request_restart();   # Avoid theme/plugin cache issues
 				}

@@ -27,7 +27,7 @@ Whenever you run `imposer apply`, the selected modules collectively create a JSO
 
 (A specification doesn't have to define your entire database, though!  Even if you have multiple sites that need a common menu, that doesn't mean you have to specify *all* of those sites' menus via imposer.  Options, plugins, menus, posts, etc. that *aren't* part of the specification on a given run are generally not touched by imposer.)
 
-A specification also doesn't define *how* its contents are mapped to the Wordpress database.  That's done by Imposer **tasks**.  Imposer supplies built-in tasks for [theme switching](#theme-switching), [plugin activation](#plugin-activation), [option patching](#option-patching), [menu/item definition](#menus-and-locations)  and [menu location assignment](#menu-locations), but your modules can include PHP code to add other kinds of tasks as well.
+A specification also doesn't define *how* its contents are mapped to the Wordpress database.  That's done by Imposer **tasks**.  Imposer supplies built-in tasks for [theme switching](#theme-switching), [plugin activation](#plugin-activation), [option patching](#option-patching), [menu/item definition](#menus-and-locations) and [menu location assignment](#menu-locations), as well as [widget configuration and sidebar placement](#widgets-and-sidebars), but your modules can include PHP code to define other kinds of tasks as well.
 
 (And any Wordpress plugins or wp-cli packages can do so, too!  For example, the [postmark wp-cli package](https://github.com/dirtsimple/postmark) provides [a state module that registers tasks](https://github.com/dirtsimple/postmark/blob/master/default.state.md) for importing posts, pages, and custom post types from Markdown files in directories listed by the specification.)
 
@@ -65,6 +65,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
   * [Specification Schema](#specification-schema)
     + [Theme, Plugins, and Options](#theme-plugins-and-options)
     + [Menus and Locations](#menus-and-locations)
+    + [Widgets and Sidebars](#widgets-and-sidebars)
   * [API](#api)
     + [Actions and Filters](#actions-and-filters)
     + [Event Hooks](#event-hooks)
@@ -766,6 +767,45 @@ menus:
 
 When a menu specifies a location for a specific theme (whether explicitly named or not), it is also **removed** from all other locations in that theme, to prevent duplication when you move a menu to a new location.  (Remember: multiple modules or YAML/JSON blocks can contribute properties to the same specification object, so you can always define a menu in one module, and add its location from another.)
 
+### Widgets and Sidebars
+
+Wordpress internally identifies widgets by an ID composed of a widget type and a number.  But this isn't very composition-friendly, since different state modules might unintentionally pick the same number.  To solve this issue, imposer lets you give widgets symbolic *names*, which can be whatever you want and have no inherent relationship with Wordpress's widget ids.  For example, this YAML block defines two named widgets and places them in two sidebars:
+
+```yaml
+widgets:
+  llms_syllabus:
+    title: "Contents"
+    widget_type: course_syllabus
+
+  llms_progress:
+    title: "Your Progress"
+    widget_type: course_progress
+
+sidebars:
+  llms_course_widgets_side:
+    - llms_progress
+    - llms_syllabus
+
+  llms_lesson_widgets_side:
+    - llms_progress
+    - llms_syllabus
+```
+
+Sidebars are defined under the top-level specification property `sidebars`, as a map from sidebar IDs to lists of widget names.
+
+Any widget names used in a sidebar must be defined under the top-level specification property `widgets`, as a map from widget names (which can be any string), to the properties the widget should have.  The `widget_type` property is required, and it names the internal "id base" of the corresponding widget object.  For example, the built-in  Calendar widget has a widget type of `calendar`, archive widgets are `archives`, and so on.
+
+Sometimes, widget properties need to reference Wordpress database objects such as posts, menus, terms, etc.  But since database IDs aren't portable, you may need to use other identifiers in the specification, and then look up the relevant object IDs using those other identifiers (e.g. a post GUID, a menu name, etc.)
+
+To support doing these kinds of transformations, widget properties are passed through two filters before they're actually stored in the database:
+
+* `apply_filters("imposer_widget", $props, $name)` -- filters the properties for any widget, regardless of type
+* `apply_filters("imposer_widget_$type", $props, $name)` -- filters the properties for widgets of type `$type`.
+
+These filters can then do any necessary lookups and replace the alternate identifiers with database ids as needed.
+
+(Implementation note: if you need to know the Wordpress ID of an imposed widget, the option `imposer_widget_ids` is a map from imposer widget names to Wordpress widget IDs, that is automatically updated whenever .)
+
 ## API
 
 Note: the specification object read by imposer tasks is built up from nothing on each imposer run, and only contains values put there by the state modules loaded *during that imposer run*.  It does *not* contain any existing plugin or option settings, etc.  If you need to read the existing-in-Wordpress values of such things, you must use PHP code that invokes the Wordpress API.  Think of the specification object as a to-do list or list of "things we'd like to ensure are this way in Wordpress as of this run".
@@ -833,7 +873,7 @@ Note: if your state file needs to run shell commands that will change the state 
 
 To keep `imposer options review` and `imposer options diff` from including options you don't want to monitor (because of "noise" or security concerns), you can use the following API functions from `shell` blocks in your project or state modules:
 
-* `exclude-options` *option-name...* -- Exclude one or more named options from `imposer options` commands, e.g. `exclude-options _edd_table_check`.  You can exclude *part* of an option by using a dotted path, e.g. `sidebars_widgets.time` to exclude the `time` item under the `sidebars_widgets` option.
+* `exclude-options` *option-name...* -- Exclude one or more named options from `imposer options` commands, e.g. `exclude-options _edd_table_check`.  You can exclude *part* of an option by using a dotted path, e.g. `foo.timestamp` to exclude the `timestamp` item under the `foo` option.
 
   Note: if an option name (or portion thereof) contains characters other than A-Z, a-z, 0-9, or `_`, you must surround it in double quotes within the name, and then surround the whole thing with single quotes, e.g.:
 
@@ -851,7 +891,7 @@ You can exclude as many options or add as many filters as you wish, from any sta
 
 ## Project Status
 
-Currently, this project is in very early development, as it doesn't have 100% documentation or test coverage yet, nor does it yet provide a built-in schema for terms, widgets, or sidebars.  (But the configuration schema can be extended using tasks, actions, and filters, as described above in [Extending Imposer](#extending-imposer).)
+Currently, this project is still under development, as it doesn't have 100% documentation or test coverage yet, nor does it yet provide a built-in schema for terms.  (But the configuration schema can be extended using tasks, actions, and filters, as described above in [Extending Imposer](#extending-imposer).)
 
 There is, however, [a roadmap for version 1.0](https://github.com/dirtsimple/imposer/projects/1).
 
