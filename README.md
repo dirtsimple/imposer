@@ -601,7 +601,11 @@ Reset the current snapshot, implicitly approving all current changes.  This comm
 
 #### imposer options list *[list-options...]*
 
-This command outputs a JSON map of all non-transient wordpress options, in the form they would need to appear under the `options` key in the imposer state.  (You can use the `wp option list` options `--search=`, `--exclude=`, and `--autoload=` to limit the output to a desired subset of options.)
+This command outputs a JSON map of all non-excluded, non-transient wordpress options, in the form they would need to appear under the `options` key in the imposer state.  (You can use the `wp option list` options `--search=`, `--exclude=`, and `--autoload=` to limit the output to a desired subset of options.)
+
+#### imposer options jq [jq-options...]
+
+This command pipes a JSON map of all non-excluded, non-transient Wordpress options to jq, with the *jq-options* passed along to jq.  The output is colorized and paged if sent to a TTY.
 
 #### imposer options diff
 

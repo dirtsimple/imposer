@@ -832,6 +832,8 @@ imposer.options---help() {
 	loco_subcommand_help "imposer.options-" "imposer options [--dir SNAPSHOT-DIR]"
 }
 
+imposer.options-jq() { imposer-filtered-options | jq-tty "$@"; }
+
 imposer.options---dir() {
 	(($#>1)) || imposer options --help
 	local IMPOSER_OPTIONS_SNAPSHOT=$1
