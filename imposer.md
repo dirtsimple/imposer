@@ -25,7 +25,7 @@ echo tty_prefix=IMPOSER_   # Use IMPOSER_ISATTY, IMPOSER_PAGER, etc.
 
 ### File and Function Names
 
-Configuration is loaded using loco.  Subcommand functions are named `imp.X`, where `X` is the command or option name.
+Configuration is loaded using loco.  Subcommand functions are named `imposer.X`, where `X` is the command or option name.
 
 ```shell
 loco_preconfig() {
@@ -141,7 +141,7 @@ compact-php() {
 
 php-uses-namespace() {
     local r o=nocasematch; ! shopt -q $o || o=; ${o:+shopt -s $o}
-    [[ $1 =~ ^((//|#).*$'\n'|'/*'.*'*/'|[[:space:]])*namespace[[:space:]]+[^\;{]*([;{]) ]]; r=$?
+    [[ $1 =~ ^((//|#).*$'\n'|'/*'.*'*/'|[[:space:]])*namespace[[:space:]]+[^\;{]*([;{]) ]]; r=$? #))
     ${o:+shopt -u $o}; REPLY=${BASH_REMATCH[3]-}; return $r
 }
 
