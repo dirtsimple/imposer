@@ -342,6 +342,10 @@ Triple-backquote fenced code blocks tagged `php` are not added to a plugin: they
 
 However, just as with any other Wordpress plugin or wp-cli package, your code should generally not *do* anything directly, except define functions or classes, and register hooks.  In this case, you'll probably be registering Imposer "tasks", "resources", and "steps" more often than actions or filters, but the general principle is still the same: set up code to be called later at the correct time(s), rather than taking direct action immediately.
 
+#### Extending WP-CLI with CLI Blocks
+
+Blocks tagged `php` only run during `imposer apply`, but sometimes you need hooks to be run for other WP-CLI commands (such as [postmark](https://github.com/dirtsimple/postmark)).  You *could* add them as `php tweak` blocks, but then they'd be run on every web hit to your site.  So imposer provides yet another block type: `php cli`.  These blocks are saved to a separate `imposer-tweaks.cli.php` file, which will be loaded by the `imposer-tweaks` plugin if and only if a WP-CLI command is about to be run.  In this way, you can add WP-CLI-specific hooks to your state modules without adding runtime overhead to your website.
+
 ## Extending Imposer
 
 ### Defining Tasks and Steps
@@ -642,6 +646,10 @@ The output includes all source files read (or cached), including any global conf
 #### imposer tweaks
 
 Outputs the PHP that would be written to `imposer-tweaks.php` if `imposer apply` were run.  The output is colorized and paged (if possible) according to the same rules as for [`imposer php`](#imposer-php-state).
+
+#### imposer tweaks cli
+
+Outputs the PHP that would be written to `imposer-tweaks.cli.php` if `imposer apply` were run.  The output is colorized and paged (if possible) according to the same rules as for [`imposer php`](#imposer-php-state).
 
 #### imposer path
 
