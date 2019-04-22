@@ -46,6 +46,12 @@ describe("Task", function () {
 		expect( $this->task->resource("@dummy", false) )->to->equal(42);
 	});
 
+	describe("name()", function() {
+		it("returns its name", function(){
+			expect($this->task->name())->to->equal("demo");
+		});
+	});
+
 	describe("__toString()", function() {
 		it("is its name initially", function() {
 			expect("$this->task")->to->equal("demo");

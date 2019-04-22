@@ -19,6 +19,7 @@ class Task {
 		$this->schedule();
 	}
 
+	function name() { return $this->name; }
 
 	// ===== Task Declaration API ===== //
 
