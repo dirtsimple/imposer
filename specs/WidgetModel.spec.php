@@ -18,7 +18,7 @@ describe("WidgetModel", function(){
 		$this->opts = new Bag();
 		private_var(Imposer::class, 'instance')->setValue(null);
 		class_exists(WidgetModel::class);
-		private_var(WidgetModel::class, '_index')->setValue(null);
+		WidgetModel::deconfigure();
 		$this->get_option = function($key, $dflt=false) { return $this->opts->get($key, $dflt); };
 		$this->set_option = function($key, $val, $autoload=null){ $this->opts[$key] = $val; return true; };
 		$this->make_model = function($key, $p=null) {

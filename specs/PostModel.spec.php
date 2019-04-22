@@ -1,6 +1,7 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
+use dirtsimple\imposer\Bag;
 use dirtsimple\imposer\Model;
 use dirtsimple\imposer\PostModel;
 use dirtsimple\imposer\Promise;
@@ -15,14 +16,12 @@ use Mockery;
 
 describe("PostModel", function() {
 	beforeEach(function(){
-		private_var(PostModel::class, 'guid_cache')->setValue(null);
-		private_var(PostModel::class, 'excludes')->setValue(null);
 		$this->res = Mockery::Mock(Resource::class);
 		global $wpdb;
 		$wpdb = $this->wpdb = Mockery::Mock();
 		$this->expectedFilter = 'post_type NOT IN ("foo", "bar")';
 		$this->expectFilter = function() {
-			private_var(PostModel::class, 'excludes')->setValue( $fubar = array('foo'=>1, 'bar'=>1) );
+			PostModel::cached()['nonguid_post_types'] = $fubar = array('foo'=>1, 'bar'=>1);
 			$this->wpdb->shouldReceive('prepare')->once()
 			->with('post_type NOT IN (%s, %s)', array_keys($fubar))
 			->andReturn( $this->expectedFilter );
@@ -36,6 +35,7 @@ describe("PostModel", function() {
 		};
 	});
 	afterEach( function(){
+		PostModel::deconfigure();
 		Monkey\tearDown();
 	});
 
@@ -98,7 +98,7 @@ describe("PostModel", function() {
 	});
 	describe("::lookup_by_guid()", function(){
 		beforeEach(function(){
-			private_var(PostModel::class, 'guid_cache')->setValue(array('urn:x-foo:bar'=>27));
+			PostModel::cached()['guids'] = new Bag(array('urn:x-foo:bar'=>27));
 		});
 		it("returns a cached id", function(){
 			expect(PostModel::lookup_by_guid('urn:x-foo:bar'))->to->equal(27);
@@ -107,7 +107,7 @@ describe("PostModel", function() {
 			expect(PostModel::lookup_by_guid('urn:x-foo:baz'))->to->equal(null);
 		});
 		it("fetches guids on demand", function(){
-			private_var(PostModel::class, 'guid_cache')->setValue(null);
+			Postmodel::uncache('guids');
 			$this->expectFetch();
 			expect(PostModel::lookup_by_guid('fi'))->to->equal(42);
 		});
@@ -122,7 +122,7 @@ describe("PostModel", function() {
 	describe("::nonguid_post_types()", function(){
 		it("includes some known types (revision, EDD/woo orders & payments)", function() {
 			Monkey\setUp();
-			expect( PostModel::nonguid_post_types() )->to->equal(array(
+			expect( (array) PostModel::nonguid_post_types() )->to->equal(array(
 				'edd_log' => 1,
 				'edd_payment' => 1,
 				'revision' => 1,
@@ -138,7 +138,7 @@ describe("PostModel", function() {
 			PostModel::nonguid_post_types();
 		});
 		it("returns the cached map if set", function() {
-			private_var(PostModel::class, 'excludes')->setValue( $fubar = array('foo'=>1, 'bar'=>1) );
+			PostModel::cached()['nonguid_post_types'] = $fubar = array('foo'=>1, 'bar'=>1);
 			expect( PostModel::nonguid_post_types() )->to->equal($fubar);
 		});
 	});
@@ -148,14 +148,14 @@ describe("PostModel", function() {
 			expect( PostModel::posttype_exclusion_filter() )->to->equal( $this->expectedFilter );
 		});
 	});
-	describe("::fetch_guids()", function(){
+	describe("::guids()", function(){
 		it("queries the DB for the guids of non-excluded post types", function(){
 			$this->expectFetch();
-			expect( PostModel::fetch_guids() )->to->equal( array('fee'=>27, 'fi'=>42) );
+			expect( (array) PostModel::guids() )->to->equal( array('fee'=>27, 'fi'=>42) );
 		});
 	});
 	describe("::configure()", function(){
-		afterEach(function() { private_var(Model::class, 'refcnt')->setValue(array()); });
+		afterEach(function() { PostModel::deconfigure(); });
 		it("configures lookups", function(){
 			Monkey\setUp();
 			$this->res->shouldReceive('addLookup')->with(array(PostModel::class, 'lookup'), '')->once();
@@ -172,23 +172,22 @@ describe("PostModel", function() {
 	});
 	describe("::on_save_post()", function(){
 		it("is a no-op when guid cache is inactive", function() {
-			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(null);
+			expect( (array) PostModel::is_cached('guids') )->to->be->false;
 			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
-			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(null);
+			expect( (array) PostModel::is_cached('guids') )->to->be->false;
 		});
 		it("is a no-op when post->type is exlcuded", function() {
-			private_var(PostModel::class, 'excludes')->setValue(array('post'=>1));
-			private_var(PostModel::class, 'guid_cache')->setValue(array());
-			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array());
+			PostModel::cached()['nonguid_post_types'] = array('post'=>1);
+			PostModel::cached()['guids'] = new Bag;
+			expect( (array) PostModel::guids() )->to->equal(array());
 			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
-			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array());
+			expect( (array) PostModel::guids() )->to->equal(array());
 		});
 		it("updates the guid cache", function() {
-			private_var(PostModel::class, 'guid_cache')->setValue(array());
-			private_var(PostModel::class, 'excludes')->setValue(array());
-			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array());
+			PostModel::cached()['guids'] = new Bag(array());
+			expect( PostModel::is_cached('guids') )->to->be->true;
 			PostModel::on_save_post( 42, (object) array('post_type'=>'post', 'guid'=>'urn:x-test-guid:foo') );
-			expect( private_var(PostModel::class, 'guid_cache')->getValue() )->to->equal(array('urn:x-test-guid:foo'=>42));
+			expect( (array) PostModel::guids() )->to->equal(array('urn:x-test-guid:foo'=>42));
 		});
 	});
 });

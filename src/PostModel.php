@@ -22,15 +22,13 @@ class PostModel extends Model {
 		}
 	}
 
-	private static $guid_cache, $excludes;
-
 	static function on_setup() {
 		\add_action('save_post', array(__CLASS__, "on_save_post"), 10, 2);
 	}
 
 	static function on_save_post($post_ID, $post) {
-		if ( isset(self::$guid_cache) && ! isset( self::nonguid_post_types()[$post->post_type] ) ) {
-			self::$guid_cache[$post->guid] = $post_ID;
+		if ( static::is_cached('guids') && ! isset( self::nonguid_post_types()[$post->post_type] ) ) {
+			static::guids()[$post->guid] = $post_ID;
 		}
 	}
 
@@ -43,35 +41,34 @@ class PostModel extends Model {
 	}
 
 	static function lookup_by_guid($guid) {
-		if ( ! isset(self::$guid_cache) ) self::$guid_cache = self::fetch_guids();
-		if ( array_key_exists($guid, self::$guid_cache) ) return self::$guid_cache[$guid];
+		return static::guids()->get($guid);
 	}
 
-	static function fetch_guids() {
+
+	// Memoized methods
+
+	static function _cached_guids() {
 		global $wpdb;
 		$filter = self::posttype_exclusion_filter();
-		return array_column(
+		return new Bag(array_column(
 			$wpdb->get_results("SELECT ID, guid FROM $wpdb->posts WHERE $filter", 'ARRAY_N'),
 			0, 1
-		);
+		));
 	}
 
-	static function posttype_exclusion_filter() {
+	static function _cached_posttype_exclusion_filter() {
 		global $wpdb;
 		$excludes = self::nonguid_post_types();
 		$filter = 'post_type NOT IN (' . implode(', ', array_fill(0, count($excludes), '%s')) . ')';
 		return $wpdb->prepare($filter, array_keys($excludes));
 	}
 
-	static function nonguid_post_types() {
-		if ( ! isset(self::$excludes) ) {
-			$excludes = array('revision','edd_log','edd_payment','shop_order','shop_subscription');
-			$excludes = \apply_filters('imposer_nonguid_post_types', $excludes);
-			$excludes = array_fill_keys($excludes, 1);
-			ksort($excludes);
-			self::$excludes = $excludes;
-		}
-		return self::$excludes;
+	static function _cached_nonguid_post_types() {
+		$excludes = array('revision','edd_log','edd_payment','shop_order','shop_subscription');
+		$excludes = \apply_filters('imposer_nonguid_post_types', $excludes);
+		$excludes = array_fill_keys($excludes, 1);
+		ksort($excludes);
+		return $excludes;
 	}
 
 	use HasMeta;

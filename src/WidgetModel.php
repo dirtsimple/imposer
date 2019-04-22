@@ -4,18 +4,20 @@ namespace dirtsimple\imposer;
 
 class WidgetModel extends Model {
 
-	protected static $_index;
 	const INDEX = 'imposer_widget_ids';
 
 	static function lookup($key) {
-		if ( ! isset(self::$_index) ) self::$_index = get_option(self::INDEX, array());
-		return isset(self::$_index[$key]) ? self::$_index[$key] : null;
+		return self::index()->get($key);
+	}
+
+	static function _cached_index() {
+		return new Bag( get_option(self::INDEX, array()) );
 	}
 
 	static function on_setup() {
 		add_action(
 			'update_option_' . self::INDEX,
-			function($old, $val) { self::$_index = $val ?: null; },
+			function($old, $val) { self::cached()['index'] = new Bag( $val ?: array() ); },
 			10, 2
 		);
 	}
@@ -45,7 +47,7 @@ class WidgetModel extends Model {
 			$data = get_option("widget_$type", array()); unset( $data['_multiwidget'] );
 			$numb = count($data) ? 1 + max( array_map('intval', array_keys($data)) ) : 1;
 			$id = "$type-$numb";
-			self::$_index = null; $index = get_option(self::INDEX, array()); $index[$key] = $id;
+			$index = get_option(self::INDEX, array()); $index[$key] = $id;
 			update_option(self::INDEX, $index, false);
 		}
 
