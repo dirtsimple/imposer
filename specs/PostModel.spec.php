@@ -2,7 +2,6 @@
 namespace dirtsimple\imposer\tests;
 
 use dirtsimple\imposer\Bag;
-use dirtsimple\imposer\Model;
 use dirtsimple\imposer\PostModel;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Resource;
