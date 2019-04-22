@@ -34,6 +34,11 @@ class MockModel extends Model {
 	public function call($method, ...$args){
 		return $this->$method(...$args);
 	}
+	static $count = 0;
+	static function _cached_mock() {
+		self::$count += 1;
+		return static::class;
+	}
 }
 
 describe("Mapper", function() {
@@ -168,12 +173,16 @@ describe("Model", function() {
 		}
 
 		afterEach( function(){
-			private_var(Model::class, 'refcnt')->setValue(array());
+			Lookup1::deconfigure();
+			Lookup2::deconfigure();
+			SetupModel::deconfigure();
 			SetupModel::$setupCount = 0;
 			Monkey\tearDown();
 		});
 
-		it("call ::on_setup() on first ::configure(), ::on_teardown() on last ::deconfigure()", function() {
+		it("call ::on_setup() on first ::configure(), ::uncache() + ::on_teardown() on last ::deconfigure()", function() {
+			SetupModel::cached()['configured'] = true;
+			expect(SetupModel::is_cached())->to->be->true;
 			$res = Mockery::Mock(Resource::class);
 			expect(SetupModel::$setupCount)->to->equal(0);
 			SetupModel::configure($res);
@@ -182,7 +191,24 @@ describe("Model", function() {
 			expect(SetupModel::$setupCount)->to->equal(1);
 			SetupModel::deconfigure($res);
 			expect(SetupModel::$setupCount)->to->equal(1);
+			expect(SetupModel::is_cached())->to->be->true;
 			SetupModel::deconfigure($res);
+			expect(SetupModel::is_cached())->to->be->false;
+			expect(SetupModel::$setupCount)->to->equal(0);
+		});
+
+		it("do a full deconfiguration upon ::deconfigure() w/no args", function() {
+			SetupModel::cached()['configured'] = true;
+			expect(SetupModel::is_cached())->to->be->true;
+			$res = Mockery::Mock(Resource::class);
+			expect(SetupModel::$setupCount)->to->equal(0);
+			SetupModel::configure($res);
+			expect(SetupModel::$setupCount)->to->equal(1);
+			SetupModel::configure($res);
+			expect(SetupModel::$setupCount)->to->equal(1);
+			expect(SetupModel::is_cached())->to->be->true;
+			SetupModel::deconfigure();
+			expect(SetupModel::is_cached())->to->be->false;
 			expect(SetupModel::$setupCount)->to->equal(0);
 		});
 
@@ -348,6 +374,98 @@ describe("Model", function() {
 		});
 		it("returning the result if not empty", function() {
 			expect($this->model->call('check_save', fn::expr('$_'), 42))->to->equal(42);
+		});
+	});
+
+	describe("memoization", function(){
+		class MockModel2 extends MockModel {}
+		beforeEach( function() {
+			MockModel::$count = 0;
+			MockModel::uncache();
+			MockModel2::uncache();
+		});
+		it("calls ::_cached_X once for one or more static X() calls", function(){
+			expect( MockModel::$count )->to->equal(0);
+			expect( MockModel::mock() )->to->equal(MockModel::class);
+			expect( MockModel::$count )->to->equal(1);
+			expect( MockModel::mock() )->to->equal(MockModel::class);
+			expect( MockModel::$count )->to->equal(1);
+		});
+		it("caches on a per-class basis", function(){
+			expect( MockModel::$count )->to->equal(0);
+			expect( MockModel::mock() )->to->equal(MockModel::class);
+			expect( MockModel2::mock() )->to->equal(MockModel2::class);
+			expect( MockModel::$count )->to->equal(2);
+			expect( MockModel::mock() )->to->equal(MockModel::class);
+			expect( MockModel2::mock() )->to->equal(MockModel2::class);
+			expect( MockModel::$count )->to->equal(2);
+		});
+		describe("cached()", function(){
+			it("returns the cached result or invokes the _cached_ version of the named method", function(){
+				expect( MockModel::$count )->to->equal(0);
+				expect( MockModel::cached('mock') )->to->equal(MockModel::class);
+				expect( MockModel2::cached('mock') )->to->equal(MockModel2::class);
+				expect( MockModel::$count )->to->equal(2);
+				expect( MockModel::cached('mock') )->to->equal(MockModel::class);
+				expect( MockModel2::cached('mock') )->to->equal(MockModel2::class);
+				expect( MockModel::$count )->to->equal(2);
+				MockModel::uncache('mock');
+				expect( MockModel::cached('mock') )->to->equal(MockModel::class);
+				expect( MockModel2::cached('mock') )->to->equal(MockModel2::class);
+				expect( MockModel::$count )->to->equal(3);
+			});
+			it("with no name returns the class's method cache itself", function(){
+				expect( (array) MockModel::cached() )->to->equal(array());
+				expect( (array) MockModel2::cached() )->to->equal(array());
+				expect( MockModel::cached('mock') )->to->equal(MockModel::class);
+				expect( MockModel2::cached('mock') )->to->equal(MockModel2::class);
+				expect( (array) MockModel::cached() )->to->equal(array('mock' => MockModel::class));
+				expect( (array) MockModel2::cached() )->to->equal(array('mock' => MockModel2::class));
+			});
+		});
+		describe("uncache()", function(){
+			it("uncaches the named method's result", function(){
+				expect( MockModel::cached('mock') )->to->equal(MockModel::class);
+				expect( MockModel2::cached('mock') )->to->equal(MockModel2::class);
+				expect( (array) MockModel::cached() )->to->equal(array('mock' => MockModel::class));
+				expect( (array) MockModel2::cached() )->to->equal(array('mock' => MockModel2::class));
+				MockModel::uncache('mock');
+				expect( (array) MockModel::cached() )->to->equal(array());
+				expect( (array) MockModel2::cached() )->to->equal(array('mock' => MockModel2::class));
+				MockModel2::uncache('mock');
+				expect( (array) MockModel::cached() )->to->equal(array());
+				expect( (array) MockModel2::cached() )->to->equal(array());
+			});
+			it("with no name uncaches all method results", function(){
+				expect( MockModel::cached('mock') )->to->equal(MockModel::class);
+				expect( MockModel2::cached('mock') )->to->equal(MockModel2::class);
+				MockModel::uncache();
+				expect( (array) MockModel::cached() )->to->equal(array());
+				expect( (array) MockModel2::cached() )->to->equal(array('mock' => MockModel2::class));
+				MockModel2::uncache();
+				expect( (array) MockModel::cached() )->to->equal(array());
+				expect( (array) MockModel2::cached() )->to->equal(array());
+			});
+		});
+		describe("is_cached()", function(){
+			it("returns true if the named method has a cached result", function(){
+				expect( MockModel::is_cached('mock') )->to->be->false;
+				expect( MockModel2::is_cached('mock') )->to->be->false;
+				MockModel2::mock();
+				expect( MockModel::is_cached('mock') )->to->be->false;
+				expect( MockModel2::is_cached('mock') )->to->be->true;
+			});
+			it("with no name returns true if any methods had cached results since reset", function(){
+				expect( MockModel::is_cached() )->to->be->false;
+				expect( MockModel2::is_cached() )->to->be->false;
+				MockModel2::mock();
+				expect( MockModel::is_cached() )->to->be->false;
+				expect( MockModel2::is_cached() )->to->be->true;
+				MockModel2::uncache('mock');
+				expect( MockModel2::is_cached() )->to->be->true;
+				MockModel2::uncache();
+				expect( MockModel2::is_cached() )->to->be->false;
+			});
 		});
 	});
 

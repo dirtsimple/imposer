@@ -90,7 +90,7 @@ describe("Resource", function () {
 		it("calls the previously-registered class's ::deconfigure() method with the resource", function(){
 			class DeConfigModel extends Model {
 				public static $r=42;
-				static function deconfigure($resource) { static::$r = $resource; }
+				static function deconfigure($resource=null) { static::$r = $resource; }
 				function save(){}
 			}
 			$this->res->set_model(DeConfigModel::class);

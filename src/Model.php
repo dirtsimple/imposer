@@ -82,11 +82,16 @@ abstract class Model extends Bag {
 		if ( ! $refcnt++ ) static::on_setup();
 	}
 
-	static function deconfigure($resource) {
-		foreach( static::lookup_methods() as $type => $cb )
+	static function deconfigure($resource=null) {
+		if ($resource) foreach( static::lookup_methods() as $type => $cb )
 			$resource->removeLookup($cb, $type);
+
 		$refcnt =& self::$refcnt[static::class];
-		if ( ! --$refcnt ) static::on_teardown();
+		if ( ! $resource || $refcnt < 2 ) {
+			if ( $refcnt>0 ) static::on_teardown();
+			static::uncache();
+			$refcnt = 0;
+		} else --$refcnt;
 	}
 
 	static function lookup_methods() {
@@ -113,6 +118,37 @@ abstract class Model extends Bag {
 			);
 		}
 		return $res;
+	}
+
+
+	protected static $cache = null;
+
+	static function cached($method=null) {
+		if ( ! isset(self::$cache) ) self::$cache = new Pool(function(){ return new Bag; });
+		$c = self::$cache[static::class];
+		if ( ! isset($method) ) return $c;
+		if ( $c->has($method) ) return $c[$method];
+		$cb = array( static::class, "_cached_$method" );
+		return $c[$method] = $cb();
+	}
+
+	static function is_cached($method=null) {
+		return isset(self::$cache[static::class]) && (
+			! isset($method) || self::$cache[static::class]->has($method)
+		);
+	}
+
+	static function uncache($method=null) {
+		if ( ! isset(self::$cache) || ! self::$cache->has(static::class) ) return;
+		if ( isset($method) ) unset(self::$cache[static::class][$method]);
+		else unset(self::$cache[static::class]);
+	}
+
+	static function __callStatic($name, $args) {
+		if ( $args || ! method_exists(static::class, "_cached_$name") ) throw new \BadMethodCallException(
+			static::class . " has no $name (or _cached_$name()) method"
+		);
+		return static::cached($name);
 	}
 
 }
