@@ -20,6 +20,11 @@ describe("Bag", function() {
 		expect( (array) $b )->to->equal(array());
 	});
 
+	it("can unset non-existing elements", function() {
+		$b = new Bag();
+		unset($b['foo']);
+	});
+
 	beforeEach(function(){
 		$this->bag = new Bag( array('x'=>42) );
 	});

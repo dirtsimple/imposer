@@ -28,6 +28,11 @@ class Bag extends \ArrayObject {
 		return $this->offsetExists($key) ? $this[$key] : $this[$key] = $default;
 	}
 
+	/* Allow unset of non-existing offset */
+	function offsetUnset($name) {
+		return $this->offsetExists($name) ? parent::offsetUnset($name) : null;
+	}
+
 	/* Update multiple argument values using an array (like Python .update())*/
 	function set($data) {
 		# Use a loop to retain overall key order
