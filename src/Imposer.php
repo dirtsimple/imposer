@@ -84,6 +84,10 @@ class Imposer {
 			-> reads('options')
 			-> steps("$cls::impose_options");
 
+		$this -> task('Wordpress Taxonomy Terms')
+			-> reads('terms')
+			-> steps('dirtsimple\imposer\TermModel::impose_taxonomy_terms');
+
 		$this -> task('Wordpress Menus')
 			-> produces('@wp-menus', '@wp-menuitems')
 			-> reads('menus')

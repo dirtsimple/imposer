@@ -103,6 +103,61 @@ class TermModel extends Model {
 		yield $id;
 	}
 
+
+	static function impose_taxonomy_terms($taxes) {
+		if ( is_array($taxes) || $taxes instanceof \stdClass ) {
+			foreach ($taxes as $tax => $terms) static::impose_terms($terms, $tax);
+		} else throw new \DomainException(
+			"Taxonomy term sets must be stdClass, or array (got " . var_export($taxes, true) . ")"
+		);
+	}
+
+	static function impose_terms($terms, $tax, $parent=0) {
+		if ( is_string($terms) ) $terms = array($terms);
+		if ( is_array($terms) || $terms instanceof stdClass ) {
+			foreach ( (array) $terms as $key => $term)
+				static::impose_term($term, $tax, $key, $parent);
+		} else throw new \DomainException(
+			"Terms must be string, stdClass, or array (got " . var_export($terms, true) . ")"
+		);
+	}
+
+	static function impose_term($term, $tax, $key=null, $parent=null) {
+		if ( is_string($term) ) {
+			$term = new Bag( array('name'=>$term) );
+		} else if ( is_array($term) || $term instanceof \stdClass ) {
+			# Convert to pure nested array form
+			$term = new Bag( json_decode( json_encode($term), true ) );
+		} else throw new \DomainException(
+			"Term must be string, stdClass, or array (got " . var_export($term, true) . ")"
+		);
+
+		if ( isset($parent) ) $term->setdefault('parent', $parent);
+		if ( is_string($key) && ! is_numeric($key) ) {
+			if ( $term->has('name') ) $term->setdefault('slug', $key);
+			else $term->setdefault('name', $key);
+		}
+		if ( ! $term->has('name') && ! $term->has('slug') ) throw new \UnexpectedValueException(
+			"Term must have a name or slug (" . json_encode((array)$term) . ")"
+		);
+
+		$res = Imposer::resource("@wp-$tax-term")->set_model(static::class);
+		$mdl = $res->define( $term->get('slug', $term->name), $term->has('slug')  ? 'slug' : 'name' );
+		$mdl->set($term->items());
+
+		do_action('imposer_term', $mdl);
+		do_action("imposer_term_$tax", $mdl);
+
+		$parent = $mdl->get('parent');
+		if ( is_string($parent) && ! is_numeric($parent) )
+			$mdl->parent = $res->ref($parent, 'slug');
+
+		$children = $mdl->get('children');  # this will be gone upon apply, so save it
+		$ret = $mdl->apply();
+		if ($children) static::impose_terms($children, $tax, $ret);
+		return $ret;
+	}
+
 	use HasMeta;
 
 }

@@ -8,7 +8,6 @@ use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\WatchedPromise;
 
 use Brain\Monkey;
-use Brain\Monkey\Actions;
 use Brain\Monkey\Functions as fun;
 use Brain\Monkey\Filters;
 use Mockery;

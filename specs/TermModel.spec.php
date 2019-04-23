@@ -2,6 +2,7 @@
 namespace dirtsimple\imposer\tests;
 
 use dirtsimple\imposer\Bag;
+use dirtsimple\imposer\Imposer;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\TermModel;
@@ -16,6 +17,8 @@ use Mockery;
 describe("TermModel", function() {
 	beforeEach(function(){
 		Monkey\setUp();
+		private_var(Imposer::class, 'instance')->setValue(null);
+
 		$this->res = Mockery::Mock(Resource::class);
 		$this->terms = array(
 				(object) array('taxonomy'=>'category', 'term_id'=>1,  'name'=>'Uncategorized', 'slug'=>'uncategorized'),
@@ -29,15 +32,16 @@ describe("TermModel", function() {
 					return $term;
 		});
 
-		$this->expectFetch = function() {
-			fun\expect('get_terms')->with()->andReturnUsing(function() {
-				return $this->terms;
-			});
-		};
+		fun\stubs(array(
+			'is_wp_error' => '__return_false',
+			'wp_slash' => function($val){ return "$val slashed"; },
+			'get_terms' => function() { return $this->terms; }
+		));
 	});
 	afterEach( function(){
 		Promise::sync();
 		TermModel::deconfigure();
+		private_var(Imposer::class, 'instance')->setValue(null);
 		Monkey\tearDown();
 	});
 
@@ -70,10 +74,6 @@ describe("TermModel", function() {
 		beforeEach(function(){
 			$this->model = new TermModel($this->p = new WatchedPromise());
 			$this->p->resource = $this->res;
-			fun\stubs(array(
-				'is_wp_error' => '__return_false',
-				'wp_slash' => function($val){ return "$val slashed"; },
-			));
 		});
 		it("returns the ID for an existing, unchanged term", function(){
 			$this->p->resolve($id = 99);
@@ -173,7 +173,6 @@ describe("TermModel", function() {
 
 	describe("::lookup_by_slug()", function(){
 		it("returns a cached or current id, refetching if out of date", function(){
-			$this->expectFetch();
 			$this->res->allows()->name()->andReturn('@wp-post_tag-term');
 			expect(TermModel::lookup_by_slug('foo',  'slug', $this->res))->to->equal(42);
 			expect(TermModel::lookup_by_slug('blue', 'slug', $this->res))->to->equal(null);
@@ -184,7 +183,6 @@ describe("TermModel", function() {
 	});
 	describe("::lookup_by_name()", function(){
 		it("returns a cached or current id, refetching if out of date", function(){
-			$this->expectFetch();
 			$this->res->allows()->name()->andReturn('@wp-category-term');
 			expect(TermModel::lookup_by_name('Uncategorized',   'name', $this->res))->to->equal(1);
 			expect(TermModel::lookup_by_name('Not Categorized', 'name', $this->res))->to->equal(null);
@@ -201,8 +199,7 @@ describe("TermModel", function() {
 		});
 	});
 	describe("::terms()", function(){
-		it("queries the DB for the guids of non-excluded post types", function(){
-			$this->expectFetch();
+		it("queries the DB for the terms", function(){
 			expect( (array) TermModel::terms()['category']['slug'] )->to->equal(
 				array('uncategorized'=>1, 'what-ever'=>2)
 			);
@@ -231,12 +228,155 @@ describe("TermModel", function() {
 			expect( (array) TermModel::is_cached('terms') )->to->be->false;
 		});
 		it("updates the terms cache", function() {
-			$this->expectFetch();
 			TermModel::terms();  // init cache
 			$this->terms[] = (object) array('name'=>'Blue', 'slug'=>'blue', 'term_id'=>52, 'taxonomy'=>'bar');
 			TermModel::on_created_term( 52, 77, 'bar');
 			expect( (array) TermModel::terms()['bar']['slug'] )->to->equal(array('blue'=>52));
 			expect( (array) TermModel::terms()['bar']['name'] )->to->equal(array('Blue'=>52));
+		});
+	});
+	describe("::impose_term()", function(){
+		it("requires a string, array, or stdObj", function(){
+			foreach ( array(null, 42, new Bag()) as $invalid )
+				expect ( function() use ($invalid) {
+					TermModel::impose_term($invalid, "some_tax");
+				} )->to->throw(
+					\DomainException::class,
+					"Term must be string, stdClass, or array (got ". var_export($invalid, true) . ")"
+				);
+		});
+		it("requires a name and/or slug", function(){
+			expect ( function() {
+				TermModel::impose_term(array('description'=>'x'), "some_tax");
+			} )->to->throw(
+				\UnexpectedValueException::class,
+				'Term must have a name or slug ({"description":"x"})'
+			);
+		});
+		it("treats a string as a name (if no key)", function(){
+			fun\expect('wp_update_term')->with(
+				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)
+			)->once()->andReturn(1);
+			TermModel::impose_term("Uncategorized", "category", null, 2);
+		});
+		it("treats a string as a name (w/key as slug)", function(){
+			fun\expect('wp_update_term')->with(
+				1, "category",
+				array('name'=>'Uncategorized slashed', 'slug'=>'uncategorized', 'parent'=>3)
+			)->once()->andReturn(1);
+			TermModel::impose_term("Uncategorized", "category", 'uncategorized', 3);
+		});
+		it("doesn't override an explicit parent", function(){
+			fun\expect('wp_update_term')->with(
+				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)
+			)->once()->andReturn(1);
+			TermModel::impose_term(array('name'=>"Uncategorized", 'parent'=>2), "category", null, 999);
+		});
+		it("treats non-numeric string parents as slugs", function(){
+			fun\expect('wp_update_term')->with(
+				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)
+			)->once()->andReturn(1);
+			TermModel::impose_term(array('name'=>"Uncategorized", 'parent'=>'what-ever'), "category");
+		});
+
+		it("runs the imposer_term and imposer_term_%taxonomy actions", function (){
+			$is_model = Mockery::on(function ($mdl) {
+				return $mdl->implements(TermModel::class) && $mdl->items() === array(
+					'name'=>'Uncategorized', 'slug'=>'uncategorized',
+				);
+			});
+			Actions\expectDone('imposer_term')->with($is_model)->once();
+			Actions\expectDone('imposer_term_category')->with($is_model)->once();
+			TermModel::impose_term('Uncategorized', 'category', 'uncategorized');
+		});
+		it("converts nested objects to arrays", function(){
+			$data = (object) array ('x'=>42, 'a'=> (object) array('b'));
+			$term = (object) array ('random' => $data );
+			$is_arrayified = Mockery::on(function($mdl) use ($data) {
+				return $mdl->items() === array(
+					'random' => json_decode(json_encode($data), true), 'name'=>'Uncategorized'
+				);
+			});
+			Actions\expectDone('imposer_term')->with($is_arrayified)->once();
+			TermModel::impose_term( $term, 'category', 'Uncategorized' );
+		});
+		it("defaults the name or slug from the key",function(){
+			$is_named = Mockery::on(function($mdl) {
+				return $mdl->items() === array( 'parent'=>22, 'name'=>'Uncategorized' );
+			});
+			$is_slugged = Mockery::on(function($mdl) {
+				return $mdl->items() === array( 'name'=>'Uncategorized', 'slug'=>'uncategorized' );
+			});
+			Actions\expectDone('imposer_term')->with($is_named)->once();
+			Actions\expectDone('imposer_term')->with($is_slugged)->once();
+			$this->terms[0]->parent = 22;  # avoid update
+			TermModel::impose_term( array(), 'category', 'Uncategorized', 22);
+			TermModel::impose_term( 'Uncategorized', 'category', 'uncategorized');
+		});
+		it("calls ::impose_terms() on children w/tax and parent", function(){
+			class ChildTermModel extends TermModel {
+				public static $log;
+				static function impose_terms($terms, $tax, $parent=0) {
+					static::$log[] = array($terms, $tax, $parent);
+				}
+			}
+			ChildTermModel::$log = array();
+			$children = (object) array('Child1', 'Child2');
+			$this->terms[0]->parent = 42;  # avoid update
+			ChildTermModel::impose_term(array('children'=>$children), 'category', 'Uncategorized', 42);
+			expect( ChildTermModel::$log )->to->equal( array(
+				array( (array) $children, 'category', 1 )
+			) );
+		});
+	});
+	class MockTermModel extends TermModel {
+		public static $log;
+		static function impose_term($term, $tax, $key=null, $parent=0) {
+			static::$log[] = array($term, $tax, $key, $parent);
+		}
+	}
+	describe("::impose_terms()", function(){
+		it("requires a string, array, or stdObj", function(){
+			foreach ( array(null, 42, new Bag()) as $invalid )
+				expect ( function() use ($invalid) {
+					TermModel::impose_terms($invalid, "some_tax");
+				} )->to->throw(
+					\DomainException::class,
+					"Terms must be string, stdClass, or array (got ". var_export($invalid, true) . ")"
+				);
+		});
+		it("passes the parent and taxonomy to ::impose_term()", function(){
+			MockTermModel::$log = array();
+			MockTermModel::impose_terms( array( 'aSlug'=>'aName' ), 'tax1', 42 );
+			MockTermModel::impose_terms( array( 'Name1', 'Name2' ), 'tax2' );
+			expect( MockTermModel::$log )->to->equal( array(
+				array( 'aName', 'tax1', 'aSlug', 42),
+				array( 'Name1', 'tax2', 0, 0),
+				array( 'Name2', 'tax2', 1, 0),
+			) );
+		});
+	});
+	describe("::impose_taxonomy_terms()", function(){
+		it("requires an array or stdObj", function(){
+			foreach ( array(null, 42, "x", new Bag()) as $invalid )
+				expect ( function() use ($invalid) {
+					TermModel::impose_taxonomy_terms($invalid);
+				} )->to->throw(
+					\DomainException::class,
+					"Taxonomy term sets must be stdClass, or array (got ". var_export($invalid, true) . ")"
+				);
+		});
+		it("passes the taxonomies to ::impose_terms()", function(){
+			MockTermModel::$log = array();
+			MockTermModel::impose_taxonomy_terms( array(
+				'tax1' => array( 'aSlug'=>'aName' ),
+				'tax2' => array( 'Name1', 'Name2' ),
+			) );
+			expect( MockTermModel::$log )->to->equal( array(
+				array( 'aName', 'tax1', 'aSlug', 0),
+				array( 'Name1', 'tax2', 0, 0),
+				array( 'Name2', 'tax2', 1, 0),
+			) );
 		});
 	});
 });
