@@ -36,6 +36,7 @@ describe("TermModel", function() {
 		};
 	});
 	afterEach( function(){
+		Promise::sync();
 		TermModel::deconfigure();
 		Monkey\tearDown();
 	});
@@ -66,6 +67,108 @@ describe("TermModel", function() {
 	});
 
 	describe("save()", function(){
+		beforeEach(function(){
+			$this->model = new TermModel($this->p = new WatchedPromise());
+			$this->p->resource = $this->res;
+			fun\stubs(array(
+				'is_wp_error' => '__return_false',
+				'wp_slash' => function($val){ return "$val slashed"; },
+			));
+		});
+		it("returns the ID for an existing, unchanged term", function(){
+			$this->p->resolve($id = 99);
+			$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+			$res = Promise::interpret( $this->model->apply() );
+			expect( $res )->to->equal(99);
+		});
+		it("throws an error for a new term with no name", function(){
+			$this->res->allows()->name()->andReturn('@wp-category-term');
+			$this->model->slug = "foo";
+			$res = Promise::interpret( $this->model->apply() );
+			expect( function() use ($res) {
+				Promise::now($res);
+			})->to->throw(
+				\UnexpectedValueException::class,
+				'missing name for nonexistent term with args {"slug":"foo"}'
+			);
+		});
+		it("calls wp_insert_term w/slashed args for a new term", function(){
+			$this->res->allows()->name()->andReturn('@wp-category-term');
+			$this->model->set(
+				array( 'slug' => "new", 'name'=>'New', 'description'=>'test' )
+			);
+			fun\expect('wp_insert_term')->with(
+				'New slashed', 'category', array( 'name'=>'New slashed', 'description'=>'test slashed', 'slug' => "new" )
+			)->once()->andReturn( array( 'term_id'=> $id = 158 ) );
+			$res = Promise::interpret( $this->model->apply() );
+			expect( Promise::now($res) )->to->equal($id);
+		});
+		it("calls wp_update_term w/slashed args for a revised term", function(){
+			$this->p->resolve($id = 99);
+			$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+			$this->model->set(array('parent'=>15, 'name'=>'Changed', 'term_group'=>65));
+			fun\expect('wp_update_term')->with(
+				$id, 'post_tag', array( 'name'=>'Changed slashed', 'parent'=>15, 'term_group'=>65 )
+			)->once()->andReturn( array( 'term_id'=> $id ) );
+			$res = Promise::interpret( $this->model->apply() );
+			expect( $res )->to->equal(99);
+		});
+		describe("replaces alias_of with a term_group", function(){
+			it("allowing it to skip an update if no change", function(){
+				$this->terms[2]->term_group = $this->terms[3]->term_group = 27;
+				$this->p->resolve($id = 99);
+				$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+				$this->model->alias_of = 'foo';
+				$this->res->shouldReceive('ref')->with('foo', 'slug')->andReturn(42);
+				$res = Promise::interpret( $this->model->apply() );
+				expect( $res )->to->equal(99);
+			});
+			it("updating if the group changed", function(){
+				$this->terms[2]->term_group = 27;
+				$this->p->resolve($id = 99);
+				$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+				$this->model->alias_of = 'foo';
+				$this->res->shouldReceive('ref')->with('foo', 'slug')->andReturn(42);
+				fun\expect('wp_update_term')->with(
+					$id, 'post_tag', array( 'term_group'=>27 )
+				)->once()->andReturn( array( 'term_id'=> $id ) );
+				$res = Promise::interpret( $this->model->apply() );
+				expect( $res )->to->equal(99);
+			});
+			it("unless there's no matching term", function(){
+				$this->p->resolve($id = 99);
+				$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+				$this->model->alias_of = 'no-such';
+				$this->model->term_group = 55;  # <- this gets dropped from args
+				$this->res->shouldReceive('ref')->with('no-such', 'slug')->andReturn(55);
+				fun\expect('wp_update_term')->with(
+					$id, 'post_tag', array( 'alias_of'=>'no-such' )
+				)->once()->andReturn( array( 'term_id'=> $id ) );
+				$res = Promise::interpret( $this->model->apply() );
+				expect( $res )->to->equal(99);
+			});
+			it("unless the aliased term lacks a group", function(){
+				$this->p->resolve($id = 99);
+				$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+				$this->model->alias_of = 'foo';
+				$this->model->term_group = 55;  # <- this gets dropped from args
+				$this->res->shouldReceive('ref')->with('foo', 'slug')->andReturn(42);
+				fun\expect('wp_update_term')->with(
+					$id, 'post_tag', array( 'alias_of'=>'foo' )
+				)->once()->andReturn( array( 'term_id'=> $id ) );
+				$res = Promise::interpret( $this->model->apply() );
+				expect( $res )->to->equal(99);
+			});
+		});
+		it("applies term_meta", function(){
+			$this->p->resolve($id = 99);
+			$this->res->allows()->name()->andReturn('@wp-post_tag-term');
+			$this->model->term_meta = array('set_me'=>'foo', 'delete_me'=>null);
+			fun\expect('update_term_meta')->with($id, 'set_me slashed', 'foo slashed')->once()->andReturn(true);
+			fun\expect('delete_term_meta')->with($id, 'delete_me slashed', ' slashed')->once()->andReturn(true);
+			$res = Promise::interpret( $this->model->apply() );
+			expect( $res )->to->equal(99);
+		});
 	});
 
 	describe("::lookup_by_slug()", function(){
@@ -110,14 +213,12 @@ describe("TermModel", function() {
 	});
 	describe("::configure()", function(){
 		it("configures lookups", function(){
-			Monkey\setUp();
 			$this->res->shouldReceive('addLookup')->with(array(TermModel::class, 'lookup'), '')->once();
 			$this->res->shouldReceive('addLookup')->with(array(TermModel::class, 'lookup_by_slug'), 'slug')->once();
 			$this->res->shouldReceive('addLookup')->with(array(TermModel::class, 'lookup_by_name'), 'name')->once();
 			TermModel::configure($this->res);
 		});
 		it("ensures ::on_created_term is registered as a created_term action", function(){
-			Monkey\setUp();
 			$this->res->shouldReceive('addLookup')->times(3);
 			TermModel::configure($this->res);
 			expect( \has_action('created_term', array(TermModel::class, 'on_created_term') ) )->to->be->true;
