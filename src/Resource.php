@@ -6,15 +6,19 @@ use GuzzleHttp\Promise as GP;
 
 class Resource extends Task {
 
-	function set_model($model_class) {
+	function set_model($model_class, $force=false) {
 		if ( $model_class && ! is_subclass_of($model_class, Model::class) ) throw new \DomainException(
 			"$model_class is not a Model subclass"
 		);
 		if ( $this->model_class !== $model_class ) {
-			if ( $this->model_class ) call_user_func("$this->model_class::deconfigure", $this);
+			if ( $this->model_class ) {
+				if ($force) call_user_func("$this->model_class::deconfigure", $this);
+				else return $this;
+			}
 			$this->model_class = $model_class;
 			if ( $model_class ) call_user_func("$model_class::configure", $this);
 		}
+		return $this;
 	}
 
 	function define($key, $keyType='') {

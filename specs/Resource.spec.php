@@ -84,7 +84,8 @@ describe("Resource", function () {
 				static function configure($resource) { static::$r = $resource; }
 				function save(){}
 			}
-			$this->res->set_model(ConfigModel::class);
+			ConfigModel::$r = 42;
+			expect( $this->res->set_model(ConfigModel::class) )->to->equal($this->res);
 			expect(ConfigModel::$r)->to->equal($this->res);
 		});
 		it("calls the previously-registered class's ::deconfigure() method with the resource", function(){
@@ -93,9 +94,18 @@ describe("Resource", function () {
 				static function deconfigure($resource=null) { static::$r = $resource; }
 				function save(){}
 			}
-			$this->res->set_model(DeConfigModel::class);
-			$this->res->set_model(null);
+			DeconfigModel::$r = 42;
+			expect( $this->res->set_model(DeConfigModel::class) )->to->equal($this->res);
+			$this->res->set_model(null, true);
 			expect(DeConfigModel::$r)->to->equal($this->res);
+		});
+		it("doesn't replace an existing model class if the force flag isn't set", function(){
+			ConfigModel::$r = 42;
+			DeconfigModel::$r = 42;
+			expect( $this->res->set_model(DeConfigModel::class) )->to->equal($this->res);
+			expect( $this->res->set_model(ConfigModel::class) )->to->equal($this->res);
+			expect(ConfigModel::$r  )->to->equal(42);
+			expect(DeConfigModel::$r)->to->equal(42);
 		});
 	});
 
