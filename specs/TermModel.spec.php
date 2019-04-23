@@ -253,6 +253,9 @@ describe("TermModel", function() {
 				'Term must have a name or slug ({"description":"x"})'
 			);
 		});
+		it("doesn't require a name if there's a slug", function(){
+			TermModel::impose_term(array('slug'=>"uncategorized"), "category");
+		});
 		it("treats a string as a name (if no key)", function(){
 			fun\expect('wp_update_term')->with(
 				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)

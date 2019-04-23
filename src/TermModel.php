@@ -142,7 +142,8 @@ class TermModel extends Model {
 		);
 
 		$res = Imposer::resource("@wp-$tax-term")->set_model(static::class);
-		$mdl = $res->define( $term->get('slug', $term->name), $term->has('slug')  ? 'slug' : 'name' );
+		$keyType = $term->has('slug')  ? 'slug' : 'name';
+		$mdl = $res->define( $term[$keyType], $keyType );
 		$mdl->set($term->items());
 
 		do_action('imposer_term', $mdl, $key);
