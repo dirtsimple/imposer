@@ -285,8 +285,8 @@ describe("TermModel", function() {
 					'name'=>'Uncategorized', 'slug'=>'uncategorized',
 				);
 			});
-			Actions\expectDone('imposer_term')->with($is_model)->once();
-			Actions\expectDone('imposer_term_category')->with($is_model)->once();
+			Actions\expectDone('imposer_term')->with($is_model, 'uncategorized')->once();
+			Actions\expectDone('imposer_term_category')->with($is_model, 'uncategorized')->once();
 			TermModel::impose_term('Uncategorized', 'category', 'uncategorized');
 		});
 		it("converts nested objects to arrays", function(){
@@ -297,7 +297,7 @@ describe("TermModel", function() {
 					'random' => json_decode(json_encode($data), true), 'name'=>'Uncategorized'
 				);
 			});
-			Actions\expectDone('imposer_term')->with($is_arrayified)->once();
+			Actions\expectDone('imposer_term')->with($is_arrayified, 'Uncategorized')->once();
 			TermModel::impose_term( $term, 'category', 'Uncategorized' );
 		});
 		it("defaults the name or slug from the key",function(){
@@ -307,8 +307,8 @@ describe("TermModel", function() {
 			$is_slugged = Mockery::on(function($mdl) {
 				return $mdl->items() === array( 'name'=>'Uncategorized', 'slug'=>'uncategorized' );
 			});
-			Actions\expectDone('imposer_term')->with($is_named)->once();
-			Actions\expectDone('imposer_term')->with($is_slugged)->once();
+			Actions\expectDone('imposer_term')->with($is_named, 'Uncategorized')->once();
+			Actions\expectDone('imposer_term')->with($is_slugged, 'uncategorized')->once();
 			$this->terms[0]->parent = 22;  # avoid update
 			TermModel::impose_term( array(), 'category', 'Uncategorized', 22);
 			TermModel::impose_term( 'Uncategorized', 'category', 'uncategorized');

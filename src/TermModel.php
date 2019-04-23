@@ -145,8 +145,8 @@ class TermModel extends Model {
 		$mdl = $res->define( $term->get('slug', $term->name), $term->has('slug')  ? 'slug' : 'name' );
 		$mdl->set($term->items());
 
-		do_action('imposer_term', $mdl);
-		do_action("imposer_term_$tax", $mdl);
+		do_action('imposer_term', $mdl, $key);
+		do_action("imposer_term_$tax", $mdl, $key);
 
 		$parent = $mdl->get('parent');
 		if ( is_string($parent) && ! is_numeric($parent) )
