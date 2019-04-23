@@ -54,7 +54,8 @@ class TermModel extends Model {
 	protected static function _cached_terms() {
 		# returns Pool[taxonomy] -> Pool[keyType] -> Bag[key] -> id
 		$terms = new Pool(function(){ return new Pool(function(){ return new Bag; }); });
-		foreach ( \get_terms() as $term ) self::cache_term($terms, $term);
+		foreach ( \get_terms(array('suppress_filter'=>true, 'hide_empty' => false)) as $term )
+			self::cache_term($terms, $term);
 		return $terms;
 	}
 

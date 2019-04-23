@@ -35,7 +35,11 @@ describe("TermModel", function() {
 		fun\stubs(array(
 			'is_wp_error' => '__return_false',
 			'wp_slash' => function($val){ return "$val slashed"; },
-			'get_terms' => function() { return $this->terms; }
+			'get_terms' => function($args=array(), $deprecated='') {
+				expect($args)->to->equal(array('suppress_filter'=>true, 'hide_empty' => false));
+				expect(func_num_args())->to->equal(1);
+				return $this->terms;
+			}
 		));
 	});
 	afterEach( function(){
