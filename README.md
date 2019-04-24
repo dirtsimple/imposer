@@ -27,7 +27,7 @@ Whenever you run `imposer apply`, the selected modules collectively create a JSO
 
 (A specification doesn't have to define your entire database, though!  Even if you have multiple sites that need a common menu, that doesn't mean you have to specify *all* of those sites' menus via imposer.  Options, plugins, menus, posts, etc. that *aren't* part of the specification on a given run are generally not touched by imposer.)
 
-A specification also doesn't define *how* its contents are mapped to the Wordpress database.  That's done by Imposer **tasks**.  Imposer supplies built-in tasks for [theme switching](#theme-switching), [plugin activation](#plugin-activation), [option patching](#option-patching), [menu/item definition](#menus-and-locations) and [menu location assignment](#menu-locations), as well as [widget configuration and sidebar placement](#widgets-and-sidebars), but your modules can include PHP code to define other kinds of tasks as well.
+A specification also doesn't define *how* its contents are mapped to the Wordpress database.  That's done by Imposer **tasks**.  Imposer supplies built-in tasks for [theme switching](#theme-switching), [plugin activation](#plugin-activation), [option patching](#option-patching), [menu/item definition](#menus-and-locations) and [menu location assignment](#menu-locations), as well as creating or updating [categories, tags, and other taxonomies' terms](#taxonomy-terms), [widget configuration and sidebar placement](#widgets-and-sidebars), but your modules can include PHP code to define other kinds of tasks as well.
 
 (And any Wordpress plugins or wp-cli packages can do so, too!  For example, the [postmark wp-cli package](https://github.com/dirtsimple/postmark) provides [a state module that registers tasks](https://github.com/dirtsimple/postmark/blob/master/default.state.md) for importing posts, pages, and custom post types from Markdown files in directories listed by the specification.)
 
@@ -65,6 +65,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
   * [Specification Schema](#specification-schema)
     + [Theme, Plugins, and Options](#theme-plugins-and-options)
     + [Menus and Locations](#menus-and-locations)
+    + [Taxonomy Terms](#taxonomy-terms)
     + [Widgets and Sidebars](#widgets-and-sidebars)
   * [API](#api)
     + [Actions and Filters](#actions-and-filters)
@@ -779,6 +780,103 @@ menus:
 
 When a menu specifies a location for a specific theme (whether explicitly named or not), it is also **removed** from all other locations in that theme, to prevent duplication when you move a menu to a new location.  (Remember: multiple modules or YAML/JSON blocks can contribute properties to the same specification object, so you can always define a menu in one module, and add its location from another.)
 
+### Taxonomy Terms
+
+You can create taxonomy terms (eg. categories, tags, etc.) using the `terms` top-level specification property, e.g.:
+
+```yaml
+terms:
+  post_tag:
+    - Some Tag
+    - Another Tag
+  category:
+    Things:
+      term_meta: { tax_position: 1 }  # sort-order used by simple-taxonomy-ordering plugin
+      children:
+        - Stuff
+    Other:
+      term_meta: { tax_position: 2 }
+```
+
+#### Term Sets, Objects, and Parents
+
+The `terms` property is an object mapping Wordpress internal taxonomy slugs (e.g. `post_tag` for tags, `category` for categories, etc.) to *term set*.  A term set is an array or object of terms, which themselves can be a string or an object.  A string that's a term is equivalent to an object with a `name` property, so this:
+
+```yaml
+terms:
+  post_tag:
+    - Some Tag
+    - Another Tag
+```
+
+is exactly equivalent to:
+
+```yaml
+terms:
+  post_tag:
+    - name: Some Tag
+    - name: Another Tag
+```
+
+Term objects accept the  same properties as the `$args` for [`wp_insert_term`](https://developer.wordpress.org/reference/functions/wp_insert_term/), plus a `term_meta` property for setting or deleting term metadata, and a `children` term set whose terms will default to having the enclosing term as their `parent`.  (You can explicitly set `parent` to `0` to make a term a root term, and you can use a term slug as a parent instead of an ID.)  Not all taxonomies allow parents, so don't use `parent` or `children` unless the taxonomy is hierarchical.
+
+The `term_meta` property of a term object can be used to set or delete term metadata: any keys with a value of `null` will have that metadata item deleted, while the others will be set to the non-null value given.
+
+#### Term Names and Slugs
+
+When a term set is an object (as in the `category` example earlier), the object property names are taken as either slugs or names, depending on what the terms in the set need.  For example, this:
+
+```yaml
+terms:
+  category:
+    foo: Foo
+    Bar: { slug: bar }
+    baz:
+      name: This
+      slug: that
+```
+
+is equivalent to:
+
+```yaml
+terms:
+  category:
+    - name: Foo
+      slug: foo
+    - name: Bar
+      slug: bar
+    - name: This
+      slug: that
+```
+
+In other words, if the term lacks a name, then the enclosing property name is used as the name, otherwise the enclosing property is used as a slug.
+
+All of these considerations apply to both top-level term sets and those specified as `children:` of another term.
+
+**Note**: While slugs are optional, there are certain scenarios where they're required in order to avoid undesirable effects.  Terms without slugs are looked up by name in the Wordpress database, so if you rename a term in your specification and it doesn't have a slug, a *new* term will be created, leaving the old one in place.  Likewise, it will not be possible to create or update multiple terms with the same name (as Wordpress allows in hierarchical taxonomies), unless each has a distinct slug.  If you don't have either of these scenarios, however, you can just use names.
+
+#### Term Hooks
+
+While imposer has a relatively small vocabulary of supported properties per term, you can extend or alter it using the `imposer_term` or `imposer_term_$taxonomy` action.  Hooks registered for these actions receive an array-like object with extra properties and methods, such as:
+
+* `set_meta($path, $value)` -- set term metadata at `$path` to `$value`; `$path` is either a metadata name or an array specifying a path to traverse into the (possibly-existing) metadata before setting the value, much like the `wp term meta patch insert` command.
+* `delete_meta($path)` -- like `set_meta()` except doing the equivalent of `wp term meta patch delete` instead.
+
+Data on the object can be accessed either in array-like (e.g. `$data['slug']`) or object-like (e.g. `$data->slug`) fashion.  (This does not apply to the *contents* of the object, which are scalar values or arrays.
+
+Hook functions for these actions can receive a second argument, which is the array offset at which the term appears in the taxonomy or its parent (or null if the term was in an object instead of an array).
+
+For example, the following "PHP tweak" works with the [simple-taxonomy-ordering plugin](https://wordpress.org/plugins/simple-taxonomy-ordering/) to force categories to be displayed in the same order they're given in the imposer specification:
+
+```php tweak
+add_action('imposer_term_category', function($term, $offset) {
+    if ( isset($offset) ) $term->set_meta('tax_position', $offset);
+    else $term->delete_meta('tax_position');
+}, 10, 2);
+```
+
+The above code will either add a `tax_position` meta field to each category (if it's found in an array), or remove the property (if it's found in an object).
+
 ### Widgets and Sidebars
 
 Wordpress internally identifies widgets by an ID composed of a widget type and a number.  But this isn't very composition-friendly, since different state modules might unintentionally pick the same number.  To solve this issue, imposer lets you give widgets symbolic *names*, which can be whatever you want and have no inherent relationship with Wordpress's widget ids.  For example, this YAML block defines two named widgets and places them in two sidebars:
@@ -903,14 +1001,15 @@ You can exclude as many options or add as many filters as you wish, from any sta
 
 ## Project Status
 
-Currently, this project is still under development, as it doesn't have 100% documentation or test coverage yet, nor does it yet provide a built-in schema for terms.  (But the configuration schema can be extended using tasks, actions, and filters, as described above in [Extending Imposer](#extending-imposer).)
+Currently, this project is still under development, and is not at 100% documentation or test coverage yet.  The `blockOn()` mechanism and `produces()` have mostly been replaced by a promise-based system that is not yet documented (although it's fully tested).  Conversely, much of imposer's core PHP functionality and its menu/menuitem support is documented, but lacks automated tests.
 
-There is, however, [a roadmap for version 1.0](https://github.com/dirtsimple/imposer/projects/1).
+There is a [roadmap for version 1.0](https://github.com/dirtsimple/imposer/projects/1) tracking the status of these and other issues.
 
 ### Performance Notes
 
 While imposer is not generally performance-critical, you may be running it a lot during development, and a second or two of run time can add up quickly during rapid development.  If you are experiencing slow run times, you may wish to note that:
 
+* The slowest part of the process may well be typing out `imposer apply`!... so try using a file watcher like [entr](http://eradman.com/entrproject/) or [modd](https://github.com/cortesi/modd) to automatically run it when files change.
 * Due to limitations of the Windows platform, bash scripts like imposer run painfully slowly under Cygwin.  If possible, use a VM, Docker container, or the Linux Subsystem for Windows to get decent performance.
 * On average, Imposer spends most of its execution time running large php programs (`composer` and `wp`) from the command line, so [enabling the CLI opcache](https://pierre-schmitz.com/using-opcache-to-speed-up-your-cli-scripts/) will help a lot.
 * Currently, calculating the default `IMPOSER_PATH` is slow because it runs `wp` and `composer` up to three times each.  You can speed this up considerably by supplying an explicit `IMPOSER_PATH`, or at least the individual directories such as `IMPOSER_PLUGINS`.  (You can run `imposer path` to find out the directories imposer is currently using, or `imposer default-path` to get the directories imposer would use if `IMPOSER_PATH` were not set.)
