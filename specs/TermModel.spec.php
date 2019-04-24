@@ -292,9 +292,11 @@ describe("TermModel", function() {
 					'name'=>'Uncategorized', 'slug'=>'uncategorized',
 				);
 			});
-			Actions\expectDone('imposer_term')->with($is_model, 'uncategorized')->once();
-			Actions\expectDone('imposer_term_category')->with($is_model, 'uncategorized')->once();
-			TermModel::impose_term('Uncategorized', 'category', 'uncategorized');
+			Actions\expectDone('imposer_term'         )->with($is_model, 27)->once();
+			Actions\expectDone('imposer_term_category')->with($is_model, 27)->once();
+			TermModel::impose_term(
+				array('name'=>'Uncategorized', 'slug'=> 'uncategorized'), 'category', 27
+			);
 		});
 		it("converts nested objects to arrays", function(){
 			$data = (object) array ('x'=>42, 'a'=> (object) array('b'));
@@ -304,7 +306,7 @@ describe("TermModel", function() {
 					'random' => json_decode(json_encode($data), true), 'name'=>'Uncategorized'
 				);
 			});
-			Actions\expectDone('imposer_term')->with($is_arrayified, 'Uncategorized')->once();
+			Actions\expectDone('imposer_term')->with($is_arrayified, null)->once();
 			TermModel::impose_term( $term, 'category', 'Uncategorized' );
 		});
 		it("defaults the name or slug from the key",function(){
@@ -314,8 +316,8 @@ describe("TermModel", function() {
 			$is_slugged = Mockery::on(function($mdl) {
 				return $mdl->items() === array( 'name'=>'Uncategorized', 'slug'=>'uncategorized' );
 			});
-			Actions\expectDone('imposer_term')->with($is_named, 'Uncategorized')->once();
-			Actions\expectDone('imposer_term')->with($is_slugged, 'uncategorized')->once();
+			Actions\expectDone('imposer_term')->with($is_named, null)->once();
+			Actions\expectDone('imposer_term')->with($is_slugged, null)->once();
 			$this->terms[0]->parent = 22;  # avoid update
 			TermModel::impose_term( array(), 'category', 'Uncategorized', 22);
 			TermModel::impose_term( 'Uncategorized', 'category', 'uncategorized');
@@ -323,7 +325,7 @@ describe("TermModel", function() {
 		it("calls ::impose_terms() on children w/tax and parent", function(){
 			class ChildTermModel extends TermModel {
 				public static $log;
-				static function impose_terms($terms, $tax, $parent=0) {
+				static function impose_terms($terms, $tax, $parent=null) {
 					static::$log[] = array($terms, $tax, $parent);
 				}
 			}
@@ -338,7 +340,7 @@ describe("TermModel", function() {
 	});
 	class MockTermModel extends TermModel {
 		public static $log;
-		static function impose_term($term, $tax, $key=null, $parent=0) {
+		static function impose_term($term, $tax, $key=null, $parent=null) {
 			static::$log[] = array($term, $tax, $key, $parent);
 		}
 	}
@@ -358,8 +360,8 @@ describe("TermModel", function() {
 			MockTermModel::impose_terms( array( 'Name1', 'Name2' ), 'tax2' );
 			expect( MockTermModel::$log )->to->equal( array(
 				array( 'aName', 'tax1', 'aSlug', 42),
-				array( 'Name1', 'tax2', 0, 0),
-				array( 'Name2', 'tax2', 1, 0),
+				array( 'Name1', 'tax2', 0, null),
+				array( 'Name2', 'tax2', 1, null),
 			) );
 		});
 	});
@@ -380,9 +382,9 @@ describe("TermModel", function() {
 				'tax2' => array( 'Name1', 'Name2' ),
 			) );
 			expect( MockTermModel::$log )->to->equal( array(
-				array( 'aName', 'tax1', 'aSlug', 0),
-				array( 'Name1', 'tax2', 0, 0),
-				array( 'Name2', 'tax2', 1, 0),
+				array( 'aName', 'tax1', 'aSlug', null),
+				array( 'Name1', 'tax2', 0, null),
+				array( 'Name2', 'tax2', 1, null),
 			) );
 		});
 	});

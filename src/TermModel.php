@@ -113,7 +113,7 @@ class TermModel extends Model {
 		);
 	}
 
-	static function impose_terms($terms, $tax, $parent=0) {
+	static function impose_terms($terms, $tax, $parent=null) {
 		if ( is_string($terms) ) $terms = array($terms);
 		if ( is_array($terms) || $terms instanceof stdClass ) {
 			foreach ( (array) $terms as $key => $term)
@@ -147,8 +147,9 @@ class TermModel extends Model {
 		$mdl = $res->define( $term[$keyType], $keyType );
 		$mdl->set($term->items());
 
-		do_action('imposer_term', $mdl, $key);
-		do_action("imposer_term_$tax", $mdl, $key);
+		$offset = is_int($key) ? $key : null;
+		do_action('imposer_term',      $mdl, $offset);
+		do_action("imposer_term_$tax", $mdl, $offset);
 
 		$parent = $mdl->get('parent');
 		if ( is_string($parent) && ! is_numeric($parent) )
