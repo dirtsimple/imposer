@@ -206,7 +206,7 @@ describe("Promise", function() {
 				$g1 = (function($e){ yield 10; throw $e; yield 42; })($e);
 				$g2 = (function() use ($g1) { yield $g1; })();
 				$p = Promise::spawn($g2);
-				$p->otherwise(fn::compose());
+				$p->otherwise(fn::_());
 				expect(GP\inspect($p))->to->equal(array('state'=>'rejected','reason'=>$e));
 			});
 			it("returns a promise that rejects if the generator throws", function(){
@@ -294,7 +294,7 @@ describe("WatchedPromise", function() {
 				Promise::sync(); expect( $this->log )->to->equal( array() );
 			});
 			it("if they've been chained", function() {
-				$p2 = $this->watched->otherwise(fn::compose());
+				$p2 = $this->watched->otherwise(fn::_());
 				$this->promise->reject("error");
 			});
 			it("if they're still pending", function() { }); # see afterEach above
