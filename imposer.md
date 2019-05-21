@@ -525,11 +525,17 @@ loco_subcommand_help() {
 imposer.options-list() { imposer-filtered-options "$@"; }
 
 imposer.options-diff() {
-	(($#==0)) || [[ $* == --no-pager ]] || {
-		loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] diff [--no-pager]"
-	}
 	options-repo: setup snapshot
-	tty pager diffcolor -- options-repo: git --no-pager diff
+	if command -v json-diff >/dev/null; then
+		json-diff <(options-repo: git show :options.json) "$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	else
+		tty pager diffcolor -- options-repo: git --no-pager diff
+	fi
+}
+
+json-diff() {
+	! isatty || set -- -C "$@"  # Add -C option for colors
+	tty pager -- command json-diff "$@"
 }
 
 imposer.options-review() {
@@ -554,13 +560,13 @@ imposer.options-reset() {
 ```shell
 imposer.options-watch() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] watch"
-	watch-continuous 10 imposer options diff
+	watch-continuous 10 imposer options diff "$@"
 }
 
 watch-continuous() {
 	local interval=$1 oldint oldwinch; oldint=$(trap -p SIGINT); oldwinch="$(trap -p SIGWINCH)"
 	shift; trap "continue" SIGWINCH; trap "break" SIGINT
-	while :; do watch-once "$@"; sleep "$interval" & wait $! || true;	done
+	while :; do watch-once "$@"; sleep "$interval" & wait $! || true; done
 	${oldwinch:-trap -- SIGWINCH}; ${oldint:-trap -- SIGINT}
 }
 

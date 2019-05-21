@@ -588,7 +588,7 @@ By default, changes to options are monitored using a git repository in `$IMPOSER
 
 Note that although snapshot directories are managed using git, their contents should *not* be considered part of your project, and should not be committed or pushed to any remote servers, as they may contain security-sensitive data.  (Note, too, that you can safely *delete* (or `imposer options reset`) a snapshot directory at any time, as nothing is lost except the knowledge of what options were changed since the last fully-approved `review`.)
 
-Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `colordiff` or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
+Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `json-diff`, `colordiff`, or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
 
 Because many plugins and themes store frequently-changing state information in their options (such as timestamps, counters, undo logs, etc.), this may produce "noise" in your option lists, diffs, and reviews.  In order to filter these options out, you can add `exclude-options` and `filter-options` calls in your state modules, to exclude "noise" options for the relevant plugins, or to avoid recording security-sensitive data in the snapshot directory.  (For more information see the section below on [Option Filtering](#option-filtering).)
 
@@ -614,7 +614,7 @@ This command pipes a JSON map of all non-excluded, non-transient Wordpress optio
 
 #### imposer options diff
 
-Compare the current output of `imposer options list` against the last approved snapshot, displaying the differences as a unified diff (possibly colorized and paged).
+Compare the current output of `imposer options list` against the last approved snapshot, displaying the differences as a unified diff (possibly colorized and paged).  If [json-diff](https://www.npmjs.com/package/json-diff) is installed, the diff will be a more intelligent and compact rendering that's not confused by commas or by the reordering of named keys.
 
 #### imposer options watch
 
