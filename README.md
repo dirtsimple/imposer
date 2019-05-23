@@ -301,11 +301,11 @@ To help you decipher such plugins' configuration format, imposer provides tools 
 
 The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in your development site's database since your last review.  
 
-(Note: Approving a change is just a way to say, "I've seen this change and have done whatever I need to do about it, so stop showing it to me".  It doesn't save them to a state module or anything like that, although you can certainly copy and paste the relevant JSON bits from the changes into a state module as you review them.)
+(Note: Approving a change is just a way to say, "I've seen this change and have done whatever I need to do about it, so stop showing it to me".  It doesn't save them to a state module or anything like that, although you can certainly copy and paste the relevant JSON bits from the changes into a state module as you review them.  You can also use `imposer options yaml` to list unapproved changes in a more convenient format for such copying and pasting.)
 
 To start a review, just run `imposer options review` on the development site in question.  Either you'll be immediately presented with any existing changes as JSON patch chunks (for review and approval via the `git add --patch` UI), or else the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.
 
-Once you've approved a change, it won't show up during future runs of the `review`, `diff`, or `watch` subcommands of `imposer options` for that site.  This lets you filter out changes you already know how to map to a state file, and irrelevant "noise" changes (like changes to the `cron` option), while still observing changes to values you're still working on with `watch` or `diff`.
+Once you've approved a change, it won't show up during future runs of the `review`, `diff`, `yaml`, or `watch` subcommands of `imposer options` for that site.  This lets you filter out changes you already know how to map to a state file, and irrelevant "noise" changes (like changes to the `cron` option), while still observing changes to values you're still working on with `watch` or `diff`.
 
 For more details on imposer's tools for monitoring and inspecting Wordpress options, see the [imposer options](#imposer-options) command reference, below.
 
@@ -588,7 +588,7 @@ By default, changes to options are monitored using a git repository in `$IMPOSER
 
 Note that although snapshot directories are managed using git, their contents should *not* be considered part of your project, and should not be committed or pushed to any remote servers, as they may contain security-sensitive data.  (Note, too, that you can safely *delete* (or `imposer options reset`) a snapshot directory at any time, as nothing is lost except the knowledge of what options were changed since the last fully-approved `review`.)
 
-Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `json-diff`, `colordiff`, or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables diff coloring and/or paging.)
+Most `imposer options` subcommands provide paged and colorized output, unless their output is piped or redirected to a file.  JSON is colorized using `jq`, diffs are colorized with `json-diff`, `colordiff`, or `pygments` if available, and paging is done with `less -FRX`.  (You can override the diff coloring command by setting `IMPOSER_COLORDIFF`, the yaml coloring command with `IMPOSER_YAML_COLOR`, and the paging command via `IMPOSER_PAGER`.  Setting them to empty disables the relevant coloring and/or paging functions.)
 
 Because many plugins and themes store frequently-changing state information in their options (such as timestamps, counters, undo logs, etc.), this may produce "noise" in your option lists, diffs, and reviews.  In order to filter these options out, you can add `exclude-options` and `filter-options` calls in your state modules, to exclude "noise" options for the relevant plugins, or to avoid recording security-sensitive data in the snapshot directory.  (For more information see the section below on [Option Filtering](#option-filtering).)
 
@@ -615,6 +615,14 @@ This command pipes a JSON map of all non-excluded, non-transient Wordpress optio
 #### imposer options diff
 
 Compare the current output of `imposer options list` against the last approved snapshot, displaying the differences as a unified diff (possibly colorized and paged).  If [json-diff](https://www.npmjs.com/package/json-diff) is installed, the diff will be a more intelligent and compact rendering that's not confused by commas or by the reordering of named keys.
+
+#### imposer options yaml
+
+Compare the current output of `imposer options list` against the last approved snapshot and the current project specification, outputting the minimal YAML that would be required to update or insert any new option values that are not yet approved and have not yet been specified in the project's current state, or which need to be changed in the specification.  If sent to a TTY, output is paged and colorized (if pygments is installed).
+
+Note: although this command is intended to make it easier to "export" option changes to your imposer state modules, do note that you should not copy everything blindly to a state module: make sure you 1) understand what the actual options do, 2) use the review command and filtering facilities to keep the YAML as brief as possible, and 3) be selective in your copy-and-pastes.
+
+(A good portion of imposer's value comes from the ability to group specifications in logical features, rather than simply being an import/export facility.  So if you're copying options wholesale without editing to group by options into relevant features and document why those particular values are desirable, you're just moving your maintenance headaches around, rather than actually solving them.)
 
 #### imposer options watch
 

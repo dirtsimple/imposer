@@ -553,6 +553,34 @@ imposer.options-reset() {
 }
 ```
 
+#### yaml
+
+`imposer options yaml` attempts to write the minimal YAML that needs to be added to the current specification to match the current option state, after standard option filtering and excluding already-reviewed option values.  The resulting YAML is paged and colorized.  (An important limitation: the generated YAML cannot *delete* any options or option subkeys that were deleted in the actual options.)
+
+```shell
+imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
+unspecified-new-options() {
+	run-modules
+	FILTER '
+		def diff($old):
+		  if . == $old then empty
+		  elif type=="object" and ($old|type)=="object" then
+		    . as $new | with_entries(
+		      .key as $k | if $k | in($old) then .value | diff($old[$k]) | {key:$k, value:.} else . end
+		    ) | if . == {} and $new != {} then empty else . end
+		  else .
+		  end
+		;
+		.options as $imposed | $current_options[0] | diff($old_options[0]) | diff($imposed) |
+		{ options: . }
+	'
+	RUN_JQ -n \
+		--slurpfile old_options     <(options-repo: setup git show :options.json) \
+		--slurpfile current_options <(IMPOSER_ISATTY=0 imposer options list) \
+	| json2yaml.php
+}
+```
+
 #### watch
 
 `imposer options watch` runs  `imposer options diff --no-pager` every 15 seconds, with colorized output cut to fit the current screen size.  OS X doesn't have a native `watch` command, so we emulate it, adding support for terminal resizing by trapping SIGWINCH.

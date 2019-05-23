@@ -914,6 +914,27 @@ imposer.options-reset() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] reset"
 	options-repo: setup snapshot git add options.json
 }
+imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
+unspecified-new-options() {
+	run-modules
+	FILTER '
+		def diff($old):
+		  if . == $old then empty
+		  elif type=="object" and ($old|type)=="object" then
+		    . as $new | with_entries(
+		      .key as $k | if $k | in($old) then .value | diff($old[$k]) | {key:$k, value:.} else . end
+		    ) | if . == {} and $new != {} then empty else . end
+		  else .
+		  end
+		;
+		.options as $imposed | $current_options[0] | diff($old_options[0]) | diff($imposed) |
+		{ options: . }
+	'
+	RUN_JQ -n \
+		--slurpfile old_options     <(options-repo: setup git show :options.json) \
+		--slurpfile current_options <(IMPOSER_ISATTY=0 imposer options list) \
+	| json2yaml.php
+}
 imposer.options-watch() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] watch"
 	watch-continuous 10 imposer options diff "$@"
