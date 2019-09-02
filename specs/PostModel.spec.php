@@ -83,6 +83,42 @@ describe("PostModel", function() {
 			$res = Promise::interpret( $this->model->apply() );
 			expect( $res )->to->equal($id);
 		});
+		describe("forces the post GUID to match the given one", function(){
+			beforeEach(function(){
+				Monkey\setUp();
+				$this->model->guid = $this->originalGUID = "http://example.com/foo?bar=baz&bing=bang";
+				PostModel::cached()['guids'] = new Bag;
+				$this->mangledGUID  = "http://example.com/foo?bar=baz&amp;bing=bang";
+				fun\expect('get_post_field')->with('guid', 99, 'raw')->once()->andReturn($this->mangledGUID);
+				$this->wpdb->posts = $posts_table = 'test_prefix_wp_posts';
+				$this->wpdb->shouldReceive('update')->once()->with(
+					$this->wpdb->posts, array('guid' => $this->originalGUID), array('ID'=>99)
+				);
+				fun\expect('get_post_field')->with('post_type', 99, 'raw')->once()->andReturn("post");
+				# XXX expect on_save_post
+				fun\expect('clean_post_cache')->with(99)->once();
+			});
+			it("on insert", function(){
+				$items = $this->model->items();
+				fun\expect('wp_slash')->with($items)->once()->andReturn($items);
+				fun\expect('wp_insert_post')->with($items, true)->once()->andReturn(99);
+				fun\expect('is_wp_error')->with(99)->once()->andReturn(false);
+				$res = Promise::interpret( $this->model->apply() );
+				expect( $res )->to->equal(99);
+				expect(Postmodel::guids()->get($this->originalGUID))->to->equal(99);
+			});
+			it("on update", function(){
+				$this->p->resolve($id = 99);
+				$items = $this->model->items();
+				fun\expect('wp_slash')->with($items)->once()->andReturn($items);
+				$items['ID'] = $id;
+				fun\expect('wp_update_post')->with($items, true)->once()->andReturn($id);
+				fun\expect('is_wp_error')->with($id)->once()->andReturn(false);
+				$res = Promise::interpret( $this->model->apply() );
+				expect( $res )->to->equal($id);
+				expect(Postmodel::guids()->get($this->originalGUID))->to->equal($id);
+			});
+		});
 	});
 	describe("::lookup_by_path()", function(){
 		it("calls url_to_postid", function() {

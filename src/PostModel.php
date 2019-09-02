@@ -7,6 +7,9 @@ class PostModel extends Model {
 	const meta_type = 'post';
 
 	protected function save() {
+
+		global $wpdb;
+
 		$id = $this->id() ?: 0;
 		$args = wp_slash( $this->items() );
 		if ($id) $args['ID'] = $id;
@@ -16,7 +19,15 @@ class PostModel extends Model {
 		};
 		add_filter('wp_revisions_to_keep', $no_rev, 999999, 2);
 		try {
-			return $this->check_save($id ? 'wp_update_post' : 'wp_insert_post', $args, true);
+			$res = $this->check_save($id ? 'wp_update_post' : 'wp_insert_post', $args, true);
+			if ( $this->has('guid') && $this->guid != get_post_field('guid', $res, 'raw') ) {
+				$post = array('guid'=>$this->guid);
+				$wpdb->update( $wpdb->posts, $post, array('ID'=>$res) );
+				$post['post_type'] = get_post_field('post_type', $res, 'raw');
+				static::on_save_post($res, (object) $post);
+				clean_post_cache($res);
+			}
+			return $res;
 		} finally {
 			remove_filter('wp_revisions_to_keep', $no_rev, 999999, 2);
 		}
