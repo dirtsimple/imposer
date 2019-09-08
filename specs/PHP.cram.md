@@ -48,8 +48,8 @@
 
     $ (MDSH_SOURCE=$TESTFILE compile-php myvar "if this(that)" 42)
     In PHP block at line 42 of PHP.cram.md:
-    PHP Parse error:  syntax error, unexpected 'this' (T_STRING), expecting '(' in - on line 1
-    Errors parsing -
+    PHP Parse error:  syntax error, unexpected 'this' (T_STRING), expecting '(' in * on line 1 (glob)
+    Errors parsing * (glob)
     [255]
 
 # Only `{}`-based namespaces are allowed:

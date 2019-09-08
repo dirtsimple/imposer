@@ -618,7 +618,7 @@ maybe-compact-php() {
     if [[ "${!3-}" && "${!3-}" != "${__FILE__-}" ]]; then
         compact-php "$1" "$2" force
     fi
-    printf -v "$3" %s "${__FILE__-}"
+    eval "$3=\${__FILE__-}"
 }
 
 compact-php() {
