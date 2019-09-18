@@ -26,13 +26,6 @@ dk use: shellcheck        # support running shellcheck (via docker if not instal
 # SC2241 = exit w/message
 SHELLCHECK_OPTS='-e SC1090,SC2016,SC2128,SC2145,SC2178,SC2241'
 
-for REPLY in mdsh jqmd loco; do
-    on boot require $REPLY github bashup/$REPLY master bin/$REPLY
-done
-
-on boot require realpaths     github bashup/realpaths master realpaths
-on boot require bashup.events github bashup/events    master bashup.events
-
 [[ -f composer.lock ]] || on boot composer install
 
 build-imposer() { jqmd -R --out "$1" --compile imposer.md && chmod +x "$1"; }
