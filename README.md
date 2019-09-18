@@ -61,6 +61,7 @@ And last -- but far from least -- your modules can also include "tweaks": PHP co
   * [Command-Line Interface](#command-line-interface)
     + [imposer apply *\[module...\] \[wp-cli option...\]*](#imposer-apply-module-wp-cli-option)
     + [imposer options](#imposer-options)
+    + [imposer env](#imposer-env)
     + [Diagnostic Commands](#diagnostic-commands)
   * [Specification Schema](#specification-schema)
     + [Theme, Plugins, and Options](#theme-plugins-and-options)
@@ -509,6 +510,8 @@ To use Imposer, you must have at least *one* of the following files in the root 
 
 Imposer will search the current directory and its parent directories until it finds one of the three files, and all relative paths (e.g. those in `IMPOSER_PATH`) will be interpreted relative to that directory.  (And all code in state module files is executed with that directory as the current directory.)  If you have an `imposer-project.md`, it will be loaded as though it were the state file for a module called `imposer:project`.
 
+In addition to the one or more of the above three files, you can also have an `.imposer-env` file containing environment variables in [docker-compose .env file format](https://docs.docker.com/compose/compose-file/#env_file) (i.e. raw values without quoting or escape sequences).  This allows you to store keys, credentials, hostnames, and other configuration in a separate file that can be excluded from revision control.  Any variables found in the file are added to the OS environment while imposer is running, and for any commands imposer executes.
+
 Basic usage is `imposer apply` *[modulename...]*, where each argument designates a state module to be loaded.  Modules are loaded in the order specified, unless an earlier one `require`s a later one, forcing it to be loaded earlier than its position in the list.  (You don't have to list any modules if everything you want to apply as a specification is already in your `imposer-project.md`, or in modules `require`d by it.)
 
 ## Lookup and Processing Order
@@ -584,7 +587,7 @@ The `imposer options` subcommand provides various sub-subcommands for inspecting
 
 For the most part, you will only use these subcommands on a development instance of Wordpress, in order to discover and verify what options in the database match what parts of a plugin's configuration UI.  (So you can figure out what to put in your state files for production, or verify that your state files are setting things correctly.)
 
-By default, changes to options are monitored using a git repository in `$IMPOSER_CACHE/.options-snapshot`, but this location can be overridden by setting `IMPOSER_OPTIONS_SNAPSHOT `or by passing the `--dir` option to `imposer options`.  (For example, `imposer options --dir foo review` runs the `review` command against a git repository called `foo` under the current project root.)
+By default, changes to options are monitored using a git repository in `$IMPOSER_CACHE/.options-snapshot`, but this location can be overridden by setting `IMPOSER_OPTIONS_SNAPSHOT` (e.g. via the [imposer env](#imposer-env) command), or by passing the `--dir` option to `imposer options`.  (For example, `imposer options --dir foo review` runs the `review` command against a git repository called `foo` under the current project root.)
 
 Note that although snapshot directories are managed using git, their contents should *not* be considered part of your project, and should not be committed or pushed to any remote servers, as they may contain security-sensitive data.  (Note, too, that you can safely *delete* (or `imposer options reset`) a snapshot directory at any time, as nothing is lost except the knowledge of what options were changed since the last fully-approved `review`.)
 
@@ -627,6 +630,26 @@ Note: although this command is intended to make it easier to "export" option cha
 #### imposer options watch
 
 Every 10 seconds, clear the screen and display the first screenful of output from `imposer options diff`.  (Use Control-C to exit.)
+
+### imposer env
+
+The `imposer env` command lets you read and write environment variables stored in the `.imposer-env` file in your project directory.  The file is in docker-compose format, meaning that leading and trailing spaces are ignored, quotes are treated as literal characters, and no escape sequences are recognized.  Variables set in the file are exported to the operating system environment while imposer runs, so they can be used for interpolation in YAML or shell blocks, or read by PHP code for the PHP part of an `imposer apply` run.  They do not, however, affect the WordPress runtime environment (outside of wp-cli code run by imposer).
+
+#### imposer env set [+]*VAR*[=*value*]...
+
+Set or unset one or more variables.  If a variable name is preceded by a `+`, the variable is only set if it is not already set.  (In other words, `+` means "add this value as a default if there's no definition yet".)  If the `=` and value is omitted, the variable is unset and deleted from the file, allowing the operating system environment's value for that variable (if any) to show through.
+
+#### imposer env get *VAR*
+
+Write the value of the specified variable to standard output, if defined in the file.  (Otherwise, there is no output.)
+
+#### imposer env parse *[VAR...]*
+
+Extract one or more variable definitions from the file, outputting them as `VAR=value` lines without any escaping.  The order of the output is based on the order in the file, not the order of names given, and skips variables not found in the file.  If no names are given, all variables in the file are output.
+
+#### imposer env export *[VAR...]*
+
+Write out the specified variables as `export VAR=value` lines (if they are found in the file), with values escaped in a manner suitable for safe execution in the shell.  The order of the output is based on the order in the file, not the order of names given, and skips variables not found in the file.  If no names are given, all variables in the file are output.
 
 ### Diagnostic Commands
 

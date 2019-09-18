@@ -23,8 +23,10 @@ dk use: shellcheck        # support running shellcheck (via docker if not instal
 # SC2128 = array/string mixing
 # SC2145 = prefix or suffix on "$@" or other array
 # SC2178 = array/string mixing
+# SC2179 = array/string mixing
 # SC2241 = exit w/message
-SHELLCHECK_OPTS='-e SC1090,SC2016,SC2128,SC2145,SC2178,SC2241'
+
+SHELLCHECK_OPTS='-e SC1090,SC2016,SC2128,SC2145,SC2178,SC2179,SC2241'
 
 [[ -f composer.lock ]] || on boot composer install
 

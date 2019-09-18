@@ -15,6 +15,7 @@ Imposer is built using [mdsh](https://github.com/bashup/mdsh), combining [loco](
 @require pjeby/license @comment    "LICENSE"
 @require bashup/jqmd   mdsh-source "$BASHER_PACKAGES_PATH/bashup/jqmd/jqmd.md"
 @require bashup/loco   mdsh-source "$BASHER_PACKAGES_PATH/bashup/loco/loco.md"
+@require bashup/dotenv mdsh-source "$BASHER_PACKAGES_PATH/bashup/dotenv/dotenv.md"
 @require bashup/events tail -n +2  "$BASHER_PACKAGES_PATH/bashup/events/bashup.events"
 @require .devkit/tty   tail -n +2  "$DEVKIT_HOME/modules/tty"
 
@@ -39,6 +40,8 @@ loco_site_config() { mark-read "$1"; run-markdown "$1"; }
 loco_user_config() { mark-read "$1"; run-markdown "$1"; }
 loco_loadproject() {
 	cd "$LOCO_ROOT"
+	# load environment variables
+	.env -f .imposer-env export
 	if [[ $LOCO_PROJECT == *.md ]]; then
 		@require "imposer:project" __load_module imposer-project "$LOCO_PROJECT"
 	fi
@@ -608,5 +611,23 @@ watch-once() {
 	REPLY="Every ${interval}s: $*"
 	clear; printf '%s%*s\n\n' "$REPLY" $((cols-${#REPLY})) "$(date "+%Y-%m-%d %H:%M:%S")"
 	IMPOSER_PAGER="pager.screenfull 3" "$@" || true
+}
+```
+
+## Other Commands
+
+### imposer env
+
+Wrap `.env -f .imposer-env ...` as an imposer command, to allow setting env vars from the command line that will be used by the current project.
+
+```shell
+imposer.env() { loco_subcommand "imposer.env-" "imposer-env" "$@"; }
+imposer-env() {
+	{ (($#)) && declare -F -- ".env.$1" >/dev/null; } || { imposer env --help; return; }
+	.env -f .imposer-env "$@"; ${REPLY[@]+printf '%s\n' "${REPLY[@]}"}
+}
+imposer.env---help() { loco_subcommand_help ".env." "imposer env"; }
+imposer.env-export() {
+	.env -f .imposer-env; .env parse "$@" || return 0; printf 'export %q\n' "${REPLY[@]}"; REPLY=()
 }
 ```
