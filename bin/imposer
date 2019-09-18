@@ -838,10 +838,10 @@ options-repo::has-directory() {
 
 options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
 
-options-repo::changed() { [[ "$(options-repo: git status --porcelain options.json)" == ?M* ]]; }
+options-repo::changed() { [[ "$(options-repo: git status --porcelain options.yml)" == ?M* ]]; }
 
 options-repo::snapshot() {
-	imposer options list >"$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+	imposer options list | json2yaml.php >"$IMPOSER_OPTIONS_SNAPSHOT/options.yml"
 	options-repo: "$@"
 }
 
@@ -849,14 +849,17 @@ options-repo::setup() {
 	[[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]] || loco_error "A snapshot directory name is required"
 	[[ -d "$IMPOSER_OPTIONS_SNAPSHOT" ]] || mkdir -p "$IMPOSER_OPTIONS_SNAPSHOT"
 	[[ -d "$IMPOSER_OPTIONS_SNAPSHOT/.git" ]] || options-repo: git init
-	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/options.json" ]] || {
-		options-repo: snapshot git add options.json
+
+	local options=$IMPOSER_OPTIONS_SNAPSHOT/options
+	[[ -f "$options.yml" ]] || {
+		if [[ -f "$options.json" ]]; then
+			options-repo: git show :options.json | json2yaml.php >"$options.yml"
+			options-repo: git add options.yml
+			json2yaml.php <"$options.json" >"$options.yml"
+		else
+			options-repo: snapshot git add options.yml
+		fi
 	}
-	[[ -f "$IMPOSER_OPTIONS_SNAPSHOT/.gitattributes" ]] || {
-		echo "*.json diff=json" > "$IMPOSER_OPTIONS_SNAPSHOT/.gitattributes"
-	}
-	options-repo: git config --local --get diff.json.xfuncname >/dev/null ||
-		options-repo: git config --local diff.json.xfuncname '^  (".*)'
 	options-repo: "$@";
 }
 imposer.options() {
@@ -891,9 +894,11 @@ imposer.options-list() { imposer-filtered-options "$@"; }
 imposer.options-diff() {
 	options-repo: setup snapshot
 	if command -v json-diff >/dev/null; then
-		json-diff <(options-repo: git show :options.json) "$IMPOSER_OPTIONS_SNAPSHOT/options.json"
+		json-diff \
+			<(options-repo: git show :options.yml | yaml2json) \
+			<(yaml2json <"$IMPOSER_OPTIONS_SNAPSHOT/options.yml")
 	else
-		tty pager diffcolor -- options-repo: git --no-pager diff
+		tty pager diffcolor -- options-repo: git --no-pager diff options.yml
 	fi
 }
 
@@ -908,12 +913,12 @@ imposer.options-review() {
 		(($#)) || { echo "Waiting for changes...  (^C to abort)"; set -- started; }
 		sleep 10
 	done
-	options-repo: git add --patch options.json
+	options-repo: git add --patch options.yml
 }
 
 imposer.options-reset() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] reset"
-	options-repo: setup snapshot git add options.json
+	options-repo: setup snapshot git add options.yml
 }
 imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
 unspecified-new-options() {
@@ -932,7 +937,7 @@ unspecified-new-options() {
 		{ options: . }
 	'
 	RUN_JQ -n \
-		--slurpfile old_options     <(options-repo: setup git show :options.json) \
+		--slurpfile old_options     <(options-repo: setup git show :options.yml | yaml2json) \
 		--slurpfile current_options <(IMPOSER_ISATTY=0 imposer options list) \
 	| json2yaml.php
 }
