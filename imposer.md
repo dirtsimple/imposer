@@ -42,6 +42,7 @@ loco_loadproject() {
 	cd "$LOCO_ROOT"
 	# load environment variables
 	.env -f .imposer-env export
+	IMPOSER_CACHE=${IMPOSER_CACHE:-$LOCO_ROOT/imposer/.cache}
 	if [[ $LOCO_PROJECT == *.md ]]; then
 		@require "imposer:project" __load_module imposer-project "$LOCO_PROJECT"
 	fi
@@ -237,7 +238,7 @@ have_module() {
 
 #### State Loading
 
-And then loaded by compiling the markdown source, optionally caching in the  `$IMPOSER_CACHE` directory (unless `IMPOSER_CACHE` is set to an empty string)
+And then loaded by compiling the markdown source, caching in the  `$IMPOSER_CACHE` directory
 
 ```shell
 __load_module() {
@@ -245,7 +246,7 @@ __load_module() {
     # shellcheck disable=SC2034  # vars for users + event var
     local __FILE__="$2" __DIR__=$REPLY IMPOSER_MODULE="$1" bashup_event_after_5fmodule=
     mark-read "$2"
-    MDSH_CACHE=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache} mdsh-run "$2" "$1"
+    MDSH_CACHE=${IMPOSER_CACHE} mdsh-run "$2" "$1"
     # Force error exit if module fails to compile or run
     mdsh-ok || exit "$?" "Module $1 ($2) aborted with code $?"
     event fire "after_module"
@@ -296,6 +297,7 @@ imposer.apply() {
         event fire "before_apply"
         while local s=; run-imposer-php "$@" || s=$?; [[ $s == 75 ]]; do :; done
         ${s:+return $s}
+        writefile "$IMPOSER_CACHE/last-applied.json" echo "$IMPOSER_JSON"
         event fire "after_apply"
     fi
 }
@@ -306,6 +308,13 @@ run-imposer-php() {
     wp eval 'dirtsimple\imposer\Imposer::run_stream("php://fd/7");' "$@" \
         7<<<"$IMPOSER_JSON" < <(cat-php imposer_php)
 }
+
+writefile() {
+	realpath.dirname "$1"; mkdir -p "$REPLY" || return
+	[[ ! -f "$1" ]] || cp -p "$1" "$1.tmp" || return
+	"${@:2}" >"$1.tmp" && mv "$1.tmp" "$1"
+}
+
 ```
 
 #### Dumping JSON or PHP
@@ -457,8 +466,7 @@ options-repo:() { (($#==0)) || "options-repo::$@"; }
 
 options-repo::has-directory() {
 	# Default to .options-snapshot under IMPOSER_CACHE
-	REPLY=${IMPOSER_CACHE-$LOCO_ROOT/imposer/.cache}; REPLY=${REPLY+"$REPLY/.options-snapshot"}
-	[[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]]
+	REPLY=$IMPOSER_CACHE/.options-snapshot; [[ ${IMPOSER_OPTIONS_SNAPSHOT-} ]]
 }
 
 options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
