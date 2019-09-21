@@ -257,6 +257,10 @@ After all required state modules have been sourced, the accumulated YAML, JSON, 
     --- PHP: ---
     EVENT: after_apply
 
+# JSON saved to last-applied.json
+    $ cat imposer/.cache/last-applied.json
+    {"options":{},"plugins":{"imposer-tweaks":false}}
+
 
 # Running apply resets the filters and events, so doing it again is a no-op:
     $ imposer apply
@@ -355,7 +359,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     Module 'this/that' has been loaded
     The project configuration has been loaded.
     Got CSS for mytheme: /* CSS for mytheme */
-     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
+     dummy */Basics.cram.md/imposer/dummy.state.md 336 (glob)
     warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
@@ -395,7 +399,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     Module 'this/that' has been loaded
     The project configuration has been loaded.
     Got CSS for mytheme: /* CSS for mytheme */
-     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
+     dummy */Basics.cram.md/imposer/dummy.state.md 336 (glob)
     warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
@@ -425,7 +429,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     Module 'this/that' has been loaded
     The project configuration has been loaded.
     Got CSS for mytheme: /* CSS for mytheme */
-     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
+     dummy */Basics.cram.md/imposer/dummy.state.md 336 (glob)
     warning: module 'dummy' contains PHP tweaks that will not be loaded; tweaks must be defined in the project or global configuration.
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
@@ -452,7 +456,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ IMPOSER_PATH=imposer imposer-cmd apply
     Module 'this/that' has been loaded
     Got CSS for mytheme: /* CSS for mytheme */
-     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
+     dummy */Basics.cram.md/imposer/dummy.state.md 336 (glob)
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
     Just loaded a module called: imposer-project
@@ -487,7 +491,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ IMPOSER_PATH=imposer imposer-cmd tweaks
     Module 'this/that' has been loaded
     Got CSS for mytheme: /* CSS for mytheme */
-     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
+     dummy */Basics.cram.md/imposer/dummy.state.md 336 (glob)
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
     Just loaded a module called: imposer-project
@@ -506,7 +510,7 @@ The `imposer json` and `imposer php` commands process state modules and then out
     $ IMPOSER_PATH=imposer imposer-cmd tweaks testme
     Module 'this/that' has been loaded
     Got CSS for mytheme: /* CSS for mytheme */
-     dummy */Basics.cram.md/imposer/dummy.state.md 332 (glob)
+     dummy */Basics.cram.md/imposer/dummy.state.md 336 (glob)
     The current state module (dummy) is finished loading.
     Just loaded a module called: dummy
     Just loaded a module called: imposer-project

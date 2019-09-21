@@ -300,13 +300,13 @@ Of course, for a sufficiently small plugin, you can find out its options by read
 
 To help you decipher such plugins' configuration format, imposer provides tools to inspect and monitor option changes made through the Wordpress UI.  That way, you can configure a plugin via the Wordpress UI, and observe the changes it makes to the options in the database.
 
-The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in your development site's database since your last review.  
+The main tool you will use for this process is `imposer options review`, which lets you interactively review and approve changes made to the options in your development site's database since your last review, that were *not* made via imposer.
 
-(Note: Approving a change is just a way to say, "I've seen this change and have done whatever I need to do about it, so stop showing it to me".  It doesn't save them to a state module or anything like that, although you can certainly copy and paste the relevant YAML from the changes into a state module as you review them.  You can also use `imposer options yaml` to list unapproved changes in a more convenient format for such copying and pasting.)
+(Note: Approving a change is just a way to say, "I've seen this change and have done whatever I need to do about it, so stop showing it to me".  It doesn't save them to a state module or anything like that, although you can certainly copy and paste the relevant YAML from the changes into a state module as you review them.  You can also use `imposer options yaml` to list unapproved, unimposed changes in a more convenient format for such copying and pasting.)
 
 To start a review, just run `imposer options review` on the development site in question.  Either you'll be immediately presented with any existing changes as YAML patch chunks (for review and approval via the `git add --patch` UI), or else the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.
 
-Once you've approved a change, it won't show up during future runs of the `review`, `diff`, `yaml`, or `watch` subcommands of `imposer options` for that site.  This lets you filter out changes you already know how to map to a state file, and irrelevant "noise" changes (like changes to the `cron` option), while still observing changes to values you're still working on with `watch` or `diff`.
+Once you've approved a change (or added it to a state module and applied it), it won't show up during future runs of the `review`, `diff`, `yaml`, or `watch` subcommands of `imposer options` for that site.  This lets you filter out changes you've already mapped to a state file, and irrelevant "noise" changes, while still observing changes to option values you're still working on with `watch` or `diff`.  (You can also have your state modules blacklist constantly-changing options like `cron`, so they don't keep showing up in your diffs.)
 
 For more details on imposer's tools for monitoring and inspecting Wordpress options, see the [imposer options](#imposer-options) command reference, below.
 
@@ -597,7 +597,7 @@ Because many plugins and themes store frequently-changing state information in t
 
 #### imposer options review
 
-Interactively revew and approve changes made to the YAML form of all non-transient Wordpress options since the last review, or the last time the snapshot directory was erased.  (If there are no changes pending, the command waits, taking snapshots of the options in the database every 10 seconds until a change is detected.)
+Interactively revew and approve changes made to the YAML form of all non-transient Wordpress options since the last review, the last time the snapshot directory was erased, or an option was imposed to its current value.  (If there are no changes pending, the command waits, taking snapshots of the options in the database every 10 seconds until a change is detected.)
 
 The review process has the same UI as `git add --patch`: any changes you approve will not show up on future reviews, allowing you to figuratively "sign off" on the changes that you understand, or which are irrelevant to your current goals.  Once you've approved a change, it will not show up during future runs of `imposer options` subcommands such as `review`, `diff`, or `watch`.
 

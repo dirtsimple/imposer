@@ -472,9 +472,22 @@ options-repo::has-directory() {
 options-repo::git() ( cd "$IMPOSER_OPTIONS_SNAPSHOT"; git "$@"; )
 
 options-repo::changed() { [[ "$(options-repo: git status --porcelain options.yml)" == ?M* ]]; }
+options-repo::snapshot(){ imposer-filtered-options | options-repo: write-json && options-repo: "$@"; }
+options-repo::write-json(){ writefile "$IMPOSER_OPTIONS_SNAPSHOT/options.yml" json2yaml.php; }
+options-repo::cat-json()  { options-repo: git show :options.yml | yaml2json; }
 
-options-repo::snapshot() {
-	imposer options list | json2yaml.php >"$IMPOSER_OPTIONS_SNAPSHOT/options.yml"
+options-repo::edit() {
+	options-repo: cat-json | "$@" | options-repo: write-json &&
+	options-repo: git add options.yml
+}
+
+options-repo::freshen() {
+	# Update git index with last options applied by imposer, if present
+	REPLY=$IMPOSER_CACHE/last-applied.json
+	[[ ! -f "$REPLY" ]] || options-repo: edit jq --slurpfile last "$REPLY" '
+		delpaths( [ $last[0]."delete-options" | paths(type != "object") ]) | . * $last[0].options |
+		. as $updated | keys | map({key: ., value: $updated[.]}) | from_entries
+	'
 	options-repo: "$@"
 }
 
@@ -486,7 +499,7 @@ options-repo::setup() {
 	local options=$IMPOSER_OPTIONS_SNAPSHOT/options
 	[[ -f "$options.yml" ]] || {
 		if [[ -f "$options.json" ]]; then
-			options-repo: git show :options.json | json2yaml.php >"$options.yml"
+			options-repo: git show :options.json | options-repo: write-json
 			options-repo: git add options.yml
 			json2yaml.php <"$options.json" >"$options.yml"
 		else
@@ -539,12 +552,11 @@ loco_subcommand_help() {
 imposer.options-list() { imposer-filtered-options "$@"; }
 
 imposer.options-diff() {
-	options-repo: setup snapshot
 	if command -v json-diff >/dev/null; then
-		json-diff \
-			<(options-repo: git show :options.yml | yaml2json) \
-			<(yaml2json <"$IMPOSER_OPTIONS_SNAPSHOT/options.yml")
+		options-repo: setup freshen
+		json-diff <(options-repo: cat-json) <(imposer-filtered-options)
 	else
+		options-repo: setup freshen snapshot
 		tty pager diffcolor -- options-repo: git --no-pager diff options.yml
 	fi
 }
@@ -556,11 +568,12 @@ json-diff() {
 
 imposer.options-review() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] review"
-	while ! options-repo: setup snapshot changed; do
+	options-repo: setup freshen
+	while ! options-repo: snapshot changed; do
 		(($#)) || { echo "Waiting for changes...  (^C to abort)"; set -- started; }
 		sleep 10
 	done
-	options-repo: git add --patch options.yml
+	options-repo: freshen git add --patch options.yml
 }
 
 imposer.options-reset() {
@@ -576,24 +589,21 @@ imposer.options-reset() {
 ```shell
 imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
 unspecified-new-options() {
-	run-modules
-	FILTER '
+	options-repo: setup freshen
+	IMPOSER_ISATTY=0 imposer-filtered-options | jq --slurpfile old_options <(options-repo: cat-json) '
 		def diff($old):
 		  if . == $old then empty
 		  elif type=="object" and ($old|type)=="object" then
 		    . as $new | with_entries(
-		      .key as $k | if $k | in($old) then .value | diff($old[$k]) | {key:$k, value:.} else . end
+		      .key as $k |
+		      if $k | in($old) then .value | diff($old[$k]) | {key:$k, value:.} else . end
 		    ) | if . == {} and $new != {} then empty else . end
 		  else .
 		  end
 		;
-		.options as $imposed | $current_options[0] | diff($old_options[0]) | diff($imposed) |
-		{ options: . }
-	'
-	RUN_JQ -n \
-		--slurpfile old_options     <(options-repo: setup git show :options.yml | yaml2json) \
-		--slurpfile current_options <(IMPOSER_ISATTY=0 imposer options list) \
-	| json2yaml.php
+		{ options: . } | diff( { options: $old_options[0]} )
+	' |
+	json2yaml.php
 }
 ```
 
