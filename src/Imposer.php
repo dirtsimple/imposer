@@ -122,7 +122,7 @@ class Imposer {
 			$new = static::sanitize_option($opt, array_patch_recursive($old, $new));
 			if ($new !== $old) {
 				update_option($opt, $new);
-				if (($saved = get_option($opt)) !== $new) {
+				if (($saved = static::sanitize_option($opt, get_option($opt))) !== $new) {
 					WP_CLI::error("Option $opt was set to " . json_encode($new) . " but new value is " . json_encode($saved));
 				} else if ( $restart ) {
 					WP_CLI::success("Updated option $opt");
