@@ -834,7 +834,6 @@ imposer.apply() {
         event fire "before_apply"
         while local s=; run-imposer-php "$@" || s=$?; [[ $s == 75 ]]; do :; done
         ${s:+return $s}
-        writefile "$IMPOSER_CACHE/last-applied.json" echo "$IMPOSER_JSON"
         event fire "after_apply"
     fi
 }
@@ -963,22 +962,20 @@ options-repo::edit() { options-repo: show json | options-repo: add json "$@"; }
 
 options-repo::freshen() {
 	# Update git index with last options applied by imposer, if present
-	options-repo: setup || return
-	[[ ! -f "$IMPOSER_CACHE/last-applied.json" ]] ||
-		options-repo: add json options-repo: approved-json || return
+	options-repo: setup add json options-repo: approved-json &&
 	options-repo: snapshot "$@"
 }
 
-options-repo::approved-json() {
-	REPLY=$IMPOSER_CACHE/last-applied.json
-	if [[ -f "$REPLY" ]]; then
-		options-repo: show json | jq --slurpfile last "$REPLY" '
-			delpaths( [ $last[0]."delete-options" | paths(type != "object") ]) |
-			. * $last[0].options | to_entries | sort_by(.key) | from_entries
-		'
-	else options-repo: show json
-	fi
-}
+options-repo::approved-json() (
+	set -- "JQMD_SA_${#JQ_OPTS[@]}"
+	FILTER '. as $last | $'"$1"'[0]'
+	FILTER 'delpaths( [ $last."delete-options" | paths(type != "object") ])'
+	FILTER '. * $last.options | to_entries | sort_by(.key) | from_entries'
+	RUN_JQ -n --slurpfile "$1" <(options-repo: show json)
+)
+
+# If modules have run, we can't figure out what to apply
+event on "all_modules_loaded" eval 'options-repo::approved-json() { options-repo: show json; }'
 
 options-repo::to-json() {
 	options-repo: show yml | yaml2json.php | options-repo: add json jq . &&
@@ -1049,7 +1046,7 @@ imposer.options-review() {
 
 imposer.options-reset() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] reset"
-	options-repo: setup add json options-repo: approved-json
+	options-repo: setup add json imposer-filtered-options
 }
 imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
 

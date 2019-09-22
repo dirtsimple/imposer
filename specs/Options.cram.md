@@ -91,18 +91,13 @@ The `git` subcommand executes git commands in the options repo, so you can see t
      }
 ~~~
 
-The `freshen` subcommand updates the approved option state to reflect option changes made during the last `imposer apply`.  If there's no previous spec saved in `$IMPOSER_CACHE/last-applied.json`, it's a no-op.
-
-The `approved-json` outputs the approved option state, updated to reflect option changes made during the last `imposer apply`.  If there's no previous spec saved in `$IMPOSER_CACHE/last-applied.json`, it's equivalent to `cat json`.  Using it in combination with the `edit` subcommand (which allows editing the approved options via a pipeline, it can be used to get a clean state for `changed` to test.
+The `freshen` subcommand updates the approved option state to reflect the options defined by the project specification.
 
 ~~~sh
     $ options-repo: freshen changed && echo "changed" || echo "nope"
     changed
 
-    $ writefile cache/last-applied.json yaml2json <<'EOF'
-    > options:
-    >   bar: baz
-    > EOF
+    $ FILTER '.options.bar = "baz"'
 
 # Since the snapshot has the same change applied, there will no longer be a difference
 
@@ -128,8 +123,7 @@ Outputs YAML for all parts of the current options that aren't currently approved
 
 # Impose the options, YAML goes away:
 
-    $ edit-applied() { writefile cache/last-applied.json jq -S "$@" cache/last-applied.json; }
-    $ edit-applied '.options.bing={bang:"boom"}'
+    $ FILTER '.options.bing={bang:"boom"}'
     $ imposer options yaml
     null
 
@@ -158,7 +152,7 @@ Outputs YAML for all parts of the current options that aren't currently approved
 
 # Impose the options, no more diff:
 
-    $ edit-applied '.options.bing={bang:"pow!"}'
+    $ FILTER '.options.bing={bang:"pow!"}'
     $ imposer options diff
 
 ~~~
@@ -189,7 +183,7 @@ Outputs YAML for all parts of the current options that aren't currently approved
 # Delete an option
 
     $ edit-options 'del(.bar)'
-    $ edit-applied 'del(.options.bar)'
+    $ FILTER 'del(.options.bar)'
 
 # But the change hasn't been approved, so it's still in the approved state:
 
