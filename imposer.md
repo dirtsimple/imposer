@@ -490,8 +490,7 @@ options-repo::approved-json() {
 	if [[ -f "$REPLY" ]]; then
 		options-repo: show json | jq --slurpfile last "$REPLY" '
 			delpaths( [ $last[0]."delete-options" | paths(type != "object") ]) |
-			. * $last[0].options |
-			. as $updated | keys | map({key: ., value: $updated[.]}) | from_entries
+			. * $last[0].options | to_entries | sort_by(.key) | from_entries
 		'
 	else options-repo: show json
 	fi
@@ -590,22 +589,25 @@ imposer.options-reset() {
 
 ```shell
 imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
+
+@provide imposer::rdiff DEFINE '
+	def imposer::rdiff($old):
+	  if . == $old then empty
+	  elif type=="object" and ($old|type)=="object" then
+	    . as $new | with_entries(
+	      .key as $k |
+	      if $k | in($old) then .value | imposer::rdiff($old[$k]) | {key:$k, value:.} else . end
+	    ) | if . == {} and $new != {} then empty else . end
+	  else .
+	  end;
+'
+
+# shellcheck disable=SC2154
 unspecified-new-options() {
+	@require imposer::rdiff
 	IMPOSER_ISATTY=0 imposer-filtered-options |
-	jq --slurpfile old_options <(options-repo: setup approved-json) '
-		def diff($old):
-		  if . == $old then empty
-		  elif type=="object" and ($old|type)=="object" then
-		    . as $new | with_entries(
-		      .key as $k |
-		      if $k | in($old) then .value | diff($old[$k]) | {key:$k, value:.} else . end
-		    ) | if . == {} and $new != {} then empty else . end
-		  else .
-		  end
-		;
-		{ options: . } | diff( { options: $old_options[0]} )
-	' |
-	json2yaml.php
+	jq --slurpfile old_options <(options-repo: setup approved-json) "$jqmd_defines
+		{ options: . } | imposer::rdiff( { options: \$old_options[0]} )" | json2yaml.php
 }
 ```
 

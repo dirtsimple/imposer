@@ -181,7 +181,22 @@ MDSH_MODULE=
 	flatname "$1"
 	if ! [[ $MDSH_LOADED_MODULES == *"<$REPLY>"* ]]; then
 		MDSH_LOADED_MODULES+="<$REPLY>"; local MDSH_MODULE=$1
-		"${@:2}"
+		if (($#<2)); then
+			REPLY="@provide-$1"
+			fn-exists "$REPLY" || exit 70 \
+				"No @provide defined for module $1 at line $(caller)"
+			"$REPLY"
+		else "${@:2}"
+		fi
+	fi
+}
+@provide() {
+	if (($#<2)); then exit 64 \
+		"No command given for @provide at line $(caller)"
+	elif flatname "$1"; ! [[ $MDSH_LOADED_MODULES == *"<$REPLY>"* ]]; then
+		printf -v REPLY "%q " "${@:2}"; eval "@provide-$1(){ $REPLY; }"
+	else exit 70 \
+		"Module $1 already loaded; attempted redefinition at line $(caller)"
 	fi
 }
 @is-main() { ! [[ $MDSH_MODULE ]]; }
@@ -959,8 +974,7 @@ options-repo::approved-json() {
 	if [[ -f "$REPLY" ]]; then
 		options-repo: show json | jq --slurpfile last "$REPLY" '
 			delpaths( [ $last[0]."delete-options" | paths(type != "object") ]) |
-			. * $last[0].options |
-			. as $updated | keys | map({key: ., value: $updated[.]}) | from_entries
+			. * $last[0].options | to_entries | sort_by(.key) | from_entries
 		'
 	else options-repo: show json
 	fi
@@ -1038,22 +1052,25 @@ imposer.options-reset() {
 	options-repo: setup add json options-repo: approved-json
 }
 imposer.options-yaml() { tty pager colorize-yaml -- unspecified-new-options; }
+
+@provide imposer::rdiff DEFINE '
+	def imposer::rdiff($old):
+	  if . == $old then empty
+	  elif type=="object" and ($old|type)=="object" then
+	    . as $new | with_entries(
+	      .key as $k |
+	      if $k | in($old) then .value | imposer::rdiff($old[$k]) | {key:$k, value:.} else . end
+	    ) | if . == {} and $new != {} then empty else . end
+	  else .
+	  end;
+'
+
+# shellcheck disable=SC2154
 unspecified-new-options() {
+	@require imposer::rdiff
 	IMPOSER_ISATTY=0 imposer-filtered-options |
-	jq --slurpfile old_options <(options-repo: setup approved-json) '
-		def diff($old):
-		  if . == $old then empty
-		  elif type=="object" and ($old|type)=="object" then
-		    . as $new | with_entries(
-		      .key as $k |
-		      if $k | in($old) then .value | diff($old[$k]) | {key:$k, value:.} else . end
-		    ) | if . == {} and $new != {} then empty else . end
-		  else .
-		  end
-		;
-		{ options: . } | diff( { options: $old_options[0]} )
-	' |
-	json2yaml.php
+	jq --slurpfile old_options <(options-repo: setup approved-json) "$jqmd_defines
+		{ options: . } | imposer::rdiff( { options: \$old_options[0]} )" | json2yaml.php
 }
 imposer.options-watch() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] watch"
