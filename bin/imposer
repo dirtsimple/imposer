@@ -1072,6 +1072,15 @@ unspecified-new-options() {
 	jq --slurpfile old_options <(options-repo: setup approved-json) "$jqmd_defines
 		{ options: . } | imposer::rdiff( { options: \$old_options[0]} )" | json2yaml.php
 }
+imposer.options-approve() {
+	(($#)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] appove option-names..."
+	printf -v REPLY '.%s, ' "$@"
+	IMPOSER_ISATTY=0 options-repo: edit \
+		jq --slurpfile opts <(imposer-filtered-options) "reduce path(${REPLY%, })"' as $p (. ;
+			if $opts[0] | getpath($p[0:-1]) | has($p[-1]) then setpath($p; $opts[0] | getpath($p))
+			else delpaths([$p]) end
+		) | to_entries | sort_by(.key) | from_entries'
+}
 imposer.options-watch() {
 	(($#==0)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] watch"
 	watch-continuous 10 imposer options diff "$@"

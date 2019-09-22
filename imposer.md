@@ -611,6 +611,22 @@ unspecified-new-options() {
 }
 ```
 
+#### approve
+
+`imposer options approve` *option-name...* copies the current value (or absence thereof) of the named options into the "approved" store in the repository, without having to use the `review` UI or impose the value in a state.
+
+```shell
+imposer.options-approve() {
+	(($#)) || loco_error "Usage: imposer options [--dir SNAPSHOT-DIR] appove option-names..."
+	printf -v REPLY '.%s, ' "$@"
+	IMPOSER_ISATTY=0 options-repo: edit \
+		jq --slurpfile opts <(imposer-filtered-options) "reduce path(${REPLY%, })"' as $p (. ;
+			if $opts[0] | getpath($p[0:-1]) | has($p[-1]) then setpath($p; $opts[0] | getpath($p))
+			else delpaths([$p]) end
+		) | to_entries | sort_by(.key) | from_entries'
+}
+```
+
 #### watch
 
 `imposer options watch` runs  `imposer options diff --no-pager` every 15 seconds, with colorized output cut to fit the current screen size.  OS X doesn't have a native `watch` command, so we emulate it, adding support for terminal resizing by trapping SIGWINCH.

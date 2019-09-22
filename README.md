@@ -304,7 +304,7 @@ The main tools you will use for this process are `imposer options yaml` (which d
 
 (Note: Approving a change is just a way to say, "I've seen this change and have done whatever I need to do about it, so stop showing it to me".  It doesn't save them to a state module or anything like that, although you can certainly copy and paste the relevant YAML from the changes into a state module as you review them.  You can also use `imposer options yaml` to list unapproved, unimposed changes in a more convenient format for such copying and pasting.)
 
-To start a review, just run `imposer options review` on the development site in question.  Either you'll be immediately presented with any existing changes as YAML patch chunks (for review and approval via the `git add --patch` UI), or else the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.
+To start a review, just run `imposer options review` on the development site in question.  Either you'll be immediately presented with any existing changes as YAML patch chunks (for review and approval via the `git add --patch` UI), or else the command will begin monitoring the database for new changes, waiting for you to change something via the Wordpress UI.  (You can also approve individual option changes by name, using [imposer options approve](#imposer-options-approve-name).)
 
 Once you've approved a change (or added it to a state module and applied it), it won't show up during future runs of the `review`, `diff`, `yaml`, or `watch` subcommands of `imposer options` for that site.  This lets you filter out changes you've already mapped to a state file, and irrelevant "noise" changes, while still observing changes to option values you're still working on with `watch` or `diff`.  (You can also have your state modules blacklist constantly-changing options like `cron`, so they don't keep showing up in your diffs.)
 
@@ -602,6 +602,12 @@ Interactively revew and approve changes made to the YAML form of all non-transie
 The review process has the same UI as `git add --patch`: any changes you approve will not show up on future reviews, allowing you to figuratively "sign off" on the changes that you understand, or which are irrelevant to your current goals.  Once you've approved a change, it will not show up during future runs of `imposer options` subcommands such as `review`, `diff`, or `watch`.
 
 (Note: on Alpine linux, the default `git` package doesn't include the UI for `git add --patch`.  So, if you're working in an Alpine environment (e.g. in a docker container), you'll need to install the Alpine `git-perl` package to make `options review` work correctly.)
+
+#### imposer options approve *[name...]*
+
+Approve changes to the named options, without needing to go through the interactive review.  Names must not contain any characters other than letters, numbers, or `_`, or else they need to be double-quoted inside single quotes, e.g. `'"some-option"'` in order to be handled correctly.  (This is because the names are actually interpreted as jq path expressions, after adding a leading `.`)
+
+Whether the named options were added, updated, or deleted, the changes are immediately approved, and will not show up in the `diff` , `review`, or `yaml` subcommands of `imposer options`, until/unless those options are changed again.
 
 #### imposer options reset
 

@@ -38,7 +38,7 @@
     $ ls -l wp/options.json
     -rw-r-----* wp/options.json (glob)
 
-    $ edit-options() { writefile wp/options.json jq -S "$@" wp/options.json; }
+    $ edit-options() { writefile wp/options.json jq "$@" wp/options.json; }
     $ edit-options 'del(.baz)'
     $ cat wp/options.json
     {
@@ -70,7 +70,7 @@ Initially, the index and `options.yml` file have the same contents, so `changed`
     $ options-repo: changed && echo "changed" || echo "nope"
     nope
 
-    $ edit-options '.bar="baz"'
+    $ edit-options -S '.bar="baz"'
 
     $ options-repo: snapshot changed && echo "changed" || echo "nope"
     changed
@@ -122,13 +122,14 @@ Outputs YAML for all parts of the current options that aren't currently approved
 
 # Change the options, see some YAML:
 
-    $ edit-options '.bing={bang:"boom"}'
+    $ edit-options -S '.bing={bang:"boom"}'
     $ imposer options yaml
     options: { bing: { bang: boom } }
 
 # Impose the options, YAML goes away:
 
-    $ writefile cache/last-applied.json jq -Sc '.options.bing={bang:"boom"}' cache/last-applied.json
+    $ edit-applied() { writefile cache/last-applied.json jq -S "$@" cache/last-applied.json; }
+    $ edit-applied '.options.bing={bang:"boom"}'
     $ imposer options yaml
     null
 
@@ -157,7 +158,7 @@ Outputs YAML for all parts of the current options that aren't currently approved
 
 # Impose the options, no more diff:
 
-    $ writefile cache/last-applied.json jq -Sc '.options.bing={bang:"pow!"}' cache/last-applied.json
+    $ edit-applied '.options.bing={bang:"pow!"}'
     $ imposer options diff
 
 ~~~
@@ -188,6 +189,7 @@ Outputs YAML for all parts of the current options that aren't currently approved
 # Delete an option
 
     $ edit-options 'del(.bar)'
+    $ edit-applied 'del(.options.bar)'
 
 # But the change hasn't been approved, so it's still in the approved state:
 
@@ -203,7 +205,7 @@ Outputs YAML for all parts of the current options that aren't currently approved
 # Until we review and approve it
 
     $ imposer options review <<'EOF'
-    > y
+    > a
     > EOF
     diff --git a/options.yml b/options.yml
     index 9c15c06..e3a5135 100644
@@ -225,4 +227,38 @@ Outputs YAML for all parts of the current options that aren't currently approved
       "foo": "bar"
     }
 
+    $ imposer options diff
+~~~
+
+### imposer options approve
+
+~~~sh
+# Add some stuff to an existing option:
+
+    $ edit-options '.bing.whee = "whoa" | .bing.blah = "blah"'
+
+# And it shows in the YAML
+
+    $ imposer options yaml
+    options: { bing: { whee: whoa, blah: blah } }
+
+# Approve part of it
+
+    $ imposer options approve bing.whee
+
+# And it's gone from the YAML
+
+    $ imposer options yaml
+    options: { bing: { blah: blah } }
+
+# Delete an option, approve it and the other part
+
+    $ edit-options 'del(.foo)'
+    $ imposer options approve foo bing.blah
+
+# And the diffs are empty:
+
+    $ imposer options diff
+    $ imposer options yaml
+    null
 ~~~
