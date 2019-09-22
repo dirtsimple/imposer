@@ -14,8 +14,9 @@
     $ loco_preconfig
 
     # Mock filtered "wp option list" using file contents
-    $ imposer-filtered-options() { cat wp/options.json; }
-
+    $ imposer-filtered-options() (
+    >     CLEAR_FILTERS; event emit "filter options"; RUN_JQ . wp/options.json
+    > )
 ~~~
 
 ### writefile
@@ -255,4 +256,35 @@ Outputs YAML for all parts of the current options that aren't currently approved
     $ imposer options diff
     $ imposer options yaml
     null
+~~~
+
+### json-options and exclude-options
+
+~~~sh
+# Exclude parts of the `bing:` option
+
+    $ exclude-options bing.bang bing.whee
+
+# Make some other paths JSON-based
+
+    $ json-options someplugin_settings otherplugin.settings
+    $ edit-options '.someplugin_settings="{}"'
+
+# Now they're excluded and de-jsonified in the option output
+
+    $ imposer-filtered-options | json2yaml.php
+    bing: { blah: blah }
+    someplugin_settings: {  }
+
+# Clear out the current spec with something that needs JSONifying:
+
+    $ FILTER '{options: { otherplugin: { settings: {what: "this"}}}}'
+    $ (RUN_JQ -c -n)
+    {"options":{"otherplugin":{"settings":{"what":"this"}}}}
+
+# And it gets JSONified before it can go to wp-cli:
+
+    $ (event emit "all_modules_loaded"; RUN_JQ -n | json2yaml.php)
+    options: { otherplugin: { settings: '{"what":"this"}' } }
+
 ~~~

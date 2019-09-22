@@ -1018,7 +1018,7 @@ Note: if your state file needs to run shell commands that will change the state 
 
 ### Option Filtering
 
-To keep `imposer options review` and `imposer options diff` from including options you don't want to monitor (because of "noise" or security concerns), you can use the following API functions from `shell` blocks in your project or state modules:
+To keep `imposer options review` and `imposer options diff` from including options you don't want to monitor (because of "noise" or security concerns), or to designate specific options as JSON values, you can use the following API functions from `shell` blocks in your project or state modules:
 
 * `exclude-options` *option-name...* -- Exclude one or more named options from `imposer options` commands, e.g. `exclude-options _edd_table_check`.  You can exclude *part* of an option by using a dotted path, e.g. `foo.timestamp` to exclude the `timestamp` item under the `foo` option.
 
@@ -1034,7 +1034,13 @@ To keep `imposer options review` and `imposer options diff` from including optio
 
 * `filter-options` *jq-filter-expression* -- Use *jq-filter-expression* to filter the options before they're displayed or used by `imposer options` commands.  The filter expression will receive a JSON object whose top-level keys are  options, and the output must be in the same format.
 
-You can exclude as many options or add as many filters as you wish, from any state module.  This allows you to have the state module for a particular theme or plugin add exclusions or filters for the corresponding options or portions thereof.
+* `json-options` *option-name...* -- designate the specified options (or portions thereof) as being JSON strings in the database, but nested objects in the specification.  This lets you work more easily with options like `wpassetcleanup_settings` that are stored as large JSON strings that would be awkward (and non-modular) to impose as a single large string value.
+
+  When this directive is used in a state module, the targeted options or sub-options can be set to any JSON-compatible values in state modules, and will show up the same way to all of the `imposer options` subcommands (e.g. `diff`, `yaml`, `list`, `jq`, and `review`) , but the actual value stored in the database will be encoded as a JSON string.
+
+  As with `exclude-options`, the option names must be single *and* double-quoted if any portions contain characters that are invalid in a JQ attribute name.
+
+You can exclude or JSONify as many options (or add as many filters) as you wish, from any state module.  This allows you to have the state module for a particular theme or plugin add exclusions, filters, or JSONification for the corresponding options or portions thereof.
 
 ## Project Status
 

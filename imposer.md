@@ -442,7 +442,23 @@ mdsh-misc(){
 Many Wordpress options are not really "options", but scratch storage for plugins.  These options add useless noise to the option monitoring tools and may need to be filtered out.  So we add `filter-options` and `exclude-options` to generate jq code to filter them during list, diff, etc.
 
 ```shell
-exclude-options() { printf -v REPLY '.%s, ' "$@"; filter-options "del(${REPLY%, })"; }
+option-paths() {
+	(($#>1)) || exit 64 "No option paths passed to $1 in line $(caller 1)"
+	printf -v REPLY '.%s, ' "${@:2}"; REPLY=${REPLY%, }
+}
+
+@provide imposer::patch	DEFINE 'def imposer::patch(p; expr):
+	reduce path(p) as $p ( . ;
+		if getpath($p[0:-1]) | has($p[-1]) then setpath($p; getpath($p) | expr) else . end
+	);'
+
+json-options() {
+	option-paths json-options "$@"; set -- "$REPLY"; @require imposer::patch
+	event on all_modules_loaded FILTER ".options |= imposer::patch($1; tojson)"
+	event on "filter options"   FILTER "imposer::patch($1; fromjson)"
+}
+
+exclude-options() { option-paths exclude-options "$@"; filter-options "del($REPLY)"; }
 filter-options()  { event on "filter options" FILTER "$1"; }
 
 exclude-options cron recently_activated
