@@ -352,7 +352,7 @@ Blocks tagged `php` only run during `imposer apply`, but sometimes you need hook
 
 ### Defining Tasks and Steps
 
-An imposer **task** is a named series of retry-able steps (callbacks) that are invoked with data from the completed specification object assembled by the state modules.  For example, if we wanted to create a task that processed a top-level specification value like this:
+An imposer **task** is a named collection of pausable steps (callbacks) that are invoked with data from the completed specification object assembled by the state modules.  For example, if we wanted to create a task that processed a top-level specification value like this:
 
 ```yaml
 hello: world
@@ -390,94 +390,67 @@ Thus, the step function here receives the `greeting` and `recipient` sub-keys of
 
 A task can read any number of specification properties.  If none are specified, the steps will be called with no arguments, and the task will always run.  Otherwise, the task will only run if at least one of the named properties is present in the specification at runtime.
 
-Both the `reads()` and `steps()` methods can be called multiple times, in which case they add more parameters or more steps.  The added parameters are passed to every step, and added steps receive all parameters defined at the time they run.  Steps are run in the order they are added (and can be added at any time, even by other steps), but tasks can pause between steps to allow other tasks to run.  This needs to happen whenever another task is responsible for importing something that the pausing task needs to reference.  (Such as a menu item referring to a post that hasn't been imported yet.)
+Both the `reads()` and `steps()` methods can be called multiple times, in which case they add more parameters or more steps.  The added parameters are passed to every step, and added steps receive all parameters defined at the time they run.  Steps are started in the order they are added (and can be added at any time, even by other steps), but steps can also be *paused*, allowing other steps and tasks to be run.
+
+(This pausing happens whenever another task or step is responsible for importing something that the pausing step needs to reference, such as a menu item referring to a post that hasn't been imported yet.)
 
 #### Task Dependencies
 
-Tasks normally run in the order they were defined, and run all their steps until there's nothing left to do.  But the Wordpress database has a complex schema of things pointing to other things all over the place, and no matter what order you run the tasks in, there's always the possibility of needing to refer to something that hasn't been created yet.  For this reason, imposer also has the concept of *resources*: things that are created or referenced by tasks.  Let's say we are writing a task to set widget restrictions in the database for the "Restict Widgets" plugin to act on, and need to look up page IDs from information in the specification.  Normally you might write something like:
+Tasks normally run in the order they were defined, and run all their steps until there's nothing left to do.  But the Wordpress database has a complex schema of things pointing to other things all over the place, and no matter what order you run the tasks in, there's always the possibility of needing to refer to something that hasn't been created yet.
+
+For this reason, imposer also has the concept of *resources*: things that are created or referenced by tasks.  Let's say we are writing a task to set widget restrictions in the database for the "Restict Widgets" plugin to act on, and need to look up page IDs from information in the specification.  Normally you might write something like:
 
 ```php
-if ( ! $page = url_to_postid($url) ) {
+if ( ! $page_id = url_to_postid($url) ) {
     WP_CLI::error("No post/page found for path '$url'");
 }
 ```
 
 But if you did this in an Imposer task, how would you know whether the user incorrectly specified the path, or whether the page just hadn't been imported yet?
 
-For that purpose, Imposer provides the `blockOn()` method:
+For that purpose, Imposer provides *references*:
 
 ```php
-if ( ! $page = url_to_postid($url) ) {
-    Imposer::blockOn("@wp-posts", "No post/page found for path '$url'");
-}
+$page_id = yield Imposer::ref('@wp-post', $url);
 ```
 
-If there are no pending tasks that produce `@wp-posts`, then this code sample works the same as the preceding one, because there is no possible way for the missing page to get imported later, and therefore the specification is erroneous.
+Task step functions can `yield` references to obtain database IDs.  In the example above, we ask for a WordPress post (`@wp-post`) resource.  If the post already exists, the ID is returned immediately.  But if it doesn't exist, the function's execution is suspended until the needed post is created, or until all other non-suspended tasks are complete...  at which point the function resumes with a thrown exception for the invalid URL.
 
-However, if there *are* unfinished tasks that produce `@wp-posts`, then there's still a chance for the missing page to be imported.  So the current task step is **aborted with an exception**, and will be tried again later, after those other tasks have had a chance to run.  If necessary, the step will be retried multiple times until all `@wp-posts`-producing tasks have run to completion, or until the step finds all the references it has been waiting for.
+(Note: when a step is suspended, the next step in the same task is started, followed by any other tasks that still have unstarted steps.  The step will be resumed as soon as Imposer can determine that the requested resource is available.)
 
-The first parameter to `blockOn()` is a *resource name*.  (By convention, resource names begin with `@`, and this may be enforced in future.)  You can define what resources a task creates by using the `produces()` method, e.g.:
+#### References and Lookups
+
+The first argument passed to `Imposer::ref()` is the name of a *resource type*.  (By convention, resource type names begin with `@`, and this may be enforced in future.)  The second argument is a "key", and the optional third argument is a "key type".
+
+Imposer pre-defines a few resource types: `@wp-post`, `@wp-user`, and a `@wp-*-term` type for each taxonomy.  (For example, `@wp-category-term` for categories, `@wp-post_tag-term` for tags, and so on.)
+
+Each resource type can define *lookups*: functions that turn a key of a particular type into a database id, or `null` if the item doesn't currently exist.  In the case of the `@wp-post` resource type, there are two key types defined, each with their own registered lookups: `path` and `guid`.  The `url_to_postid()` function is used to look up items by path.
+
+Each resource type also has a *default* lookup, the one that's used when only two arguments are given to `Imposer::ref()`.  Usually, this lookup will try the other lookups in turn.  (For example the `@wp-post` default lookup first tries a `guid` lookup, and then a `path` lookup, while `@wp-user` tries an `email` lookup followed by a `login` lookup, and the `@wp-*-term` default lookup tries `slug` and then `name`.)
+
+You can register additional lookup functions using `Imposer::resource($typename)` to fetch (or create) a resource type object, then calling its `addLookup($handler, $keyType='')` method.  For example, if you wanted to be able to look up posts by title, you could do something like this:
 
 ```php
-Imposer::task("Import some taxonomy terms")->produces("@wp-terms");
+Imposer::resource('@wp-post')->addLookup('some_function', 'title');
 ```
 
-You should only use `produces()` on tasks that actually *create* items of the specified kind, as simply modifying existing items doesn't create a need for other tasks to wait.  You can also use it on resources themselves.  For example, if you have two custom post types that might be referred to by menus, and also refer to each other, you might do something like this:
+...as long as `some_function` is a function taking a title and returning a post ID, or `null` if a post is not found.
+
+Lookup functions also receive two additional arguments: the key type (`"title"` in this case) and the resource object (`Imposer::resource('@wp-post')`).  Now that the lookup exists, we can do things like this in our task steps:
 
 ```php
-Imposer::resource("@myplugin-lessons")->produces("@wp-posts");
-Imposer::resource("@myplugin-courses")->produces("@wp-posts");
-
-Imposer::task("Create some lessons")->produces("@myplugin-lesson");
-Imposer::task("Create some courses")->produces("@myplugin-courses");
+$post_id = yield Imposer::ref('@wp-post', "some title", 'title');
 ```
 
-This allows the menu-creation task (that can block on `@wp-posts`) to pause and retry itself periodically until the post it needs has been created, regardless of whether it's a lesson, course, or some other type of post altogether.
+You aren't restricted to the built-in resource types, either.  For example, if you have a plugin called `myforms`, you might define lookups for a `@myforms-form` resource type to allow looking up forms in the database by various keys.  The basic idea is that you can look up any possible item by a key, and automatically pause execution to let other steps run if needed.
 
-#### Pausing, Retrying, and Dynamic Steps
+#### Avoiding Dependency Loops and Deadlocks
 
 Most inter-task dependencies are between different types of thing, that don't refer back to one another.  For example, menu items can refer to taxonomy terms or posts, but posts don't usually refer to menu items.  In some situations, however, such as courses referring to their lessons and vice versa, you may have to break up tasks into smaller pieces to avoid a deadlock where the course-import task needs a lesson to be loaded, but the lesson-import task is waiting for a course.
 
-For example, you could have separate tasks for creating and linking, e.g.:
+In such a scenario, imposer will break the deadlock by picking an arbitrary lookup to fail.  But since that's not very helpful, it's usually better to create individual steps for each item to be created or updated, and separate to do any linking that might be circular (such as bidirectional links between a course and its lessons, or next/previous links between posts).  That way, the items themselves can still be created, even if the linking steps are blocked waiting on the items to be created.
 
-```php
-Imposer::task("Create lessons and courses")
-    -> produces("@myplugin-lessons", "@myplugin-courses");
-
-Imposer::task("Link lessons to courses");  # internally blocksOn() lessons and courses
-```
-
-But this would create some code duplication, if both tasks had to read the same specification data.  And even if you used a common function, there would be some *effort* duplication for both tasks doing the same thing.  Even worse if one of the tasks has to be paused and retried a lot: the effort would be repeated over and over until everything needed was found.
-
-To resolve these issues, we can define task steps *dynamically*, e.g.:
-
-```php
-Imposer::task("Create lessons and courses")
-    -> steps(function() {
-        $links = array();
-        # ... build courses and lessons, adding links to $links
-        Imposer::task("Link lessons to courses")
-            -> steps(function () use ($links) {
-                # ... loop over links and link them
-            });
-        return;  # let the other task run
-    });
-```
-
-Now, if a link blocks on a reference, only the linking task will be retried.  And the linking task doesn't have to duplicate the process of parsing and interpreting the specification for the lessons and courses.  Indeed, we can further cut down on retry overhead by defining the step with `use (&$links)`, and having it `unset()` completed links as it goes.  Then, if the step is aborted and retried, it won't re-process links it has already made.  Alternately, we could have defined separate steps for each link, e.g.:
-
-```php
-Imposer::task("Create lessons and courses")
-    -> steps(function() {
-        # ...
-        $task = Imposer::task("Link lessons to courses");
-        foreach ($links as $parent => $child) {
-            $task->steps(function () use ($parent, $child) { ... });
-        }
-    });
-```
-
-One reason Imposer tasks can be broken into multiple steps is so that you can use smaller steps that don't have to re-do as much work when they are aborted and restarted.  (If a step finishes without blocking, it's removed from the task's step list and won't be re-run if a later step aborts.)
+You don't have to know all the steps in advance, though, since you can call `Imposer::steps(function(){ ... });` at any point within another step, to add a new step function to the current task, that will be run later.  So, you can initialize a task with a step that creates steps to import each item, and each item step can create steps to set up inter-item links.  That way, if any step has to pause, the other steps can still keep going.
 
 ### Distributing Modules and Extensions
 
@@ -561,13 +534,11 @@ State module files are processed in *dependency order*, meaning that any module 
 
 Tasks work a bit differently.  Normally, tasks are executed in *definition order* (which of course depends on the execution order of the state modules providing the definition), and steps are executed in the order they are added to a specific task.  (This means that if, after adding ten tasks with no steps, and then add a step to the first task, that step will be the first thing that actually executes.)
 
-However, tasks can also *block*.  Meaning, if a task needs to refer to a Wordpress object that doesn't exist yet, and it calls e.g. `Imposer::blockOn('@wp-posts', "Post $xyz doesn't exist")` , (and there's an unfinished task that `produces('@wp-posts')`), then the task will be suspended and the next task in definition order will run, until *all other unfinished tasks* have had a chance to proceed.  Then it will be retried.
+However, steps can also *pause*.  Meaning, if a task needs to refer to a Wordpress object that doesn't exist yet, and it calls e.g. `yield Imposer::ref('@wp-post', $xyz)`, and the post doesn't exist yet, then the step will be suspended and the next step in the task (or the first step of the next task) will run, until *all other unpaused steps* have had a chance to proceed, or until the target post is created.
 
-Notice that this means that if you wish two things to be done in a particular order, they *must* be steps in the same task, or else must not `blockOn()` anything.  If no task blocks, then all tasks will be fully executed in their original definition order.  But blocked tasks are taken off the list and re-run *after* every other unblocked task.
+Notice that this means that if you wish two things to be done in a particular order, they *must* be part of the same step, or else the preceding steps must not `yield` anything.  If no step pauses, then all steps will be fully executed in their original definition order.  But paused steps can resume at any time, and any other step or task may have run while they were `yield`ing.
 
-The reasoning behind this approach is that unless you are imposing state on an empty database, *most* of the resources your states need to reference will already exist on most imposer runs, so it's easier to ask forgiveness (via `blockOn()`) than permission (predefining inter-task dependencies).  Dependencies between tasks may overconstrain the system or lead to unintended dependency loops, but dynamic blocking can generally sort itself out.
-
-The trade-off is that if the data being operated on is sufficiently entangled, and the steps sufficiently large-grained, you can end up with a lot of repeated work as a step gets retried over and over.  (This can be mitigated by having a master step that breaks the work into smaller steps for the same task, so that retries don't need to do as much work.  But in most cases, the extra coding complexity isn't worth it.)
+The reasoning behind this approach is that unless you are imposing state on an empty database, *most* of the resources your states need to reference will already exist on most imposer runs, so it's easier to ask forgiveness (via possible `yield` suspension) than permission (i.e. predefining inter-task dependencies).  Dependencies between tasks could overconstrain the system or lead to unintended dependency loops, but dynamic suspension can generally sort itself out.
 
 ## Command-Line Interface
 
@@ -1044,9 +1015,7 @@ You can exclude or JSONify as many options (or add as many filters) as you wish,
 
 ## Project Status
 
-Currently, this project is still under development, and is not at 100% documentation or test coverage yet.  The `blockOn()` mechanism and `produces()` have mostly been replaced by a promise-based system that is not yet documented (although it's fully tested).  Conversely, much of imposer's core PHP functionality and its menu/menuitem support is documented, but lacks automated tests.
-
-There is a [roadmap for version 1.0](https://github.com/dirtsimple/imposer/projects/1) tracking the status of these and other issues.
+Currently, this project is still under development, and is not at 100% documentation or test coverage yet.  There is a [roadmap for version 1.0](https://github.com/dirtsimple/imposer/projects/1) tracking the status of these and other issues.
 
 ### Performance Notes
 

@@ -24,6 +24,7 @@ class Task {
 	// ===== Task Declaration API ===== //
 
 	function produces() {
+		WP_CLI::warning("Task::produces() is deprecated; use refs and lookups instead");
 		foreach ( func_get_args() as $what ) $this->resource($what)->isProducedBy($this);
 		return $this;
 	}
@@ -47,6 +48,7 @@ class Task {
 	function error($msg) { WP_CLI::error("$this: $msg"); }
 
 	function blockOn($resource, $msg) {
+		WP_CLI::warning("blockOn() is deprecated; use refs and lookups instead");
 		$this->blocker = "$resource: $msg";
 		if ( $this->resource($resource)->ready() ) {
 			$this->error($msg);

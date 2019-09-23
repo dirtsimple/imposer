@@ -14,15 +14,17 @@ class MenuItem {
 		$this->target      = get($item->target, '');
 		$this->classes     = get($item->classes, '');
 		$this->xfn         = get($item->xfn, '');
+	}
 
+	protected function guid($item) {
 		if ( ($url = get($item->url)) !== false ) {
 			$name = $this->custom($url, $item);
 		} elseif ( ($page = get($item->page)) !== false ) {
-			$name = $this->page($page, $item);
+			$name = yield $this->page($page, $item);
 		} elseif ( ($archive_type = get($item->archive)) !== false ) {
 			$name = $this->archive($archive_type, $item);
 		} elseif ( ($term = get($item->term)) !== false ) {
-			$name = $this->term($term, $item);
+			$name = yield $this->term($term, $item);
 		} elseif ( ($tag = get($item->tag)) !== false ) {
 			$name = $this->term( array('post_tag'=>$tag), $item );
 		} elseif ( ($category = get($item->category)) !== false ) {
@@ -30,7 +32,7 @@ class MenuItem {
 		} else {
 			WP_CLI::error("Menu items must have one of: url, page, archive, tag, category, or term");
 		}
-		$this->guid = "urn:x-wp-menu-item:" . urlencode($name) . "@" . $menu;
+		yield "urn:x-wp-menu-item:" . urlencode($name) . "@" . $this->menu;
 	}
 
 	protected function custom($url, $item) {
@@ -40,13 +42,11 @@ class MenuItem {
 	}
 
 	protected function page($page, $item) {
-		if ( ! $post = url_to_postid($page) ) {
-			Imposer::blockOn('@wp-posts', "No post/page found for path '$page'");
-		}
+		$post = yield Imposer::ref('@wp-post', $page);
 		$this->object = $post_type = get_post($post)->post_type;
 		$this->object_id = $post;
 		$this->type = 'post_type';
-		return get($item->id, "page:$post_type:$post");
+		yield get($item->id, "page:$post_type:$post");
 	}
 
 	protected function archive($archive_type, $item) {
@@ -64,20 +64,23 @@ class MenuItem {
 		}
 		foreach ($terminfo as $tax => $term) {
 			$this->type = 'taxonomy';
-			if ( ! ($ti = term_exists($term, $tax)) ) Imposer::blockOn('@wp-terms', "Unknown term $term for taxonomy $tax");
-			$this->object = $tax; $this->object_id = $ti['term_id'];
+			$this->object = $tax; $this->object_id = yield Imposer::ref("@wp-$tax-term", $term);
 		}
-		return get($item->id, "term:$tax:$term");
+		yield get($item->id, "term:$tax:$term");
 	}
 
-	function sync($old_item=null) {
+	function sync($itemdata, $old_items) {
+		$this->guid = yield $this->guid($itemdata);
+		$old_item = get($old_items->{$this->guid}, null);
 		$db_id = $old_item ? $old_item->db_id : 0;
 		if ( empty($db_id) || $this->changed_from($old_item) ) {
 			add_filter( 'wp_insert_post_data', array($this, '_sync_guid'), 999999, 2 );
 			$db_id = wp_update_nav_menu_item($this->menu, $db_id, $this->sync_args());
 			remove_filter( 'wp_insert_post_data', array($this, '_sync_guid'), 999999, 2 );
 		}
-		return $db_id;
+		if ( is_wp_error($db_id) ) WP_CLI::error($db_id);
+		if ( $old ) unset($old_items->{$this->guid});
+		yield $db_id;
 	}
 
 	function _sync_guid($data, $postarr) { return array('guid' => wp_slash($this->guid)) + $data; }

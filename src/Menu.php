@@ -18,7 +18,7 @@ class Menu {
 				get($data->description, get($old->description, '')),
 				get($data->items, null)
 			);
-			$menu->sync($old, get($data->location, null));
+			yield $menu->sync($old, get($data->location, null));
 		}
 	}
 
@@ -39,7 +39,7 @@ class Menu {
 			if ( is_wp_error($id) ) WP_CLI::error($id);
 			$this->term_id = $id;
 		}
-		$this->sync_items();
+		yield $this->sync_items();
 		$this->sync_locations($locations);
 	}
 
@@ -89,7 +89,7 @@ class Menu {
 		# Process items recursively w/in-order position assignment
 		$this->item_count = 0;
 		$this->old_items = (object) array_column(wp_get_nav_menu_items($this->name), null, 'guid');
-		$this->sync_children($this);
+		yield $this->sync_children($this->items);
 
 		# Delete any previously-existing items not reused by the new list
 		foreach ( (array) $this->old_items as $old_item ) {
@@ -99,14 +99,12 @@ class Menu {
 		}
 	}
 
-	function sync_children($ob, $parent_id=0) {
-		foreach (get($ob->items, array()) as $itemdata) {
-			$item = new MenuItem($this->term_id, (object) $itemdata, $parent_id, ++$this->item_count);
-			$item->items = get($itemdata->items, array());
-			$db_id = $item->sync($old = get($this->old_items->{$item->guid}, null));
-			if ( is_wp_error($db_id) ) WP_CLI::error($db_id);
-			if ( $old ) unset($this->old_items->{$item->guid});
-			$this->sync_children($item, $db_id);
+	function sync_children($items, $parent_id=0) {
+		foreach ($items as $itemdata) {
+			$itemdata = (object) $itemdata;
+			$item = new MenuItem($this->term_id, $itemdata, $parent_id, ++$this->item_count);
+			$db_id = yield $item->sync($itemdata, $this->old_items);
+			yield $this->sync_children(get($itemdata->items, array()), $db_id);
 		}
 	}
 }
