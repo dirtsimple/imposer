@@ -89,7 +89,6 @@ class Imposer {
 			-> steps('dirtsimple\imposer\TermModel::impose_taxonomy_terms');
 
 		$this -> task('Wordpress Menus')
-			-> produces('@wp-menus', '@wp-menuitems')
 			-> reads('menus')
 			-> steps('dirtsimple\imposer\Menu::build_menus');
 
@@ -104,6 +103,13 @@ class Imposer {
 		$this->resource('@wp-post')->set_model(PostModel::class);
 		$this->resource('@wp-user')->set_model(UserModel::class);
 		$this->resource('@wp-widget')->set_model(WidgetModel::class);
+
+		add_action('registered_taxonomy', $register = function($tax) {
+			$this->resource("wp-$tax-term")->set_model(TermModel::class);
+		});
+		if ( function_exists('get_taxonomies') ) {
+			array_map( $register, get_taxonomies() );
+		}
 	}
 
 	static function sanitize_option($option, $value) {
