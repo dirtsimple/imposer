@@ -105,7 +105,7 @@ class Imposer {
 		$this->resource('@wp-widget')->set_model(WidgetModel::class);
 
 		add_action('registered_taxonomy', $register = function($tax) {
-			$this->resource("wp-$tax-term")->set_model(TermModel::class);
+			$this->resource("@wp-$tax-term")->set_model(TermModel::class);
 		});
 		if ( function_exists('get_taxonomies') ) {
 			array_map( $register, get_taxonomies() );

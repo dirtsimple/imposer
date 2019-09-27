@@ -79,7 +79,7 @@ class MenuItem {
 			remove_filter( 'wp_insert_post_data', array($this, '_sync_guid'), 999999, 2 );
 		}
 		if ( is_wp_error($db_id) ) WP_CLI::error($db_id);
-		if ( $old ) unset($old_items->{$this->guid});
+		if ( $old_item ) unset($old_items->{$this->guid});
 		yield $db_id;
 	}
 
