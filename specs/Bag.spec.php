@@ -2,7 +2,7 @@
 namespace dirtsimple\imposer\tests;
 
 use dirtsimple\imposer\Bag;
-use dirtsimple\fn;
+use dirtsimple\fun;
 
 describe("Bag", function() {
 	it("is an ArrayObject with prop-setting", function(){
@@ -80,11 +80,11 @@ describe("Bag", function() {
 			expect( $this->bag->select(array()) )->to->equal( array() );
 		});
 		it("empty for an array w/out overlapping keys", function(){
-			expect( $this->bag->select( array('q'=>fn::expr('$_')) ) )->to->equal( array() );
+			expect( $this->bag->select( array('q'=>fun::expr('$_')) ) )->to->equal( array() );
 		});
 		it("the result of calling the given function(s) with any extra args", function(){
 			expect(
-				$this->bag->select( array('x'=>fn::expr('$_+1') ) )
+				$this->bag->select( array('x'=>fun::expr('$_+1') ) )
 			)->to->equal( array('x'=>43) );
 			expect(
 				$this->bag->select(
@@ -106,11 +106,11 @@ describe("Bag", function() {
 			expect(
 				$this->bag->select(
 					array(
-						'x'=>fn::expr('$_*2'),
+						'x'=>fun::expr('$_*2'),
 						'q'=>array(
 							'foo'=>array(
 								'baz'=>function($v, $x) { return $x; },
-								'bar'=>fn::expr('"bar: $_"'))
+								'bar'=>fun::expr('"bar: $_"'))
 						)
 					), "arg"
 				)
@@ -118,7 +118,7 @@ describe("Bag", function() {
 		});
 		it("correct when given a string and a func/val in place of an array+args", function(){
 			expect(
-				$this->bag->select( 'x', fn::expr('$_*3') )
+				$this->bag->select( 'x', fun::expr('$_*3') )
 			)->to->equal( array('x'=>126) );
 			expect(
 				$this->bag->select(

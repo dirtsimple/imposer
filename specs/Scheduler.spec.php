@@ -1,8 +1,8 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
-use dirtsimple\fn;
-use function dirtsimple\fn;
+use dirtsimple\fun;
+use function dirtsimple\fun;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Task;
 use dirtsimple\imposer\Resource;
@@ -186,7 +186,7 @@ describe("Scheduler", function () {
 
 		it("tries to break deadlocks by rejecting a pending reference", function() {
 			$p1 = $this->sched->resource('@res')->ref('x');
-			$p1->otherwise(fn()); # don't error out
+			$p1->otherwise(fun()); # don't error out
 			$this->sched->run();
 			expect( GP\inspect($p1)['reason'] )->to->equal("@res: 'x' not found");
 		});

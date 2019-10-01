@@ -1,7 +1,7 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
-use dirtsimple\fn;
+use dirtsimple\fun;
 use dirtsimple\imposer\Bag;
 use dirtsimple\imposer\HasMeta;
 use dirtsimple\imposer\Mapper;
@@ -12,7 +12,7 @@ use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\WatchedPromise;
 
 use Brain\Monkey;
-use Brain\Monkey\Functions as fun;
+use Brain\Monkey\Functions as func;
 use GuzzleHttp\Promise as GP;
 use Mockery;
 
@@ -344,7 +344,7 @@ describe("Model", function() {
 
 	describe("check_save() calls the given func/args", function(){
 		beforeEach( function() {
-			fun\stubs(array(
+			func\stubs(array(
 				'is_wp_error' => function($val){ return false; },
 			));
 			global $wp_cli_logger;
@@ -357,11 +357,11 @@ describe("Model", function() {
 			Monkey\tearDown();
 		});
 		it("issuing a WP_CLI::error if result is_wp_error()", function(){
-			fun\stubs(array(
+			func\stubs(array(
 				'is_wp_error' => function($val){ return true; },
 			));
 			expect( array( $this->model, 'call' ) )->with(
-				'check_save', fn::expr('$_'), "msg"
+				'check_save', fun::expr('$_'), "msg"
 			)->to->throw(\WP_CLI\ExitException::class);
 			expect( $this->logger->stderr ) -> to -> equal("Error: msg\n");
 		});
@@ -373,7 +373,7 @@ describe("Model", function() {
 				"Error: Empty ID returned by is_array(42)\n");
 		});
 		it("returning the result if not empty", function() {
-			expect($this->model->call('check_save', fn::expr('$_'), 42))->to->equal(42);
+			expect($this->model->call('check_save', fun::expr('$_'), 42))->to->equal(42);
 		});
 	});
 
@@ -472,14 +472,14 @@ describe("Model", function() {
 	describe("with HasMeta", function(){
 		beforeEach( function() {
 			$this->log=array();
-			$this->mock_meta=new Pool(function(){ return new Pool(fn::val(false)); });
+			$this->mock_meta=new Pool(function(){ return new Pool(fun::val(false)); });
 			$this->expected = [];
 			$this->expect = function(...$args) { $this->expected[] = $args; };
 			$this->model->save = function($def) { return 42; };
 			$this->check = function() {
 				expect($this->log)->to->equal($this->expected);
 			};
-			fun\stubs(array(
+			func\stubs(array(
 				'wp_slash' => function($val){ return $val; },
 				'update_foo_meta' => function($id, $key, $val){
 					$this->log[] = array('set', $id, $key, $val);

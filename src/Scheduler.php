@@ -2,7 +2,7 @@
 
 namespace dirtsimple\imposer;
 
-use dirtsimple\fn;
+use dirtsimple\fun;
 use WP_CLI;
 use WP_CLI\Entity\RecursiveDataStructureTraverser;
 use WP_CLI\Entity\NonExistentKeyException;
@@ -103,8 +103,8 @@ class Scheduler {
 	protected $current, $tasks, $resources, $data, $todo, $running=false, $restart_requested=false;
 
 	function __construct($data=null) {
-		$this->tasks     = new Pool( fn::bind ( array($this, '_new'), Task::class ) );
-		$this->resources = new Pool( fn::bind ( array($this, '_new'), Resource::class ) );
+		$this->tasks     = new Pool( fun::bind ( array($this, '_new'), Task::class ) );
+		$this->resources = new Pool( fun::bind ( array($this, '_new'), Resource::class ) );
 		$this->data      = new RecursiveDataStructureTraverser($data);
 		$this->todo      = new \ArrayObject();
 	}

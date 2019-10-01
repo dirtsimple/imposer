@@ -8,7 +8,7 @@ use dirtsimple\imposer\Resource;
 use dirtsimple\imposer\WatchedPromise;
 
 use Brain\Monkey;
-use Brain\Monkey\Functions as fun;
+use Brain\Monkey\Functions as func;
 use Brain\Monkey\Filters;
 use Mockery;
 
@@ -46,10 +46,10 @@ describe("PostModel", function() {
 			Monkey\setUp();
 			$this->p->resolve($id = 99);
 			$items = $this->model->items();
-			fun\expect('wp_slash')->with($items)->once()->andReturn($items);
+			func\expect('wp_slash')->with($items)->once()->andReturn($items);
 			$items['ID'] = $id;
 
-			fun\expect('wp_update_post')->with($items, true)->once()->andReturnUsing(
+			func\expect('wp_update_post')->with($items, true)->once()->andReturnUsing(
 				function() use ($id) {
 					expect(
 						has_filter('wp_revisions_to_keep', 'function ($num, $post)')
@@ -57,7 +57,7 @@ describe("PostModel", function() {
 					return $id;
 				}
 			);
-			fun\expect('is_wp_error')->with($id)->once()->andReturn(false);
+			func\expect('is_wp_error')->with($id)->once()->andReturn(false);
 			expect( has_filter('wp_revisions_to_keep') )->to->be->false;
 			$res = Promise::interpret( $this->model->apply() );
 			expect( has_filter('wp_revisions_to_keep') )->to->be->false;
@@ -66,9 +66,9 @@ describe("PostModel", function() {
 		it("calls wp_insert_post w/slashed args if there's no ID", function(){
 			Monkey\setUp();
 			$items = $this->model->items();
-			fun\expect('wp_slash')->with($items)->once()->andReturn($items);
-			fun\expect('wp_insert_post')->with($items, true)->once()->andReturn(27);
-			fun\expect('is_wp_error')->with(27)->once()->andReturn(false);
+			func\expect('wp_slash')->with($items)->once()->andReturn($items);
+			func\expect('wp_insert_post')->with($items, true)->once()->andReturn(27);
+			func\expect('is_wp_error')->with(27)->once()->andReturn(false);
 			$res = Promise::interpret( $this->model->apply() );
 			expect( $res )->to->equal(27);
 		});
@@ -76,10 +76,10 @@ describe("PostModel", function() {
 			Monkey\setUp();
 			$this->p->resolve($id = 99);
 			$items = $this->model->items();
-			fun\expect('wp_slash')->with($items)->once()->andReturn($items);
+			func\expect('wp_slash')->with($items)->once()->andReturn($items);
 			$items['ID'] = $id;
-			fun\expect('wp_update_post')->with($items, true)->once()->andReturn($id);
-			fun\expect('is_wp_error')->with($id)->once()->andReturn(false);
+			func\expect('wp_update_post')->with($items, true)->once()->andReturn($id);
+			func\expect('is_wp_error')->with($id)->once()->andReturn(false);
 			$res = Promise::interpret( $this->model->apply() );
 			expect( $res )->to->equal($id);
 		});
@@ -89,20 +89,20 @@ describe("PostModel", function() {
 				$this->model->guid = $this->originalGUID = "http://example.com/foo?bar=baz&bing=bang";
 				PostModel::cached()['guids'] = new Bag;
 				$this->mangledGUID  = "http://example.com/foo?bar=baz&amp;bing=bang";
-				fun\expect('get_post_field')->with('guid', 99, 'raw')->once()->andReturn($this->mangledGUID);
+				func\expect('get_post_field')->with('guid', 99, 'raw')->once()->andReturn($this->mangledGUID);
 				$this->wpdb->posts = $posts_table = 'test_prefix_wp_posts';
 				$this->wpdb->shouldReceive('update')->once()->with(
 					$this->wpdb->posts, array('guid' => $this->originalGUID), array('ID'=>99)
 				);
-				fun\expect('get_post_field')->with('post_type', 99, 'raw')->once()->andReturn("post");
+				func\expect('get_post_field')->with('post_type', 99, 'raw')->once()->andReturn("post");
 				# XXX expect on_save_post
-				fun\expect('clean_post_cache')->with(99)->once();
+				func\expect('clean_post_cache')->with(99)->once();
 			});
 			it("on insert", function(){
 				$items = $this->model->items();
-				fun\expect('wp_slash')->with($items)->once()->andReturn($items);
-				fun\expect('wp_insert_post')->with($items, true)->once()->andReturn(99);
-				fun\expect('is_wp_error')->with(99)->once()->andReturn(false);
+				func\expect('wp_slash')->with($items)->once()->andReturn($items);
+				func\expect('wp_insert_post')->with($items, true)->once()->andReturn(99);
+				func\expect('is_wp_error')->with(99)->once()->andReturn(false);
 				$res = Promise::interpret( $this->model->apply() );
 				expect( $res )->to->equal(99);
 				expect(Postmodel::guids()->get($this->originalGUID))->to->equal(99);
@@ -110,10 +110,10 @@ describe("PostModel", function() {
 			it("on update", function(){
 				$this->p->resolve($id = 99);
 				$items = $this->model->items();
-				fun\expect('wp_slash')->with($items)->once()->andReturn($items);
+				func\expect('wp_slash')->with($items)->once()->andReturn($items);
 				$items['ID'] = $id;
-				fun\expect('wp_update_post')->with($items, true)->once()->andReturn($id);
-				fun\expect('is_wp_error')->with($id)->once()->andReturn(false);
+				func\expect('wp_update_post')->with($items, true)->once()->andReturn($id);
+				func\expect('is_wp_error')->with($id)->once()->andReturn(false);
 				$res = Promise::interpret( $this->model->apply() );
 				expect( $res )->to->equal($id);
 				expect(Postmodel::guids()->get($this->originalGUID))->to->equal($id);
@@ -122,11 +122,11 @@ describe("PostModel", function() {
 	});
 	describe("::lookup_by_path()", function(){
 		it("calls url_to_postid", function() {
-			fun\expect('url_to_postid')->with('/foo')->once()->andReturn(42);
+			func\expect('url_to_postid')->with('/foo')->once()->andReturn(42);
 			expect(PostModel::lookup_by_path('/foo'))->to->equal(42);
 		});
 		it("returns null if url_to_postid failed", function() {
-			fun\expect('url_to_postid')->with('/bar')->once()->andReturn(false);
+			func\expect('url_to_postid')->with('/bar')->once()->andReturn(false);
 			expect(PostModel::lookup_by_path('/bar'))->to->equal(null);
 		});
 	});

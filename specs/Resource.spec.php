@@ -1,8 +1,8 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
-use dirtsimple\fn;
-use function dirtsimple\fn;
+use dirtsimple\fun;
+use function dirtsimple\fun;
 use dirtsimple\imposer\Model;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Task;   # XXX should be mockable
@@ -123,7 +123,7 @@ describe("Resource", function () {
 		it("returns 1 if any promises were resolved", function(){
 			$p1 = $this->res->ref('x', 'a');
 			$p2 = $this->res->ref('y', 'b');
-			$this->res->addLookup(fn::val(42), 'a');
+			$this->res->addLookup(fun::val(42), 'a');
 			expect($this->res->run())-> to -> equal(1);
 		});
 		it("returns 0 and reschedules itself if no promises could be resolved", function(){
@@ -179,7 +179,7 @@ describe("Resource", function () {
 	});
 	describe("lookup handlers", function() {
 		it("can be added/removed/checked, distinctly by by type (default '')", function () {
-			$f = fn::val(null);
+			$f = fun::val(null);
 			expect($this->res->hasLookup($f))->to->be->false;
 			expect($this->res->hasLookup($f, 'foo'))->to->be->false;
 
@@ -197,8 +197,8 @@ describe("Resource", function () {
 			expect($this->res->hasLookup($f, 'foo'))->to->be->true;
 		});
 		it("are called in add order for the matching type", function(){
-			$this->res->addLookup($f1 = fn::val(42));
-			$this->res->addLookup($f2 = fn::val(23));
+			$this->res->addLookup($f1 = fun::val(42));
+			$this->res->addLookup($f2 = fun::val(23));
 			expect( $this->res->ref("x") )->to->equal(42);
 			$this->res->removeLookup($f1);
 			expect( $this->res->ref("y") )->to->equal(23);
@@ -206,8 +206,8 @@ describe("Resource", function () {
 	});
 	describe("lookup()", function() {
 		it("returns the uncached result of chaining lookups", function(){
-			$this->res->addLookup($f1 = fn::val(42), 'q');
-			$this->res->addLookup($f2 = fn::val(23), 'q');
+			$this->res->addLookup($f1 = fun::val(42), 'q');
+			$this->res->addLookup($f2 = fun::val(23), 'q');
 			expect( $this->res->lookup("x", "q") )->to->equal(42);
 			$this->res->removeLookup($f1, "q");
 			expect( $this->res->lookup("x", "q") )->to->equal(23);
@@ -215,8 +215,8 @@ describe("Resource", function () {
 	});
 	describe("ref()", function() {
 		it("caches results", function(){
-			$this->res->addLookup($f1 = fn::val(42));
-			$this->res->addLookup($f2 = fn::val(23));
+			$this->res->addLookup($f1 = fun::val(42));
+			$this->res->addLookup($f2 = fun::val(23));
 			expect( $this->res->ref("x") )->to->equal(42);
 			$this->res->removeLookup($f1);
 			expect( $this->res->ref("x") )->to->equal(42);
@@ -258,7 +258,7 @@ describe("Resource", function () {
 			it("rejected promises", function() {
 				$p = $this->res->ref("x");
 				$p->reject("foo");
-				$p->otherwise(fn()); # don't throw
+				$p->otherwise(fun()); # don't throw
 				Promise::sync();
 				expect( $this->res->ref("x") )->to->equal($p);
 				expect( $this->res->hasSteps() )->to->be->false;
@@ -308,7 +308,7 @@ describe("Resource", function () {
 			$p2 = $this->res->ref('y', 'b');
 			expect( GP\is_fulfilled($p1) )->to->be->false;
 			expect( GP\is_fulfilled($p2) )->to->be->false;
-			$this->res->addLookup(fn::val(42), 'b');
+			$this->res->addLookup(fun::val(42), 'b');
 			expect( $this->res->updatePending() )->to->equal(1);
 			expect( GP\is_fulfilled($p1) )->to->be->false;
 			expect( GP\is_fulfilled($p2) )->to->be->true;
@@ -321,8 +321,8 @@ describe("Resource", function () {
 	});
 	describe("cancelPending()", function() {
 		it("rejects a pending promise that can't be resolved", function(){
-			$p1 = $this->res->ref('x', 'a'); $p1->otherwise(fn());
-			$p2 = $this->res->ref('y', 'b'); $p2->otherwise(fn());
+			$p1 = $this->res->ref('x', 'a'); $p1->otherwise(fun());
+			$p2 = $this->res->ref('y', 'b'); $p2->otherwise(fun());
 			expect( GP\is_rejected($p1) )->to->be->false;
 			expect( GP\is_rejected($p2) )->to->be->false;
 
@@ -336,8 +336,8 @@ describe("Resource", function () {
 			expect( GP\inspect($p2)['reason'] )->to->equal("@demo:b 'y' not found");
 		});
 		it("resets hasSteps() to false", function(){
-			$p1 = $this->res->ref('x', 'a'); $p1->otherwise(fn());
-			$p2 = $this->res->ref('y', 'b'); $p2->otherwise(fn());
+			$p1 = $this->res->ref('x', 'a'); $p1->otherwise(fun());
+			$p2 = $this->res->ref('y', 'b'); $p2->otherwise(fun());
 			expect($this->res->hasSteps())->to->be->true;
 			$this->res->cancelPending();
 			$this->res->cancelPending();

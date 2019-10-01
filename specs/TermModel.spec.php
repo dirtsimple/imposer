@@ -10,7 +10,7 @@ use dirtsimple\imposer\WatchedPromise;
 
 use Brain\Monkey;
 use Brain\Monkey\Actions;
-use Brain\Monkey\Functions as fun;
+use Brain\Monkey\Functions as func;
 use Brain\Monkey\Filters;
 use Mockery;
 
@@ -26,13 +26,13 @@ describe("TermModel", function() {
 				(object) array('taxonomy'=>'post_tag', 'term_id'=>42, 'name'=>'Foo',           'slug'=>'foo'),
 				(object) array('taxonomy'=>'post_tag', 'term_id'=>99, 'name'=>'Bar Baz',       'slug'=>'bar-baz'),
 		);
-		fun\expect('get_term')->andReturnUsing(function($id, $tax) {
+		func\expect('get_term')->andReturnUsing(function($id, $tax) {
 			foreach ($this->terms as $term)
 				if ($term->term_id === $id && $term->taxonomy === $tax)
 					return $term;
 		});
 
-		fun\stubs(array(
+		func\stubs(array(
 			'is_wp_error' => '__return_false',
 			'wp_slash' => function($val){ return "$val slashed"; },
 			'get_terms' => function($args=array(), $deprecated='') {
@@ -101,7 +101,7 @@ describe("TermModel", function() {
 			$this->model->set(
 				array( 'slug' => "new", 'name'=>'New', 'description'=>'test' )
 			);
-			fun\expect('wp_insert_term')->with(
+			func\expect('wp_insert_term')->with(
 				'New slashed', 'category', array( 'name'=>'New slashed', 'description'=>'test slashed', 'slug' => "new" )
 			)->once()->andReturn( array( 'term_id'=> $id = 158 ) );
 			$res = Promise::interpret( $this->model->apply() );
@@ -111,7 +111,7 @@ describe("TermModel", function() {
 			$this->p->resolve($id = 99);
 			$this->res->allows()->name()->andReturn('@wp-post_tag-term');
 			$this->model->set(array('parent'=>15, 'name'=>'Changed', 'term_group'=>65));
-			fun\expect('wp_update_term')->with(
+			func\expect('wp_update_term')->with(
 				$id, 'post_tag', array( 'name'=>'Changed slashed', 'parent'=>15, 'term_group'=>65 )
 			)->once()->andReturn( array( 'term_id'=> $id ) );
 			$res = Promise::interpret( $this->model->apply() );
@@ -133,7 +133,7 @@ describe("TermModel", function() {
 				$this->res->allows()->name()->andReturn('@wp-post_tag-term');
 				$this->model->alias_of = 'foo';
 				$this->res->shouldReceive('ref')->with('foo', 'slug')->andReturn(42);
-				fun\expect('wp_update_term')->with(
+				func\expect('wp_update_term')->with(
 					$id, 'post_tag', array( 'term_group'=>27 )
 				)->once()->andReturn( array( 'term_id'=> $id ) );
 				$res = Promise::interpret( $this->model->apply() );
@@ -145,7 +145,7 @@ describe("TermModel", function() {
 				$this->model->alias_of = 'no-such';
 				$this->model->term_group = 55;  # <- this gets dropped from args
 				$this->res->shouldReceive('ref')->with('no-such', 'slug')->andReturn(55);
-				fun\expect('wp_update_term')->with(
+				func\expect('wp_update_term')->with(
 					$id, 'post_tag', array( 'alias_of'=>'no-such' )
 				)->once()->andReturn( array( 'term_id'=> $id ) );
 				$res = Promise::interpret( $this->model->apply() );
@@ -157,7 +157,7 @@ describe("TermModel", function() {
 				$this->model->alias_of = 'foo';
 				$this->model->term_group = 55;  # <- this gets dropped from args
 				$this->res->shouldReceive('ref')->with('foo', 'slug')->andReturn(42);
-				fun\expect('wp_update_term')->with(
+				func\expect('wp_update_term')->with(
 					$id, 'post_tag', array( 'alias_of'=>'foo' )
 				)->once()->andReturn( array( 'term_id'=> $id ) );
 				$res = Promise::interpret( $this->model->apply() );
@@ -168,8 +168,8 @@ describe("TermModel", function() {
 			$this->p->resolve($id = 99);
 			$this->res->allows()->name()->andReturn('@wp-post_tag-term');
 			$this->model->term_meta = array('set_me'=>'foo', 'delete_me'=>null);
-			fun\expect('update_term_meta')->with($id, 'set_me slashed', 'foo slashed')->once()->andReturn(true);
-			fun\expect('delete_term_meta')->with($id, 'delete_me slashed', ' slashed')->once()->andReturn(true);
+			func\expect('update_term_meta')->with($id, 'set_me slashed', 'foo slashed')->once()->andReturn(true);
+			func\expect('delete_term_meta')->with($id, 'delete_me slashed', ' slashed')->once()->andReturn(true);
 			$res = Promise::interpret( $this->model->apply() );
 			expect( $res )->to->equal(99);
 		});
@@ -261,26 +261,26 @@ describe("TermModel", function() {
 			TermModel::impose_term(array('slug'=>"uncategorized"), "category");
 		});
 		it("treats a string as a name (if no key)", function(){
-			fun\expect('wp_update_term')->with(
+			func\expect('wp_update_term')->with(
 				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)
 			)->once()->andReturn(1);
 			TermModel::impose_term("Uncategorized", "category", null, 2);
 		});
 		it("treats a string as a name (w/key as slug)", function(){
-			fun\expect('wp_update_term')->with(
+			func\expect('wp_update_term')->with(
 				1, "category",
 				array('name'=>'Uncategorized slashed', 'slug'=>'uncategorized', 'parent'=>3)
 			)->once()->andReturn(1);
 			TermModel::impose_term("Uncategorized", "category", 'uncategorized', 3);
 		});
 		it("doesn't override an explicit parent", function(){
-			fun\expect('wp_update_term')->with(
+			func\expect('wp_update_term')->with(
 				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)
 			)->once()->andReturn(1);
 			TermModel::impose_term(array('name'=>"Uncategorized", 'parent'=>2), "category", null, 999);
 		});
 		it("treats non-numeric string parents as slugs", function(){
-			fun\expect('wp_update_term')->with(
+			func\expect('wp_update_term')->with(
 				1, "category", array('name'=>'Uncategorized slashed', 'parent'=>2)
 			)->once()->andReturn(1);
 			TermModel::impose_term(array('name'=>"Uncategorized", 'parent'=>'what-ever'), "category");

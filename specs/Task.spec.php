@@ -1,7 +1,7 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
-use dirtsimple\fn;
+use dirtsimple\fun;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\Task;
 use dirtsimple\imposer\Resource;
@@ -218,13 +218,13 @@ describe("Task", function () {
 	describe("steps() returning promises", function() {
 		it("asynchronously throw an exception for synchronous rejections", function() {
 			$p = GP\rejection_for(new \UnexpectedValueException(42));
-			$this->task->steps(fn::val($p));
+			$this->task->steps(fun::val($p));
 			Promise::later( array($this->task, 'run') );
 			expect( array(Promise::class, 'sync') )->to->throw(\UnexpectedValueException::class);
 		});
 		it("asynchronously throw an exception for asynchronous rejections", function() {
 			$p = new GP\Promise;
-			$this->task->steps( fn::val($p) );
+			$this->task->steps( fun::val($p) );
 			$this->task->run();
 			Promise::sync();
 			$p->reject(new \UnexpectedValueException(42));

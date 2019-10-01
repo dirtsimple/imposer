@@ -1,7 +1,7 @@
 <?php
 namespace dirtsimple\imposer;
 
-use dirtsimple\fn;
+use dirtsimple\fun;
 use GuzzleHttp\Promise as GP;
 
 class Resource extends Task {
@@ -96,7 +96,7 @@ class Resource extends Task {
 
 		# Ensure any external resolution will also resolve internally
 		$p->then(
-			fn::bind( array($this, 'resolve'), $keyType, $key ),
+			fun::bind( array($this, 'resolve'), $keyType, $key ),
 			function($reason) use($keyType, $key, &$p) { $this->resolve($keyType, $key, $p ); }
 		);
 

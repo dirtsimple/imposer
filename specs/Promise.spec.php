@@ -1,7 +1,7 @@
 <?php
 namespace dirtsimple\imposer\tests;
 
-use dirtsimple\fn;
+use dirtsimple\fun;
 use dirtsimple\imposer\Promise;
 use dirtsimple\imposer\WatchedPromise;
 
@@ -145,7 +145,7 @@ describe("Promise", function() {
 			$f = function() use ($e){ throw $e; };
 			$p = Promise::call( $f );
 			expect( $p instanceof WatchedPromise )->to->be->true;
-			$p->otherwise( fn::val(null) );  # don't throw this later
+			$p->otherwise( fun::val(null) );  # don't throw this later
 			expect( GP\is_rejected($p) )->to->be->true;
 			expect( GP\inspect($p) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
 		});
@@ -173,7 +173,7 @@ describe("Promise", function() {
 		describe("::sync(func, ...args)", function() {
 			it("updates chained promises", function() {
 				$p1 = new WatchedPromise();
-				$p2 = $p1->then( fn::expr('$_*2') );
+				$p2 = $p1->then( fun::expr('$_*2') );
 				$p1->resolve(21);
 				expect(Promise::now($p1))->to->equal(21);
 				expect(Promise::now($p2))->to->be->null;
@@ -206,14 +206,14 @@ describe("Promise", function() {
 				$g1 = (function($e){ yield 10; throw $e; yield 42; })($e);
 				$g2 = (function() use ($g1) { yield $g1; })();
 				$p = Promise::spawn($g2);
-				$p->otherwise(fn::_());
+				$p->otherwise(fun::_());
 				expect(GP\inspect($p))->to->equal(array('state'=>'rejected','reason'=>$e));
 			});
 			it("returns a promise that rejects if the generator throws", function(){
 				$e = new \DomainException("test");
 				$gen = ( function() use ($e) { throw $e; yield 10; })();
 				$p = Promise::spawn($gen);
-				$p->otherwise( fn::val(null) );  # don't throw this later
+				$p->otherwise( fun::val(null) );  # don't throw this later
 				expect($p)->to->be->instanceof(WatchedPromise::class);
 				Promise::sync();
 				expect(GP\inspect($p))->to->equal(array('state'=>'rejected', 'reason'=>$e));
@@ -275,8 +275,8 @@ describe("WatchedPromise", function() {
 
 	describe("instances", function() {
 		it("return chained WatchedPromises with the same handler from then() and otherwise()", function(){
-			$p1 = $this->watched->otherwise(fn::expr('$_+3'));
-			$p2 = $this->watched->then(fn::expr('$_*2'));
+			$p1 = $this->watched->otherwise(fun::expr('$_+3'));
+			$p2 = $this->watched->then(fun::expr('$_*2'));
 			expect($p1)->to->be->instanceof(WatchedPromise::class);
 			expect($p2)->to->be->instanceof(WatchedPromise::class);
 			$this->watched->reject(15);
@@ -294,7 +294,7 @@ describe("WatchedPromise", function() {
 				Promise::sync(); expect( $this->log )->to->equal( array() );
 			});
 			it("if they've been chained", function() {
-				$p2 = $this->watched->otherwise(fn::_());
+				$p2 = $this->watched->otherwise(fun::_());
 				$this->promise->reject("error");
 			});
 			it("if they're still pending", function() { }); # see afterEach above
@@ -314,7 +314,7 @@ describe("WatchedPromise", function() {
 			$p1 = new WatchedPromise;
 			$p2 = $p1->call( $f );
 			expect( $p2 )->to->equal($p1);
-			$p2->otherwise( fn::val(null) );  # don't throw this later
+			$p2->otherwise( fun::val(null) );  # don't throw this later
 			expect( GP\is_rejected($p2) )->to->be->true;
 			expect( GP\inspect($p2) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
 		});
@@ -324,7 +324,7 @@ describe("WatchedPromise", function() {
 			$p1 = new WatchedPromise;
 			$p2 = $p1->call( $f );
 			expect( $p2 )->to->equal($p1);
-			$p2->otherwise( fn::val(null) );  # don't throw this later
+			$p2->otherwise( fun::val(null) );  # don't throw this later
 			expect( GP\is_rejected($p2) )->to->be->true;
 			expect( GP\inspect($p2) )->to->equal( array('state'=>'rejected', 'reason'=>$e) );
 		});
@@ -348,9 +348,9 @@ describe("WatchedPromise", function() {
 			it("returns itself and async rejects", function(){
 				$p1 = new WatchedPromise;
 				$p2 = new WatchedPromise;
-				$p2->call( fn::val($p1) );
+				$p2->call( fun::val($p1) );
 				$p1->reject( $e = new \DomainException("blah") );
-				$p2->otherwise( fn::val(null) );  # don't throw this later
+				$p2->otherwise( fun::val(null) );  # don't throw this later
 				expect( GP\is_rejected($p2) )->to->be->false;
 				Promise::sync();
 				expect( GP\is_rejected($p2) )->to->be->true;
@@ -359,7 +359,7 @@ describe("WatchedPromise", function() {
 			it("returns itself and async resolves", function(){
 				$p1 = new WatchedPromise;
 				$p2 = new WatchedPromise;
-				$p2->call( fn::val($p1) );
+				$p2->call( fun::val($p1) );
 				$p1->resolve( $v = array("blah") );
 				expect( GP\is_fulfilled($p2) )->to->be->false;
 				Promise::sync();
@@ -374,7 +374,7 @@ describe("WatchedPromise", function() {
 				$p2 = new WatchedPromise;
 				$p2->call( function() use ($p1, $e) { yield $p1; throw $e; } );
 				$p1->resolve( null );
-				$p2->otherwise( fn::val(null) );  # don't throw this later
+				$p2->otherwise( fun::val(null) );  # don't throw this later
 				expect( GP\is_rejected($p2) )->to->be->false;
 				Promise::sync();
 				expect( GP\is_rejected($p2) )->to->be->true;

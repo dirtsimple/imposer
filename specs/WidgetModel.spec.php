@@ -8,7 +8,7 @@ use dirtsimple\imposer\WatchedPromise;
 use dirtsimple\imposer\WidgetModel;
 
 use Brain\Monkey;
-use Brain\Monkey\Functions as fun;
+use Brain\Monkey\Functions as func;
 use Brain\Monkey\Filters;
 use Mockery;
 
@@ -33,11 +33,11 @@ describe("WidgetModel", function(){
 				'WP_Widget_Archives' => (object)array('id_base'=>'archives'),
 			)
 		);
-		fun\stubs(array(
+		func\stubs(array(
 			'sanitize_option'=> function($key, $val) { return $val; },
 		));
 		$this->stub_options = function(){
-			fun\stubs(array(
+			func\stubs(array(
 				'get_option'=>$this->get_option,
 				'update_option'=>$this->set_option,
 			));
@@ -50,13 +50,13 @@ describe("WidgetModel", function(){
 	describe("lookup()", function(){
 		it("uses from the `imposer_widget_ids` option", function(){
 			$this->set_option('imposer_widget_ids', array('foo'=>'bar-1'));
-			fun\expect('get_option')->once()->with('imposer_widget_ids', array())->andReturnUsing($this->get_option);
+			func\expect('get_option')->once()->with('imposer_widget_ids', array())->andReturnUsing($this->get_option);
 			expect( WidgetModel::lookup('foobar') )->to->be->null;
 			expect( WidgetModel::lookup('foo') )->to->equal('bar-1');
 		});
 		it("caches the option until a new widget is created", function(){
 			$this->set_option('imposer_widget_ids', array('foo'=>'bar-1'));
-			fun\expect('get_option')->once()->with('imposer_widget_ids', array())->andReturnUsing($this->get_option);
+			func\expect('get_option')->once()->with('imposer_widget_ids', array())->andReturnUsing($this->get_option);
 			expect( WidgetModel::lookup('foo') )->to->equal('bar-1');
 			expect( WidgetModel::lookup('foo') )->to->equal('bar-1');
 		});
@@ -102,7 +102,7 @@ describe("WidgetModel", function(){
 				);
 			});
 			it('patches the widget_$type option', function() {
-				fun\stubs(array(
+				func\stubs(array(
 					'get_option'=>$this->get_option,
 					'update_option'=>$this->set_option,
 				));
