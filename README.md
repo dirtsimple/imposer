@@ -945,8 +945,8 @@ my_plugin.message() { echo "$@"; }
 my_plugin.handle_json() { echo "The JSON configuration is:"; echo "$IMPOSER_JSON"; }
 
 event on "after_module"                my_plugin.message "The current state module ($IMPOSER_MODULE) is finished loading."
-event on "module_loaded" @1            my_plugin.message "Just loaded a module called:"
-event on "module_loaded_this/that"     my_plugin.message "Module 'this/that' has been loaded"
+event on "module loaded" @1            my_plugin.message "Just loaded a module called:"
+event on "module loaded this/that"     my_plugin.message "Module 'this/that' has been loaded"
 event on "persistent_modules_loaded"   my_plugin.message "The project configuration has been loaded."
 event on "all_modules_loaded"          my_plugin.message "All modules have finished loading."
 event on "before_apply"                my_plugin.handle_json
@@ -954,7 +954,7 @@ event on "after_apply"                 my_plugin.message "All PHP code has been 
 event on "block of css for mytheme" @4 my_plugin.message "Got CSS for mytheme:"
 ```
 
-The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `module_loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a module called:"`, which in this case will be the name of the state module loaded.)
+The system is very similar to Wordpress actions, except there is no priority system, and you specify the number of *additional* arguments your function takes by adding a `@` and a number before the callback.  (So above, the `module loaded` event will pass up to one argument to `my_plugin.message` in addition to `"Just loaded a module called:"`, which in this case will be the name of the state module loaded.)
 
 Also, you can put arguments after the name of your function, and any arguments supplied by the event will be added after those. Duplicate registrations have no effect, but you can register the same function multiple times for the same event if it has different arguments or a different argument count.
 
@@ -964,13 +964,13 @@ Imposer currently offers the following built-in events:
 
 * `after_module` -- fires when the *currently loading* state module (and all its dependencies) have finished loading.  (Note that the "currently loading" module is not necessarily the same as the module where a callback is being registered, which means that state module can define APIs that register callbacks to run when the *calling* state module is finished loading.)
 
-* `module_loaded` *modulename sourcefile*-- emitted when *any* module has finished loading.  Callbacks can register to receive up to two arguments: the module's name and the path to the source file it was loaded from.
+* `module loaded` *modulename sourcefile*-- emitted when *any* module has finished loading.  Callbacks can register to receive up to two arguments: the module's name and the path to the source file it was loaded from.
 
-* `module_loaded_`*modulename* -- a [promise-like event](https://github.com/bashup/events/#promise-like-events) that's resolved when the named state is loaded.  If you register a callback before the module is loaded, it will be called if/when the module is loaded later.  But if you register a callback *after* the module is already loaded, the callback will run immediately.  This allows you to have "addon" code or configuration that's only included if some other module is loaded, e.g.:
+* `module loaded `*modulename* -- a [promise-like event](https://github.com/bashup/events/#promise-like-events) that's resolved when the named state is loaded.  If you register a callback before the module is loaded, it will be called if/when the module is loaded later.  But if you register a callback *after* the module is already loaded, the callback will run immediately.  This allows you to have "addon" code or configuration that's only included if some other module is loaded, e.g.:
 
   ```shell
   # If some other state loads "otherplugin/something", load our addon for it:
-  event on module_loaded_"otherplugin/something" require "my_plugin/addons/otherplugin-something"
+  event on "module loaded otherplugin/moduleX" require "my_plugin/addons/my-moduleX-addon"
   ```
 
 * `persistent_modules_loaded` -- fires after the global and project-specific configuration files have been loaded, along with any states they `require`d.  This event is another promise-like event: you can register for it even after it has already happened, and your callback will be invoked immediately.

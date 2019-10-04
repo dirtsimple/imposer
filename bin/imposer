@@ -804,6 +804,9 @@ __load_module() {
     # Force error exit if module fails to compile or run
     mdsh-ok || exit "$?" "Module $1 ($2) aborted with code $?"
     event fire "after_module"
+    event emit "module loaded" "$1" "$2"
+    event resolve "module loaded $1" "$2"
+    # XXX Temporary backward-compatibility
     event emit "module_loaded" "$1" "$2"
     event resolve "module_loaded_$1" "$2"
 }
