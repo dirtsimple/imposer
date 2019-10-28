@@ -26,9 +26,9 @@ class MenuItem {
 		} elseif ( ($term = get($item->term)) !== false ) {
 			$name = yield $this->term($term, $item);
 		} elseif ( ($tag = get($item->tag)) !== false ) {
-			$name = $this->term( array('post_tag'=>$tag), $item );
+			$name = yield $this->term( (object) array('post_tag'=>$tag), $item );
 		} elseif ( ($category = get($item->category)) !== false ) {
-			$name = $this->term( array('category'=>$category), $item );
+			$name = yield $this->term( (object) array('category'=>$category), $item );
 		} else {
 			WP_CLI::error("Menu items must have one of: url, page, archive, tag, category, or term");
 		}
