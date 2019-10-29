@@ -17,7 +17,16 @@ class PostModel extends Model {
 		$no_rev = function($num, $post) use ($id) {
 			return ( $num && (int) $post->ID === (int) $id ) ? 0 : $num;
 		};
+		$force_fields = function($data, $postarr) {
+			$args = (new Bag($postarr))->select( array(
+				'post_modified'=>true,
+				'post_modified_gmt'=>true,
+			));
+			return wp_slash($args) + $data;
+		};
 		add_filter('wp_revisions_to_keep', $no_rev, 999999, 2);
+		add_filter('wp_insert_attachment_data', $force_fields, 999999, 2);
+		add_filter('wp_insert_post_data',       $force_fields, 999999, 2);
 		try {
 			$res = $this->check_save($id ? 'wp_update_post' : 'wp_insert_post', $args, true);
 			if ( $this->has('guid') && $this->guid != get_post_field('guid', $res, 'raw') ) {
@@ -30,6 +39,8 @@ class PostModel extends Model {
 			return $res;
 		} finally {
 			remove_filter('wp_revisions_to_keep', $no_rev, 999999, 2);
+			remove_filter('wp_insert_attachment_data', $force_fields, 999999, 2);
+			remove_filter('wp_insert_post_data',       $force_fields, 999999, 2);
 		}
 	}
 
