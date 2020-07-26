@@ -1,7 +1,6 @@
 <?php
 namespace dirtsimple\imposer;
 
-use dirtsimple\fn;
 use GuzzleHttp\Promise as GP;
 use GuzzleHttp\Promise\PromiseInterface;
 

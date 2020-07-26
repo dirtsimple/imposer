@@ -2,7 +2,6 @@
 namespace dirtsimple\imposer;
 
 use WP_CLI;
-use dirtsimple\fn;
 
 class __TaskBlockingException extends \Exception {}  # private!
 
@@ -63,7 +62,7 @@ class Task {
 		return $this->tries && ( ( $this->ready() && ! $this->hasSteps() ) || ! $this->needed() );
 	}
 
-	function hasSteps() { return count($this->steps); }
+	function hasSteps() { return !empty($this->steps); }
 
 	function ready() {
 		while ( $this->dependsOn ) {

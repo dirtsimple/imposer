@@ -2,7 +2,6 @@
 
 namespace dirtsimple\imposer;
 
-use dirtsimple\fn;
 use GuzzleHttp\Promise as GP;
 use WP_CLI;
 
