@@ -4,8 +4,8 @@ namespace dirtsimple\imposer;
 
 use dirtsimple\fun;
 use WP_CLI;
-use WP_CLI\Entity\RecursiveDataStructureTraverser;
-use WP_CLI\Entity\NonExistentKeyException;
+use WP_CLI\Traverser\RecursiveDataStructureTraverser;
+use WP_CLI\Exception\NonExistentKeyException;
 
 class Scheduler {
 
